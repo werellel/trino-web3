@@ -1,0 +1,198 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.web3;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import io.trino.plugin.web3.core.BlockRange;
+import io.trino.plugin.web3.core.Web3Split;
+import io.trino.plugin.web3.core.Web3TableHandle;
+import io.trino.plugin.web3.evm.EthereumBlockClient;
+import io.trino.plugin.web3.evm.EthereumBlocksTable;
+import io.trino.plugin.web3.evm.EthereumTransactionClient;
+import io.trino.plugin.web3.runtime.JsonRpcClient;
+import io.trino.Session;
+import io.trino.testing.MaterializedResult;
+import io.trino.testing.DistributedQueryRunner;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import static io.trino.testing.TestingSession.testSessionBuilder;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+public class TestEthereumBlocks
+{
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private HttpServer server;
+    private Duration responseDelay;
+
+    @BeforeEach
+    public void setUp()
+            throws IOException
+    {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", this::handleRequest);
+        server.start();
+    }
+
+    @AfterEach
+    public void tearDown()
+    {
+        server.stop(0);
+    }
+
+    @Test
+    public void testBoundedBlockQuery()
+            throws Exception
+    {
+        Session session = testSessionBuilder()
+                .setCatalog("web3")
+                .setSchema("ethereum")
+                .build();
+
+        try (DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session)
+                .setWorkerCount(1)
+                .build()) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://127.0.0.1:" + server.getAddress().getPort()));
+
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
+                    .containsExactly("blocks", "transactions");
+            assertThat(queryRunner.execute("SHOW COLUMNS FROM web3.ethereum.blocks").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1))
+                    .containsExactly(
+                            org.assertj.core.groups.Tuple.tuple("block_number", "bigint"),
+                            org.assertj.core.groups.Tuple.tuple("block_hash", "varchar"));
+
+            MaterializedResult result = queryRunner.execute("""
+                    SELECT block_number, block_hash
+                    FROM web3.ethereum.blocks
+                    WHERE block_number BETWEEN 23000000 AND 23000002
+                    ORDER BY block_number
+                    """);
+            assertThat(result.getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1))
+                    .containsExactly(
+                            org.assertj.core.groups.Tuple.tuple(23000000L, "0x15ef3c0"),
+                            org.assertj.core.groups.Tuple.tuple(23000001L, "0x15ef3c1"),
+                            org.assertj.core.groups.Tuple.tuple(23000002L, "0x15ef3c2"));
+            assertThat(queryRunner.execute("""
+                    SELECT block_hash
+                    FROM web3.ethereum.blocks
+                    WHERE block_number = 23000000
+                    """).getOnlyColumn()).containsExactly("0x15ef3c0");
+
+            MaterializedResult transactions = queryRunner.execute("""
+                    SELECT hash, block_number, from_address, to_address
+                    FROM web3.ethereum.transactions
+                    WHERE block_number BETWEEN 23000000 AND 23000001
+                    ORDER BY block_number
+                    """);
+            assertThat(transactions.getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
+                    .containsExactly(
+                            org.assertj.core.groups.Tuple.tuple("0xtx15ef3c0", 23000000L, "0xfrom", "0xto"),
+                            org.assertj.core.groups.Tuple.tuple("0xtx15ef3c1", 23000001L, "0xfrom", "0xto"));
+
+            assertThatThrownBy(() -> queryRunner.execute("SELECT * FROM web3.ethereum.blocks"))
+                    .hasMessageContaining("requires a bounded block_number predicate");
+        }
+    }
+
+    @Test
+    public void testPageSourceCancellationCancelsRpcFuture()
+            throws Exception
+    {
+        responseDelay = Duration.ofSeconds(1);
+        JsonRpcClient rpcClient = new JsonRpcClient(
+                HttpClient.newHttpClient(),
+                URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
+                Duration.ofSeconds(5),
+                1_024,
+                1_024);
+        Web3PageSourceProvider provider = new Web3PageSourceProvider(
+                new EthereumBlockClient(rpcClient),
+                new EthereumTransactionClient(rpcClient));
+        BlockRange range = new BlockRange(23000000, 23000000);
+        io.trino.spi.connector.ConnectorPageSource pageSource = provider.createPageSource(
+                null,
+                null,
+                new Web3Split(range),
+                new Web3TableHandle("ethereum", "blocks", Optional.of(range)),
+                java.util.List.of(EthereumBlocksTable.BLOCK_NUMBER_COLUMN),
+                null);
+
+        CompletableFuture<?> blocked = pageSource.isBlocked();
+        pageSource.close();
+
+        assertThat(pageSource.isFinished()).isTrue();
+        assertThat(blocked.isCancelled()).isTrue();
+    }
+
+    private void handleRequest(HttpExchange exchange)
+            throws IOException
+    {
+        if (responseDelay != null) {
+            try {
+                Thread.sleep(responseDelay);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        JsonNode requests = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        ArrayNode responses = OBJECT_MAPPER.createArrayNode();
+        for (JsonNode request : requests) {
+            String quantity = request.path("params").get(0).asText();
+            long blockNumber = Long.parseUnsignedLong(quantity.substring(2), 16);
+            ObjectNode response = OBJECT_MAPPER.createObjectNode();
+            response.put("jsonrpc", "2.0");
+            response.put("id", request.path("id").asLong());
+            ObjectNode block = response.putObject("result");
+            block.put("number", quantity);
+            block.put("hash", "0x" + Long.toHexString(blockNumber));
+            if (request.path("params").get(1).asBoolean()) {
+                ArrayNode transactions = block.putArray("transactions");
+                ObjectNode transaction = transactions.addObject();
+                transaction.put("hash", "0xtx" + Long.toHexString(blockNumber));
+                transaction.put("blockNumber", quantity);
+                transaction.put("from", "0xfrom");
+                transaction.put("to", "0xto");
+            }
+            responses.insert(0, response);
+        }
+        byte[] body = OBJECT_MAPPER.writeValueAsBytes(responses);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+        exchange.close();
+    }
+}

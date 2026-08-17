@@ -36,7 +36,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("information_schema");
+            assertThat(result.getOnlyColumn()).containsExactly("ethereum", "information_schema");
         }
     }
 }
