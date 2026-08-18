@@ -19,6 +19,8 @@ import io.trino.plugin.web3.core.Web3Split;
 import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.evm.EthereumBlockClient;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
+import io.trino.plugin.web3.runtime.RemoteExecution;
+import io.trino.plugin.web3.runtime.RemoteExecutionMetrics;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -29,9 +31,11 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.metrics.Metrics;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
@@ -86,13 +90,13 @@ public final class Web3PageSourceProvider
     private static final class EthereumBlocksPageSource
             implements ConnectorPageSource
     {
-        private final CompletableFuture<List<EthereumBlockClient.EthereumBlock>> blocks;
+        private final RemoteExecution<List<EthereumBlockClient.EthereumBlock>> blocks;
         private final List<Web3ColumnHandle> columns;
         private boolean finished;
         private long completedPositions;
 
         private EthereumBlocksPageSource(
-                CompletableFuture<List<EthereumBlockClient.EthereumBlock>> blocks,
+                RemoteExecution<List<EthereumBlockClient.EthereumBlock>> blocks,
                 List<Web3ColumnHandle> columns)
         {
             this.blocks = requireNonNull(blocks, "blocks is null");
@@ -126,16 +130,16 @@ public final class Web3PageSourceProvider
         @Override
         public CompletableFuture<?> isBlocked()
         {
-            return blocks;
+            return blocks.future();
         }
 
         @Override
         public SourcePage getNextSourcePage()
         {
-            if (finished || !blocks.isDone()) {
+            if (finished || !blocks.future().isDone()) {
                 return null;
             }
-            List<EthereumBlockClient.EthereumBlock> resolvedBlocks = blocks.join();
+            List<EthereumBlockClient.EthereumBlock> resolvedBlocks = blocks.future().join();
             PageBuilder pageBuilder = new PageBuilder(columns.stream()
                     .map(column -> column.ordinal() == 0 ? BIGINT : VARCHAR)
                     .toList());
@@ -162,24 +166,30 @@ public final class Web3PageSourceProvider
         }
 
         @Override
+        public Metrics getMetrics()
+        {
+            return toMetrics(blocks.metrics());
+        }
+
+        @Override
         public void close()
                 throws IOException
         {
             finished = true;
-            blocks.cancel(true);
+            blocks.future().cancel(true);
         }
     }
 
     private static final class EthereumTransactionsPageSource
             implements ConnectorPageSource
     {
-        private final CompletableFuture<List<EthereumTransactionClient.EthereumTransaction>> transactions;
+        private final RemoteExecution<List<EthereumTransactionClient.EthereumTransaction>> transactions;
         private final List<Web3ColumnHandle> columns;
         private boolean finished;
         private long completedPositions;
 
         private EthereumTransactionsPageSource(
-                CompletableFuture<List<EthereumTransactionClient.EthereumTransaction>> transactions,
+                RemoteExecution<List<EthereumTransactionClient.EthereumTransaction>> transactions,
                 List<Web3ColumnHandle> columns)
         {
             this.transactions = requireNonNull(transactions, "transactions is null");
@@ -213,16 +223,16 @@ public final class Web3PageSourceProvider
         @Override
         public CompletableFuture<?> isBlocked()
         {
-            return transactions;
+            return transactions.future();
         }
 
         @Override
         public SourcePage getNextSourcePage()
         {
-            if (finished || !transactions.isDone()) {
+            if (finished || !transactions.future().isDone()) {
                 return null;
             }
-            List<EthereumTransactionClient.EthereumTransaction> resolvedTransactions = transactions.join();
+            List<EthereumTransactionClient.EthereumTransaction> resolvedTransactions = transactions.future().join();
             PageBuilder pageBuilder = new PageBuilder(columns.stream()
                     .map(EthereumTransactionsPageSource::typeFor)
                     .toList());
@@ -271,11 +281,31 @@ public final class Web3PageSourceProvider
         }
 
         @Override
+        public Metrics getMetrics()
+        {
+            return toMetrics(transactions.metrics());
+        }
+
+        @Override
         public void close()
                 throws IOException
         {
             finished = true;
-            transactions.cancel(true);
+            transactions.future().cancel(true);
         }
+    }
+
+    private static Metrics toMetrics(RemoteExecutionMetrics metrics)
+    {
+        return new Metrics(Map.of(
+                "web3.rpc.requests", new Web3Count(metrics.requestCount()),
+                "web3.rpc.failures", new Web3Count(metrics.failureCount()),
+                "web3.rpc.retries", new Web3Count(metrics.retryCount()),
+                "web3.rpc.throttled", new Web3Count(metrics.throttledCount()),
+                "web3.rpc.in-flight", new Web3Count(metrics.inFlightRequests()),
+                "web3.rpc.failovers", new Web3Count(metrics.failoverCount()),
+                "web3.rpc.latency-nanos", new Web3Count(metrics.requestLatencyNanos()),
+                "web3.rpc.batches", new Web3Count(metrics.batchCount()),
+                "web3.rpc.batch-items", new Web3Count(metrics.batchItemCount())));
     }
 }

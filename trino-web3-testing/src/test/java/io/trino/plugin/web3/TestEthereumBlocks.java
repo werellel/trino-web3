@@ -25,7 +25,9 @@ import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.evm.EthereumBlockClient;
 import io.trino.plugin.web3.evm.EthereumBlocksTable;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
-import io.trino.plugin.web3.runtime.JsonRpcClient;
+import io.trino.plugin.web3.runtime.ExecutionPolicy;
+import io.trino.plugin.web3.runtime.ProviderProfile;
+import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
 import io.trino.Session;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.DistributedQueryRunner;
@@ -41,6 +43,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +55,7 @@ public class TestEthereumBlocks
 
     private HttpServer server;
     private Duration responseDelay;
+    private final AtomicInteger rpcRequestCount = new AtomicInteger();
 
     @BeforeEach
     public void setUp()
@@ -132,15 +136,16 @@ public class TestEthereumBlocks
             throws Exception
     {
         responseDelay = Duration.ofSeconds(1);
-        JsonRpcClient rpcClient = new JsonRpcClient(
+        RemoteExecutionRuntime rpcRuntime = new RemoteExecutionRuntime(
                 HttpClient.newHttpClient(),
-                URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
+                java.util.List.of(new ProviderProfile("primary", URI.create("http://127.0.0.1:" + server.getAddress().getPort()))),
                 Duration.ofSeconds(5),
                 1_024,
-                1_024);
+                1_024,
+                ExecutionPolicy.defaults());
         Web3PageSourceProvider provider = new Web3PageSourceProvider(
-                new EthereumBlockClient(rpcClient),
-                new EthereumTransactionClient(rpcClient));
+                new EthereumBlockClient(rpcRuntime),
+                new EthereumTransactionClient(rpcRuntime));
         BlockRange range = new BlockRange(23000000, 23000000);
         io.trino.spi.connector.ConnectorPageSource pageSource = provider.createPageSource(
                 null,
@@ -155,11 +160,89 @@ public class TestEthereumBlocks
 
         assertThat(pageSource.isFinished()).isTrue();
         assertThat(blocked.isCancelled()).isTrue();
+        rpcRuntime.close();
+    }
+
+    @Test
+    public void testDistributedQueryFallsBackFromUnavailablePrimary()
+            throws Exception
+    {
+        HttpServer unavailablePrimary = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        unavailablePrimary.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
+        unavailablePrimary.start();
+        Session session = testSessionBuilder().setCatalog("web3").setSchema("ethereum").build();
+        try (DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session).setWorkerCount(1).build()) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://127.0.0.1:" + unavailablePrimary.getAddress().getPort(),
+                    "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:" + server.getAddress().getPort(),
+                    "web3.rpc.initial-backoff-millis", "1",
+                    "web3.rpc.provider-cooldown-millis", "1"));
+
+            assertThat(queryRunner.execute("SELECT block_hash FROM web3.ethereum.blocks WHERE block_number = 23000000").getOnlyColumn())
+                    .containsExactly("0x15ef3c0");
+        }
+        finally {
+            unavailablePrimary.stop(0);
+        }
+    }
+
+    @Test
+    public void testPageSourceExposesRpcMetrics()
+            throws Exception
+    {
+        try (RemoteExecutionRuntime rpcRuntime = new RemoteExecutionRuntime(
+                HttpClient.newHttpClient(),
+                java.util.List.of(new ProviderProfile("primary", URI.create("http://127.0.0.1:" + server.getAddress().getPort()))),
+                Duration.ofSeconds(1),
+                1_024,
+                1_024,
+                ExecutionPolicy.defaults())) {
+            Web3PageSourceProvider provider = new Web3PageSourceProvider(
+                    new EthereumBlockClient(rpcRuntime),
+                    new EthereumTransactionClient(rpcRuntime));
+            BlockRange range = new BlockRange(23000000, 23000000);
+            io.trino.spi.connector.ConnectorPageSource pageSource = provider.createPageSource(
+                    null,
+                    null,
+                    new Web3Split(range),
+                    new Web3TableHandle("ethereum", "blocks", Optional.of(range)),
+                    java.util.List.of(EthereumBlocksTable.BLOCK_NUMBER_COLUMN),
+                    null);
+
+            pageSource.isBlocked().join();
+            assertThat(pageSource.getNextSourcePage()).isNotNull();
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.requests")).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batches")).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batch-items")).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.in-flight")).getTotal()).isZero();
+        }
+    }
+
+    @Test
+    public void testNonBatchProviderUsesSingleRequestEnvelope()
+            throws Exception
+    {
+        Session session = testSessionBuilder().setCatalog("web3").setSchema("ethereum").build();
+        try (DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session).setWorkerCount(1).build()) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://127.0.0.1:" + server.getAddress().getPort(),
+                    "web3.rpc.json-rpc-batch-enabled", "false"));
+
+            assertThat(queryRunner.execute("SELECT block_number FROM web3.ethereum.blocks WHERE block_number BETWEEN 23000000 AND 23000001").getOnlyColumn())
+                    .containsExactlyInAnyOrder(23000000L, 23000001L);
+            assertThat(rpcRequestCount).hasValue(2);
+        }
     }
 
     private void handleRequest(HttpExchange exchange)
             throws IOException
     {
+        rpcRequestCount.incrementAndGet();
         if (responseDelay != null) {
             try {
                 Thread.sleep(responseDelay);
@@ -168,7 +251,8 @@ public class TestEthereumBlocks
                 Thread.currentThread().interrupt();
             }
         }
-        JsonNode requests = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        Iterable<JsonNode> requests = requestDocument.isArray() ? requestDocument : java.util.List.of(requestDocument);
         ArrayNode responses = OBJECT_MAPPER.createArrayNode();
         for (JsonNode request : requests) {
             String quantity = request.path("params").get(0).asText();
@@ -189,7 +273,7 @@ public class TestEthereumBlocks
             }
             responses.insert(0, response);
         }
-        byte[] body = OBJECT_MAPPER.writeValueAsBytes(responses);
+        byte[] body = OBJECT_MAPPER.writeValueAsBytes(requestDocument.isArray() ? responses : responses.get(0));
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);

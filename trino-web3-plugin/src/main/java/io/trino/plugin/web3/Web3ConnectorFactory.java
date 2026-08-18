@@ -16,10 +16,14 @@ package io.trino.plugin.web3;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
+import io.trino.plugin.web3.runtime.ExecutionPolicy;
 
+import java.time.Duration;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -28,10 +32,20 @@ public final class Web3ConnectorFactory
 {
     public static final String CONNECTOR_NAME = "web3";
     private static final String ETHEREUM_RPC_URL = "web3.ethereum.rpc-url";
+    private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
     private static final String MAXIMUM_RPC_REQUEST_BYTES = "web3.maximum-rpc-request-bytes";
     private static final String MAXIMUM_RPC_RESPONSE_BYTES = "web3.maximum-rpc-response-bytes";
+    private static final String MAXIMUM_RPC_CONCURRENCY = "web3.rpc.maximum-concurrency";
+    private static final String MAXIMUM_RPC_QUEUE_SIZE = "web3.rpc.maximum-queue-size";
+    private static final String MAXIMUM_RPC_BATCH_SIZE = "web3.rpc.maximum-batch-size";
+    private static final String MAXIMUM_RPC_ATTEMPTS = "web3.rpc.maximum-attempts";
+    private static final String RPC_REQUESTS_PER_SECOND = "web3.rpc.requests-per-second";
+    private static final String RPC_INITIAL_BACKOFF_MILLIS = "web3.rpc.initial-backoff-millis";
+    private static final String RPC_MAXIMUM_BACKOFF_MILLIS = "web3.rpc.maximum-backoff-millis";
+    private static final String RPC_PROVIDER_COOLDOWN_MILLIS = "web3.rpc.provider-cooldown-millis";
+    private static final String RPC_JSON_RPC_BATCH_ENABLED = "web3.rpc.json-rpc-batch-enabled";
     private static final long DEFAULT_MAXIMUM_BLOCKS_PER_SPLIT = 100;
     private static final long DEFAULT_MAXIMUM_BLOCKS_PER_QUERY = 10_000;
     private static final int DEFAULT_MAXIMUM_RPC_REQUEST_BYTES = 1_048_576;
@@ -54,7 +68,18 @@ public final class Web3ConnectorFactory
             throw new IllegalArgumentException("Unsupported Web3 connector configuration property");
         }
 
-        Optional<URI> endpoint = Optional.ofNullable(config.get(ETHEREUM_RPC_URL)).map(Web3ConnectorFactory::parseHttpUri);
+        List<URI> endpoints = Stream.concat(
+                        Optional.ofNullable(config.get(ETHEREUM_RPC_URL)).map(value -> parseHttpUri(value, ETHEREUM_RPC_URL)).stream(),
+                        Optional.ofNullable(config.get(ETHEREUM_RPC_FALLBACK_URLS))
+                                .stream()
+                                .flatMap(value -> Stream.of(value.split(",")))
+                                .map(String::trim)
+                                .filter(value -> !value.isEmpty())
+                                .map(value -> parseHttpUri(value, ETHEREUM_RPC_FALLBACK_URLS)))
+                .toList();
+        if (endpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.ethereum.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
         long maximumBlocksPerSplit = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_SPLIT))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_SPLIT, 1_000))
                 .orElse(DEFAULT_MAXIMUM_BLOCKS_PER_SPLIT);
@@ -67,25 +92,61 @@ public final class Web3ConnectorFactory
         int maximumResponseBytes = Optional.ofNullable(config.get(MAXIMUM_RPC_RESPONSE_BYTES))
                 .map(value -> Math.toIntExact(parseBoundedPositiveLong(value, MAXIMUM_RPC_RESPONSE_BYTES, 64 * 1_048_576L)))
                 .orElse(DEFAULT_MAXIMUM_RPC_RESPONSE_BYTES);
-        return new Web3Connector(maximumBlocksPerSplit, maximumBlocksPerQuery, maximumRequestBytes, maximumResponseBytes, endpoint);
+        ExecutionPolicy defaults = ExecutionPolicy.defaults();
+        ExecutionPolicy executionPolicy = new ExecutionPolicy(
+                parseConfiguredLong(config, MAXIMUM_RPC_CONCURRENCY, defaults.maximumConcurrency(), 64),
+                parseConfiguredLong(config, MAXIMUM_RPC_QUEUE_SIZE, defaults.maximumQueueSize(), 4_096),
+                parseConfiguredLong(config, MAXIMUM_RPC_BATCH_SIZE, defaults.maximumBatchSize(), 100),
+                parseConfiguredLong(config, MAXIMUM_RPC_ATTEMPTS, defaults.maximumAttempts(), 5),
+                parseConfiguredLong(config, RPC_REQUESTS_PER_SECOND, defaults.requestsPerSecond(), 10_000),
+                Duration.ofMillis(parseConfiguredLong(config, RPC_INITIAL_BACKOFF_MILLIS, defaults.initialBackoff().toMillis(), 30_000)),
+                Duration.ofMillis(parseConfiguredLong(config, RPC_MAXIMUM_BACKOFF_MILLIS, defaults.maximumBackoff().toMillis(), 30_000)),
+                Duration.ofMillis(parseConfiguredLong(config, RPC_PROVIDER_COOLDOWN_MILLIS, defaults.providerCooldown().toMillis(), 30_000)));
+        boolean jsonRpcBatchEnabled = Optional.ofNullable(config.get(RPC_JSON_RPC_BATCH_ENABLED))
+                .map(value -> parseBoolean(value, RPC_JSON_RPC_BATCH_ENABLED))
+                .orElse(true);
+        return new Web3Connector(maximumBlocksPerSplit, maximumBlocksPerQuery, maximumRequestBytes, maximumResponseBytes, endpoints, jsonRpcBatchEnabled, executionPolicy);
     }
 
     private static boolean isSupportedProperty(String key)
     {
         return key.equals(ETHEREUM_RPC_URL) ||
+                key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
                 key.equals(MAXIMUM_RPC_REQUEST_BYTES) ||
-                key.equals(MAXIMUM_RPC_RESPONSE_BYTES);
+                key.equals(MAXIMUM_RPC_RESPONSE_BYTES) ||
+                key.equals(MAXIMUM_RPC_CONCURRENCY) ||
+                key.equals(MAXIMUM_RPC_QUEUE_SIZE) ||
+                key.equals(MAXIMUM_RPC_BATCH_SIZE) ||
+                key.equals(MAXIMUM_RPC_ATTEMPTS) ||
+                key.equals(RPC_REQUESTS_PER_SECOND) ||
+                key.equals(RPC_INITIAL_BACKOFF_MILLIS) ||
+                key.equals(RPC_MAXIMUM_BACKOFF_MILLIS) ||
+                key.equals(RPC_PROVIDER_COOLDOWN_MILLIS) ||
+                key.equals(RPC_JSON_RPC_BATCH_ENABLED);
     }
 
-    private static URI parseHttpUri(String value)
+    private static URI parseHttpUri(String value, String propertyName)
     {
-        URI uri = URI.create(value);
-        if (!uri.isAbsolute() || !(uri.getScheme().equals("http") || uri.getScheme().equals("https"))) {
-            throw new IllegalArgumentException(ETHEREUM_RPC_URL + " must be an absolute HTTP(S) URL");
+        URI uri;
+        try {
+            uri = URI.create(value);
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(propertyName + " contains an invalid URL", e.getCause());
+        }
+        if (!uri.isAbsolute() || !(uri.getScheme().equals("http") || uri.getScheme().equals("https")) || uri.getHost() == null || uri.getFragment() != null) {
+            throw new IllegalArgumentException(propertyName + " must contain absolute HTTP(S) URLs without fragments");
         }
         return uri;
+    }
+
+    private static int parseConfiguredLong(Map<String, String> config, String propertyName, long defaultValue, long maximum)
+    {
+        return Math.toIntExact(Optional.ofNullable(config.get(propertyName))
+                .map(value -> parseBoundedPositiveLong(value, propertyName, maximum))
+                .orElse(defaultValue));
     }
 
     private static long parseBoundedPositiveLong(String value, String propertyName, long maximum)
@@ -95,5 +156,16 @@ public final class Web3ConnectorFactory
             throw new IllegalArgumentException(propertyName + " must be between 1 and " + maximum);
         }
         return parsed;
+    }
+
+    private static boolean parseBoolean(String value, String propertyName)
+    {
+        if (value.equalsIgnoreCase("true")) {
+            return true;
+        }
+        if (value.equalsIgnoreCase("false")) {
+            return false;
+        }
+        throw new IllegalArgumentException(propertyName + " must be true or false");
     }
 }

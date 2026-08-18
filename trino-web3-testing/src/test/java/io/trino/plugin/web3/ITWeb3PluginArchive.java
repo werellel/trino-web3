@@ -67,9 +67,15 @@ public class ITWeb3PluginArchive
             throws Exception
     {
         HttpServer rpcServer = createRpcServer();
+        HttpServer unavailablePrimary = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        unavailablePrimary.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
         try (PluginDistribution pluginDistribution = unpackPluginDistribution();
                 var classLoader = PluginManager.createClassLoader("web3", pluginDistribution.jars())) {
             rpcServer.start();
+            unavailablePrimary.start();
             Plugin plugin = ServiceLoader.load(Plugin.class, classLoader).findFirst().orElseThrow();
             Session session = testSessionBuilder().setCatalog("web3").setSchema("ethereum").build();
 
@@ -77,7 +83,11 @@ public class ITWeb3PluginArchive
                 queryRunner.getCoordinator().getInstance(Key.get(HandleResolver.class)).registerClassLoader(classLoader);
                 queryRunner.installPlugin(plugin);
                 queryRunner.createCatalog("web3", "web3", Map.of(
-                        "web3.ethereum.rpc-url", "http://127.0.0.1:" + rpcServer.getAddress().getPort()));
+                        "web3.ethereum.rpc-url", "http://127.0.0.1:" + unavailablePrimary.getAddress().getPort(),
+                        "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:" + rpcServer.getAddress().getPort(),
+                        "web3.rpc.json-rpc-batch-enabled", "false",
+                        "web3.rpc.initial-backoff-millis", "1",
+                        "web3.rpc.provider-cooldown-millis", "1"));
 
                 assertThat(queryRunner.execute("""
                         SELECT block_hash
@@ -88,6 +98,7 @@ public class ITWeb3PluginArchive
         }
         finally {
             rpcServer.stop(0);
+            unavailablePrimary.stop(0);
         }
     }
 
@@ -126,7 +137,8 @@ public class ITWeb3PluginArchive
     private static void handleRpcRequest(HttpExchange exchange)
             throws IOException
     {
-        JsonNode requests = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        Iterable<JsonNode> requests = requestDocument.isArray() ? requestDocument : List.of(requestDocument);
         ArrayNode responses = OBJECT_MAPPER.createArrayNode();
         for (JsonNode request : requests) {
             String quantity = request.path("params").get(0).asText();
@@ -137,7 +149,7 @@ public class ITWeb3PluginArchive
             block.put("number", quantity);
             block.put("hash", "0x" + Long.toHexString(Long.parseUnsignedLong(quantity.substring(2), 16)));
         }
-        byte[] body = OBJECT_MAPPER.writeValueAsBytes(responses);
+        byte[] body = OBJECT_MAPPER.writeValueAsBytes(requestDocument.isArray() ? responses : responses.get(0));
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);

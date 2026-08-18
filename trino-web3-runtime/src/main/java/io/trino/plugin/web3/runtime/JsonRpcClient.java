@@ -24,6 +24,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import static java.util.Objects.requireNonNull;
 
 public final class JsonRpcClient
+        implements JsonRpcTransport
 {
     private final HttpClient httpClient;
     private final URI endpoint;
@@ -58,14 +60,27 @@ public final class JsonRpcClient
         objectMapper = new ObjectMapper();
     }
 
+    @Override
+    public CompletableFuture<JsonNode> execute(JsonRpcRequest request)
+    {
+        requireNonNull(request, "request is null");
+        return executeRequest(request, response -> parseResponse(response, request));
+    }
+
+    @Override
     public CompletableFuture<List<JsonNode>> executeBatch(List<JsonRpcRequest> requests)
     {
         if (requests.isEmpty()) {
             return CompletableFuture.completedFuture(List.of());
         }
+        return executeRequest(requests, response -> parseResponses(response, requests));
+    }
+
+    private <T> CompletableFuture<T> executeRequest(Object requestValue, java.util.function.Function<HttpResponse<InputStream>, T> parser)
+    {
         byte[] payload;
         try {
-            payload = objectMapper.writeValueAsBytes(requests);
+            payload = objectMapper.writeValueAsBytes(requestValue);
         }
         catch (IOException e) {
             return CompletableFuture.failedFuture(e);
@@ -80,7 +95,7 @@ public final class JsonRpcClient
                 .POST(HttpRequest.BodyPublishers.ofByteArray(payload))
                 .build();
         CompletableFuture<HttpResponse<InputStream>> response = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream());
-        CompletableFuture<List<JsonNode>> results = response.thenApply(value -> parseResponses(value, requests));
+        CompletableFuture<T> results = response.thenApply(parser);
         results.whenComplete((value, failure) -> {
             if (results.isCancelled()) {
                 response.cancel(true);
@@ -89,22 +104,15 @@ public final class JsonRpcClient
         return results;
     }
 
+    private JsonNode parseResponse(HttpResponse<InputStream> response, JsonRpcRequest request)
+    {
+        JsonNode responseNode = readResponse(response);
+        return parseResponseNode(responseNode, Map.of(request.id(), request));
+    }
+
     private List<JsonNode> parseResponses(HttpResponse<InputStream> response, List<JsonRpcRequest> requests)
     {
-        if (response.statusCode() != 200) {
-            throw new IllegalStateException("JSON-RPC endpoint returned HTTP " + response.statusCode());
-        }
-        JsonNode responseNodes;
-        try (InputStream body = response.body()) {
-            byte[] bytes = body.readNBytes(Math.addExact(maximumResponseBytes, 1));
-            if (bytes.length > maximumResponseBytes) {
-                throw new IllegalStateException("JSON-RPC response exceeds maximumResponseBytes");
-            }
-            responseNodes = objectMapper.readTree(bytes);
-        }
-        catch (IOException e) {
-            throw new IllegalStateException("JSON-RPC endpoint returned malformed JSON", e);
-        }
+        JsonNode responseNodes = readResponse(response);
         if (!responseNodes.isArray()) {
             throw new IllegalStateException("JSON-RPC batch response is not an array");
         }
@@ -117,23 +125,10 @@ public final class JsonRpcClient
             }
         }
         for (JsonNode responseNode : responseNodes) {
-            JsonNode id = responseNode.get("id");
-            if (id == null || !id.canConvertToLong()) {
-                throw new IllegalStateException("JSON-RPC response has no numeric id");
+            long id = responseId(responseNode, requestsById);
+            if (responsesById.put(id, parseResponseNode(responseNode, requestsById)) != null) {
+                throw new IllegalStateException("JSON-RPC response contains a duplicate id " + id);
             }
-            if (!requestsById.containsKey(id.asLong())) {
-                throw new IllegalStateException("JSON-RPC response contains an unexpected id " + id.asLong());
-            }
-            if (responseNode.has("error") == responseNode.has("result")) {
-                throw new IllegalStateException("JSON-RPC response must contain exactly one of result or error");
-            }
-            if (responseNode.has("error")) {
-                throw new IllegalStateException("JSON-RPC response contains an error for id " + id.asLong());
-            }
-            if (responsesById.containsKey(id.asLong())) {
-                throw new IllegalStateException("JSON-RPC response contains a duplicate id " + id.asLong());
-            }
-            responsesById.put(id.asLong(), responseNode.get("result"));
         }
         return requests.stream()
                 .map(request -> {
@@ -144,6 +139,51 @@ public final class JsonRpcClient
                     return result;
                 })
                 .toList();
+    }
+
+    private JsonNode readResponse(HttpResponse<InputStream> response)
+    {
+        if (response.statusCode() != 200) {
+            throw new JsonRpcHttpException(response.statusCode(), response.headers().firstValue("Retry-After"));
+        }
+        try (InputStream body = response.body()) {
+            byte[] bytes = body.readNBytes(Math.addExact(maximumResponseBytes, 1));
+            if (bytes.length > maximumResponseBytes) {
+                throw new IllegalStateException("JSON-RPC response exceeds maximumResponseBytes");
+            }
+            return objectMapper.readTree(bytes);
+        }
+        catch (IOException e) {
+            throw new IllegalStateException("JSON-RPC endpoint returned malformed JSON", e);
+        }
+    }
+
+    private static JsonNode parseResponseNode(JsonNode responseNode, Map<Long, JsonRpcRequest> requestsById)
+    {
+        long id = responseId(responseNode, requestsById);
+        if (responseNode.has("error") == responseNode.has("result")) {
+            throw new IllegalStateException("JSON-RPC response must contain exactly one of result or error");
+        }
+        if (responseNode.has("error")) {
+            JsonNode code = responseNode.path("error").get("code");
+            if (code == null || !code.canConvertToInt()) {
+                throw new IllegalStateException("JSON-RPC response error has no numeric code");
+            }
+            throw new JsonRpcResponseException(code.asInt(), id);
+        }
+        return responseNode.get("result");
+    }
+
+    private static long responseId(JsonNode responseNode, Map<Long, JsonRpcRequest> requestsById)
+    {
+        JsonNode id = responseNode.get("id");
+        if (id == null || !id.canConvertToLong()) {
+            throw new IllegalStateException("JSON-RPC response has no numeric id");
+        }
+        if (!requestsById.containsKey(id.asLong())) {
+            throw new IllegalStateException("JSON-RPC response contains an unexpected id " + id.asLong());
+        }
+        return id.asLong();
     }
 
     public record JsonRpcRequest(long id, String method, List<Object> params)
@@ -158,6 +198,51 @@ public final class JsonRpcClient
         public String jsonrpc()
         {
             return "2.0";
+        }
+    }
+
+    public static final class JsonRpcHttpException
+            extends RuntimeException
+    {
+        private static final long serialVersionUID = 1L;
+
+        private final int statusCode;
+        private final String retryAfter;
+
+        public JsonRpcHttpException(int statusCode, Optional<String> retryAfter)
+        {
+            super("JSON-RPC endpoint returned HTTP " + statusCode);
+            this.statusCode = statusCode;
+            this.retryAfter = requireNonNull(retryAfter, "retryAfter is null").orElse(null);
+        }
+
+        public int statusCode()
+        {
+            return statusCode;
+        }
+
+        public Optional<String> retryAfter()
+        {
+            return Optional.ofNullable(retryAfter);
+        }
+    }
+
+    public static final class JsonRpcResponseException
+            extends RuntimeException
+    {
+        private static final long serialVersionUID = 1L;
+
+        private final int errorCode;
+
+        public JsonRpcResponseException(int errorCode, long requestId)
+        {
+            super("JSON-RPC endpoint returned error code " + errorCode + " for id " + requestId);
+            this.errorCode = errorCode;
+        }
+
+        public int errorCode()
+        {
+            return errorCode;
         }
     }
 }

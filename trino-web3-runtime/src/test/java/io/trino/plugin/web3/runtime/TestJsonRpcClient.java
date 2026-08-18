@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestJsonRpcClient
@@ -108,6 +109,24 @@ public class TestJsonRpcClient
         assertThatThrownBy(() -> client.executeBatch(List.of(request())).join())
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testExecutesSingleRequestWithoutBatchEnvelope()
+    {
+        response = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0x1\"}".getBytes();
+
+        assertThat(client(Duration.ofSeconds(1)).execute(request()).join().asText()).isEqualTo("0x1");
+    }
+
+    @Test
+    public void testClassifiesUnsupportedMethodError()
+    {
+        response = "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"method not found\"}}".getBytes();
+
+        assertThatThrownBy(() -> client(Duration.ofSeconds(1)).execute(request()).join())
+                .hasRootCauseInstanceOf(JsonRpcClient.JsonRpcResponseException.class)
+                .hasRootCauseMessage("JSON-RPC endpoint returned error code -32601 for id 1");
     }
 
     private JsonRpcClient client(Duration timeout)

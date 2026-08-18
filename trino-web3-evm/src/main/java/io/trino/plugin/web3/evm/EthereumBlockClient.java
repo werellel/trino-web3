@@ -15,44 +15,39 @@ package io.trino.plugin.web3.evm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.trino.plugin.web3.core.BlockRange;
-import io.trino.plugin.web3.runtime.JsonRpcClient;
+import io.trino.plugin.web3.runtime.RemoteExecution;
+import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
+import io.trino.plugin.web3.runtime.RemoteOperation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static java.lang.Long.parseUnsignedLong;
 import static java.util.Objects.requireNonNull;
 
 public final class EthereumBlockClient
 {
-    private final JsonRpcClient jsonRpcClient;
+    private final RemoteExecutionRuntime runtime;
 
-    public EthereumBlockClient(JsonRpcClient jsonRpcClient)
+    public EthereumBlockClient(RemoteExecutionRuntime runtime)
     {
-        this.jsonRpcClient = requireNonNull(jsonRpcClient, "jsonRpcClient is null");
+        this.runtime = requireNonNull(runtime, "runtime is null");
     }
 
-    public CompletableFuture<List<EthereumBlock>> getBlocks(BlockRange range)
+    public RemoteExecution<List<EthereumBlock>> getBlocks(BlockRange range)
     {
-        List<JsonRpcClient.JsonRpcRequest> requests = new ArrayList<>();
+        List<RemoteOperation> requests = new ArrayList<>();
         for (long blockNumber = range.startInclusive(); blockNumber <= range.endInclusive(); blockNumber++) {
-            requests.add(new JsonRpcClient.JsonRpcRequest(
-                    blockNumber,
+            requests.add(new RemoteOperation(
                     "eth_getBlockByNumber",
                     List.of(toHex(blockNumber), false)));
             if (blockNumber == Long.MAX_VALUE) {
                 break;
             }
         }
-        CompletableFuture<List<JsonNode>> responses = jsonRpcClient.executeBatch(requests);
-        CompletableFuture<List<EthereumBlock>> blocks = responses.thenApply(results -> decode(range, results));
-        blocks.whenComplete((value, failure) -> {
-            if (blocks.isCancelled()) {
-                responses.cancel(true);
-            }
-        });
-        return blocks;
+        RemoteExecution<List<JsonNode>> responses = runtime.executeBatchWithMetrics(requests)
+                .map(results -> results.stream().map(result -> result.value()).toList());
+        return responses.map(results -> decode(range, results));
     }
 
     private static List<EthereumBlock> decode(BlockRange range, List<JsonNode> results)
