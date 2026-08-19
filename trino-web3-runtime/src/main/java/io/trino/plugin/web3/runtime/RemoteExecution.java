@@ -15,6 +15,7 @@ package io.trino.plugin.web3.runtime;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
@@ -24,11 +25,18 @@ public final class RemoteExecution<T>
 {
     private final CompletableFuture<T> future;
     private final Supplier<RemoteExecutionMetrics> metrics;
+    private final LongSupplier memoryUsage;
 
     RemoteExecution(CompletableFuture<T> future, Supplier<RemoteExecutionMetrics> metrics)
     {
+        this(future, metrics, () -> 0);
+    }
+
+    RemoteExecution(CompletableFuture<T> future, Supplier<RemoteExecutionMetrics> metrics, LongSupplier memoryUsage)
+    {
         this.future = requireNonNull(future, "future is null");
         this.metrics = requireNonNull(metrics, "metrics is null");
+        this.memoryUsage = requireNonNull(memoryUsage, "memoryUsage is null");
     }
 
     public CompletableFuture<T> future()
@@ -41,6 +49,11 @@ public final class RemoteExecution<T>
         return metrics.get();
     }
 
+    public long memoryUsage()
+    {
+        return memoryUsage.getAsLong();
+    }
+
     public <R> RemoteExecution<R> map(Function<T, R> mapper)
     {
         requireNonNull(mapper, "mapper is null");
@@ -50,6 +63,6 @@ public final class RemoteExecution<T>
                 future.cancel(true);
             }
         });
-        return new RemoteExecution<>(mapped, metrics);
+        return new RemoteExecution<>(mapped, metrics, memoryUsage);
     }
 }

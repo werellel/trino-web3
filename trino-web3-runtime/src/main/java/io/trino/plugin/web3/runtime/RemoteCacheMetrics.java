@@ -13,21 +13,7 @@
  */
 package io.trino.plugin.web3.runtime;
 
-/** Immutable worker-local runtime metrics with no request-specific labels. */
-public record RemoteExecutionMetrics(
-        long requestCount,
-        long failureCount,
-        long retryCount,
-        long throttledCount,
-        long inFlightRequests,
-        long failoverCount,
-        long requestLatencyNanos,
-        long batchCount,
-        long batchItemCount,
-        long cacheHitCount,
-        long cacheMissCount,
-        long cacheRevalidationCount,
-        long cacheBytesRead,
-        long cacheBytesWritten)
+/** Worker-global cache state. It is intentionally separate from PageSource metrics. */
+public record RemoteCacheMetrics(long entryCount, long retainedBytes, long evictionCount)
 {
 }

@@ -13,11 +13,14 @@
  */
 package io.trino.plugin.web3;
 
+import io.airlift.slice.Slice;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.BlockRange;
 import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.evm.EthereumBlocksTable;
 import io.trino.plugin.web3.evm.EthereumTransactionsTable;
+import io.trino.spi.StandardErrorCode;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -30,8 +33,11 @@ import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.SchemaTableName;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 import static java.lang.Math.addExact;
 import static java.lang.Math.subtractExact;
@@ -39,6 +45,18 @@ import static java.lang.Math.subtractExact;
 public final class Web3Metadata
         implements ConnectorMetadata
 {
+    private static final Pattern TRANSACTION_HASH_PATTERN = Pattern.compile("0x[0-9a-f]{64}");
+
+    private final int maximumTransactionHashesPerQuery;
+
+    public Web3Metadata(int maximumTransactionHashesPerQuery)
+    {
+        if (maximumTransactionHashesPerQuery < 1) {
+            throw new IllegalArgumentException("maximumTransactionHashesPerQuery must be positive");
+        }
+        this.maximumTransactionHashesPerQuery = maximumTransactionHashesPerQuery;
+    }
+
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
@@ -109,6 +127,22 @@ public final class Web3Metadata
     {
         verifyEthereumTable(table);
         Web3TableHandle web3Table = (Web3TableHandle) table;
+        if (isTransactionsTable(table) && web3Table.transactionHashes().isEmpty() && web3Table.blockRange().isEmpty()) {
+            Optional<List<String>> transactionHashes = constraint.getSummary().getDomains()
+                    .map(domains -> domains.get(EthereumTransactionsTable.HASH_COLUMN))
+                    .flatMap(this::toTransactionHashes);
+            if (transactionHashes.isPresent()) {
+                Web3TableHandle newTable = web3Table.withTransactionHashes(transactionHashes.orElseThrow());
+                return Optional.of(new ConstraintApplicationResult<>(
+                        newTable,
+                        constraint.getSummary(),
+                        constraint.getExpression(),
+                        false));
+            }
+        }
+        if (!web3Table.transactionHashes().isEmpty()) {
+            return Optional.empty();
+        }
         Web3ColumnHandle blockNumberColumn = isBlocksTable(table) ?
                 EthereumBlocksTable.BLOCK_NUMBER_COLUMN : EthereumTransactionsTable.BLOCK_NUMBER_COLUMN;
         Optional<BlockRange> pushedRange = constraint.getSummary().getDomains()
@@ -128,6 +162,30 @@ public final class Web3Metadata
                 constraint.getSummary().filter((column, domain) -> !column.equals(blockNumberColumn)),
                 constraint.getExpression(),
                 false));
+    }
+
+    private Optional<List<String>> toTransactionHashes(io.trino.spi.predicate.Domain domain)
+    {
+        if (domain == null || domain.isNullAllowed() || !domain.getValues().isDiscreteSet()) {
+            return Optional.empty();
+        }
+        TreeSet<String> hashes = new TreeSet<>();
+        for (Object value : domain.getValues().getDiscreteSet()) {
+            String hash = ((Slice) value).toStringUtf8().toLowerCase(Locale.ENGLISH);
+            if (!TRANSACTION_HASH_PATTERN.matcher(hash).matches()) {
+                return Optional.empty();
+            }
+            hashes.add(hash);
+            if (hashes.size() > maximumTransactionHashesPerQuery) {
+                throw new TrinoException(
+                        StandardErrorCode.NOT_SUPPORTED,
+                        "ethereum.transactions hash predicate exceeds the configured query limit of " + maximumTransactionHashesPerQuery);
+            }
+        }
+        if (hashes.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(List.copyOf(hashes));
     }
 
     private static Optional<BlockRange> toBoundedBlockRange(io.trino.spi.predicate.Domain domain)
@@ -181,6 +239,13 @@ public final class Web3Metadata
                 !web3Table.tableName().equals(EthereumTransactionsTable.TABLE_NAME)) {
             throw new IllegalArgumentException("table is not ethereum.transactions");
         }
+    }
+
+    private static boolean isTransactionsTable(ConnectorTableHandle table)
+    {
+        return table instanceof Web3TableHandle web3Table &&
+                web3Table.schemaName().equals(EthereumTransactionsTable.SCHEMA_NAME) &&
+                web3Table.tableName().equals(EthereumTransactionsTable.TABLE_NAME);
     }
 
     private static void verifyEthereumTable(ConnectorTableHandle table)

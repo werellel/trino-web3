@@ -17,6 +17,8 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
+import io.airlift.units.DataSize;
+import io.trino.plugin.web3.runtime.RemoteCacheConfig;
 
 import java.time.Duration;
 import java.net.URI;
@@ -35,6 +37,7 @@ public final class Web3ConnectorFactory
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
+    private static final String MAXIMUM_TRANSACTION_HASHES_PER_QUERY = "web3.maximum-transaction-hashes-per-query";
     private static final String MAXIMUM_RPC_REQUEST_BYTES = "web3.maximum-rpc-request-bytes";
     private static final String MAXIMUM_RPC_RESPONSE_BYTES = "web3.maximum-rpc-response-bytes";
     private static final String MAXIMUM_RPC_CONCURRENCY = "web3.rpc.maximum-concurrency";
@@ -46,8 +49,13 @@ public final class Web3ConnectorFactory
     private static final String RPC_MAXIMUM_BACKOFF_MILLIS = "web3.rpc.maximum-backoff-millis";
     private static final String RPC_PROVIDER_COOLDOWN_MILLIS = "web3.rpc.provider-cooldown-millis";
     private static final String RPC_JSON_RPC_BATCH_ENABLED = "web3.rpc.json-rpc-batch-enabled";
+    private static final String CACHE_ENABLED = "web3.cache.enabled";
+    private static final String CACHE_MAXIMUM_SIZE = "web3.cache.maximum-size";
+    private static final String CACHE_MAXIMUM_ENTRY_SIZE = "web3.cache.maximum-entry-size";
+    private static final String CACHE_TTL = "web3.cache.ttl";
     private static final long DEFAULT_MAXIMUM_BLOCKS_PER_SPLIT = 100;
     private static final long DEFAULT_MAXIMUM_BLOCKS_PER_QUERY = 10_000;
+    private static final int DEFAULT_MAXIMUM_TRANSACTION_HASHES_PER_QUERY = 1_000;
     private static final int DEFAULT_MAXIMUM_RPC_REQUEST_BYTES = 1_048_576;
     private static final int DEFAULT_MAXIMUM_RPC_RESPONSE_BYTES = 16 * 1_048_576;
 
@@ -86,6 +94,11 @@ public final class Web3ConnectorFactory
         long maximumBlocksPerQuery = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_QUERY))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_QUERY, 10_000))
                 .orElse(DEFAULT_MAXIMUM_BLOCKS_PER_QUERY);
+        int maximumTransactionHashesPerQuery = parseConfiguredLong(
+                config,
+                MAXIMUM_TRANSACTION_HASHES_PER_QUERY,
+                DEFAULT_MAXIMUM_TRANSACTION_HASHES_PER_QUERY,
+                10_000);
         int maximumRequestBytes = Optional.ofNullable(config.get(MAXIMUM_RPC_REQUEST_BYTES))
                 .map(value -> Math.toIntExact(parseBoundedPositiveLong(value, MAXIMUM_RPC_REQUEST_BYTES, 1_048_576)))
                 .orElse(DEFAULT_MAXIMUM_RPC_REQUEST_BYTES);
@@ -105,7 +118,34 @@ public final class Web3ConnectorFactory
         boolean jsonRpcBatchEnabled = Optional.ofNullable(config.get(RPC_JSON_RPC_BATCH_ENABLED))
                 .map(value -> parseBoolean(value, RPC_JSON_RPC_BATCH_ENABLED))
                 .orElse(true);
-        return new Web3Connector(maximumBlocksPerSplit, maximumBlocksPerQuery, maximumRequestBytes, maximumResponseBytes, endpoints, jsonRpcBatchEnabled, executionPolicy);
+        boolean cacheEnabled = Optional.ofNullable(config.get(CACHE_ENABLED))
+                .map(value -> parseBoolean(value, CACHE_ENABLED))
+                .orElse(false);
+        long cacheMaximumSize = Optional.ofNullable(config.get(CACHE_MAXIMUM_SIZE))
+                .map(value -> parseDataSize(value, CACHE_MAXIMUM_SIZE, 1_048_576, 1_073_741_824))
+                .orElse(128L * 1_048_576);
+        int cacheMaximumEntrySize = Math.toIntExact(Optional.ofNullable(config.get(CACHE_MAXIMUM_ENTRY_SIZE))
+                .map(value -> parseDataSize(value, CACHE_MAXIMUM_ENTRY_SIZE, 1_024, 1_073_741_824))
+                .orElse(8L * 1_048_576));
+        if (cacheEnabled && cacheMaximumEntrySize > cacheMaximumSize) {
+            throw new IllegalArgumentException("web3.cache.maximum-entry-size must not exceed web3.cache.maximum-size");
+        }
+        if (cacheEnabled && cacheMaximumEntrySize > maximumResponseBytes) {
+            throw new IllegalArgumentException("web3.cache.maximum-entry-size must not exceed web3.maximum-rpc-response-bytes");
+        }
+        Optional<Duration> cacheTtl = Optional.ofNullable(config.get(CACHE_TTL))
+                .map(value -> parseDuration(value, CACHE_TTL));
+        RemoteCacheConfig cacheConfig = new RemoteCacheConfig(cacheEnabled, cacheMaximumSize, cacheMaximumEntrySize, cacheTtl);
+        return new Web3Connector(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                endpoints,
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig);
     }
 
     private static boolean isSupportedProperty(String key)
@@ -114,6 +154,7 @@ public final class Web3ConnectorFactory
                 key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
+                key.equals(MAXIMUM_TRANSACTION_HASHES_PER_QUERY) ||
                 key.equals(MAXIMUM_RPC_REQUEST_BYTES) ||
                 key.equals(MAXIMUM_RPC_RESPONSE_BYTES) ||
                 key.equals(MAXIMUM_RPC_CONCURRENCY) ||
@@ -124,7 +165,11 @@ public final class Web3ConnectorFactory
                 key.equals(RPC_INITIAL_BACKOFF_MILLIS) ||
                 key.equals(RPC_MAXIMUM_BACKOFF_MILLIS) ||
                 key.equals(RPC_PROVIDER_COOLDOWN_MILLIS) ||
-                key.equals(RPC_JSON_RPC_BATCH_ENABLED);
+                key.equals(RPC_JSON_RPC_BATCH_ENABLED) ||
+                key.equals(CACHE_ENABLED) ||
+                key.equals(CACHE_MAXIMUM_SIZE) ||
+                key.equals(CACHE_MAXIMUM_ENTRY_SIZE) ||
+                key.equals(CACHE_TTL);
     }
 
     private static URI parseHttpUri(String value, String propertyName)
@@ -167,5 +212,35 @@ public final class Web3ConnectorFactory
             return false;
         }
         throw new IllegalArgumentException(propertyName + " must be true or false");
+    }
+
+    private static long parseDataSize(String value, String propertyName, long minimumBytes, long maximumBytes)
+    {
+        long bytes;
+        try {
+            bytes = DataSize.valueOf(value).toBytes();
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(propertyName + " must contain a valid data size", e);
+        }
+        if (bytes < minimumBytes || bytes > maximumBytes) {
+            throw new IllegalArgumentException(propertyName + " must be between " + DataSize.ofBytes(minimumBytes) + " and " + DataSize.ofBytes(maximumBytes));
+        }
+        return bytes;
+    }
+
+    private static Duration parseDuration(String value, String propertyName)
+    {
+        Duration duration;
+        try {
+            duration = io.airlift.units.Duration.valueOf(value).toJavaTime();
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(propertyName + " must contain a valid duration", e);
+        }
+        if (duration.isZero() || duration.isNegative()) {
+            throw new IllegalArgumentException(propertyName + " must be positive");
+        }
+        return duration;
     }
 }

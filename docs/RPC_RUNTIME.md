@@ -26,6 +26,12 @@ runtime uses one operation per wire request so failover never sends an
 unsupported envelope. Every initial request and retry obtains a separate
 asynchronous rate permit.
 
+Logical callers may submit single-operation executions even when two values
+are needed together. The scheduler still coalesces compatible operations when
+the configured maximum batch size permits it. This allows EVM finality reads to
+work correctly when `web3.rpc.maximum-batch-size=1` without bypassing runtime
+batch planning.
+
 ## Failure handling
 
 Timeouts, connection failures, HTTP 429, and HTTP 5xx are retryable within the
@@ -59,8 +65,31 @@ Each single-flight subscriber is independently cancellable. A queued operation
 is removed as soon as its last subscriber cancels. A wire batch is cancelled
 only after every operation in that batch has no remaining subscribers.
 
-## M3 boundary
+## Cache integration
 
-The runtime does not cache results. Single-flight only shares identical
-in-flight work and removes the entry after success, failure, or cancellation.
-Finality and reorganization semantics remain outside the runtime until M3.
+M3 adds a bounded, worker-local result cache owned by the catalog runtime.
+The runtime owns storage, serialized-value isolation, weight/entry limits,
+optional TTL, eviction statistics, and execution-scoped cache counters. It
+does not decide whether a response is immutable. The EVM adapter validates a
+response, resolves its finality and canonical identity, and explicitly admits
+it only after the complete logical result is valid.
+
+Cache misses continue through M2's asynchronous single-flight scheduler.
+Closing the runtime cancels queued/in-flight work, clears retained cache
+entries, and closes the scheduler. Cache keys and metrics contain no endpoint,
+credential, query ID, address, or provider-specific dimension.
+
+Cache JSON serialization and deserialization do not run while holding the RPC
+scheduler lock. A separate cache lifecycle lock coordinates connector shutdown,
+so a large bounded cache value cannot delay queue admission, cancellation, or
+single-flight bookkeeping. Each execution has a cache-read budget capped by
+the configured maximum RPC response size.
+
+Adapter admission is execution-cancellation aware. Serialization may finish
+after cancellation begins, but the final cache insertion is serialized with
+the execution cancellation state and is skipped once cancellation wins.
+
+Provider network identity is not inferred by the generic runtime. M3 requires
+all endpoints in a catalog to address the same chain. M5 will add a
+chain-adapter operation executed through a provider-targeted runtime path so
+endpoint-by-endpoint identity verification does not bypass transport ownership.

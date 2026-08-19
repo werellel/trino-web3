@@ -11,8 +11,25 @@ cooldown, subscriber-independent cancellation, and queued-work removal.
 Connector tests cover bounded EVM queries, PageSource metrics, catalog security
 validation, distributed fallback, and cancellation. The packaged-plugin
 integration test extracts the distribution ZIP, loads it with a Trino plugin
-classloader, and executes a non-batch fallback query against local mock RPC
-servers.
+classloader, proves that Trino's cache library is packaged, and executes a
+cache-enabled non-batch fallback query against local mock RPC servers.
+
+M3 tests cover weight eviction, maximum-entry bypass, caller-value isolation,
+cache lifecycle cleanup, scoped metric isolation, finalized block and
+transaction reuse, hash normalization, pending and missing transactions,
+unsupported and inverted finality, malformed and missing block non-admission,
+near-head block and transaction reorganization, bounded transaction-hash
+equality/IN pushdown, per-query hash limits, and worker-local distributed
+warm-up. The distributed test permits one cold load per execution node and
+asserts remote request reduction rather than assuming a cluster-global cache.
+Focused regressions prove that a warm finalized query performs no finality or
+data RPC, the finality snapshot refreshes after its deterministic deadline,
+cancelled executions reject late admission, decoded cache reads respect an
+execution byte budget, PageSources report retained row memory, and uppercase
+hash literals remain subject to Trino's case-sensitive residual predicate.
+The suite also covers deterministic TTL expiry, finality with a logical batch
+limit of one, Metadata-stage hash-limit rejection, and repeated cache-enabled
+timeout, HTTP 429, and partial-batch failures with zero admission.
 
 A controllable in-memory scheduler and transport validate cooldown and rate
 admission without wall-clock sleeps. The deterministic suite also covers mixed
@@ -23,3 +40,17 @@ shutdown during backoff, and cancellation of the underlying transport future.
 Trino 475 may log a late remote-task callback rejection while a standalone test
 server is closing. This is test-harness teardown noise after query completion;
 Failsafe results and connector resource cleanup remain authoritative.
+
+`BenchmarkRemoteResultCache` is a JMH benchmark for cache hit, miss, and
+serialization/admission costs at 1 KiB and 64 KiB payload sizes. Generate its
+test classes and classpath, then run it with the same Java 23 used by Maven:
+
+```bash
+mvn -pl trino-web3-runtime clean test-compile
+mvn -pl trino-web3-runtime dependency:build-classpath \
+    -Dmdep.includeScope=test \
+    -Dmdep.outputFile=target/jmh-classpath.txt
+JAVA_23_BIN=/path/to/java-23/bin/java
+"$JAVA_23_BIN" -cp "trino-web3-runtime/target/test-classes:trino-web3-runtime/target/classes:$(< trino-web3-runtime/target/jmh-classpath.txt)" \
+    org.openjdk.jmh.Main '.*BenchmarkRemoteResultCache.*'
+```

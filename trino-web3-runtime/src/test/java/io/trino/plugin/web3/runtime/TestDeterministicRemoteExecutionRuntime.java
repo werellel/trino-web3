@@ -139,6 +139,118 @@ public class TestDeterministicRemoteExecutionRuntime
     }
 
     @Test
+    public void testCacheMetricsAreIsolatedPerExecutionContext()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        ProviderProfile provider = provider("primary", true);
+        RemoteCacheKey key = new RemoteCacheKey("ethereum", "block", "0x1", "full=false", 1);
+        try (RemoteExecutionRuntime runtime = new RemoteExecutionRuntime(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 10, 1, 100),
+                scheduler,
+                new RemoteCacheConfig(true, 4_096, 2_048, Optional.empty()))) {
+            RemoteExecutionRuntime.ExecutionContext cold = runtime.newExecutionContext();
+            RemoteExecutionRuntime.ExecutionContext warm = runtime.newExecutionContext();
+
+            assertThat(cold.getCached(key)).isEmpty();
+            cold.admit(key, text("value"));
+            assertThat(warm.getCached(key)).contains(text("value"));
+
+            assertThat(cold.metrics().cacheMissCount()).isOne();
+            assertThat(cold.metrics().cacheHitCount()).isZero();
+            assertThat(cold.metrics().cacheBytesWritten()).isPositive();
+            assertThat(warm.metrics().cacheMissCount()).isZero();
+            assertThat(warm.metrics().cacheHitCount()).isOne();
+            assertThat(warm.metrics().cacheBytesRead()).isPositive();
+        }
+    }
+
+    @Test
+    public void testRuntimeClosePreventsLateCacheAdmission()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        ProviderProfile provider = provider("primary", true);
+        RemoteExecutionRuntime runtime = new RemoteExecutionRuntime(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 10, 1, 100),
+                scheduler,
+                new RemoteCacheConfig(true, 4_096, 2_048, Optional.empty()));
+        RemoteExecutionRuntime.ExecutionContext context = runtime.newExecutionContext();
+        RemoteCacheKey key = new RemoteCacheKey("ethereum", "block", "0x1", "full=false", 1);
+        context.admit(key, text("value"));
+        assertThat(runtime.cacheMetrics().entryCount()).isOne();
+
+        runtime.close();
+        context.admit(key, text("late"));
+
+        assertThat(runtime.cacheMetrics().entryCount()).isZero();
+        assertThat(scheduler.isClosed()).isTrue();
+    }
+
+    @Test
+    public void testCancelledExecutionContextPreventsCacheAdmission()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        ProviderProfile provider = provider("primary", true);
+        try (RemoteExecutionRuntime runtime = new RemoteExecutionRuntime(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 10, 1, 100),
+                scheduler,
+                new RemoteCacheConfig(true, 4_096, 2_048, Optional.empty()))) {
+            RemoteExecutionRuntime.ExecutionContext context = runtime.newExecutionContext();
+            RemoteCacheKey key = new RemoteCacheKey("ethereum", "block", "0x1", "full=false", 1);
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            RemoteExecution<Void> execution = context.execution(result);
+
+            assertThat(execution.future().cancel(true)).isTrue();
+            context.admit(key, text("late"));
+
+            assertThat(runtime.cacheMetrics().entryCount()).isZero();
+            assertThat(context.metrics().cacheBytesWritten()).isZero();
+        }
+    }
+
+    @Test
+    public void testExecutionCacheReadsAreBoundedAndReportedAsMemory()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        ProviderProfile provider = provider("primary", true);
+        RemoteCacheKey firstKey = new RemoteCacheKey("ethereum", "block", "0x1", "full=false", 1);
+        RemoteCacheKey secondKey = new RemoteCacheKey("ethereum", "block", "0x2", "full=false", 1);
+        try (RemoteExecutionRuntime runtime = new RemoteExecutionRuntime(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 10, 1, 100),
+                scheduler,
+                new RemoteCacheConfig(true, 4_096, 2_048, Optional.empty()),
+                8)) {
+            RemoteExecutionRuntime.ExecutionContext writer = runtime.newExecutionContext();
+            writer.admit(firstKey, text("first"));
+            writer.admit(secondKey, text("second"));
+            RemoteExecutionRuntime.ExecutionContext reader = runtime.newExecutionContext();
+
+            assertThat(reader.getCached(firstKey)).contains(text("first"));
+            assertThat(reader.getCached(secondKey)).isEmpty();
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            RemoteExecution<Void> execution = reader.execution(result);
+            assertThat(execution.memoryUsage()).isEqualTo(7);
+
+            result.complete(null);
+
+            assertThat(execution.memoryUsage()).isZero();
+            assertThat(reader.metrics().cacheHitCount()).isOne();
+            assertThat(reader.metrics().cacheMissCount()).isOne();
+        }
+    }
+
+    @Test
     public void testMaximumConcurrencyIsEnforced()
     {
         ManualScheduler scheduler = new ManualScheduler();

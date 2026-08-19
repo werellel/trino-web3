@@ -214,7 +214,9 @@ public class TestEthereumBlocks
                     null);
 
             pageSource.isBlocked().join();
+            assertThat(pageSource.getMemoryUsage()).isPositive();
             assertThat(pageSource.getNextSourcePage()).isNotNull();
+            assertThat(pageSource.getMemoryUsage()).isZero();
             assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.requests")).getTotal()).isEqualTo(1);
             assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batches")).getTotal()).isEqualTo(1);
             assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batch-items")).getTotal()).isEqualTo(1);

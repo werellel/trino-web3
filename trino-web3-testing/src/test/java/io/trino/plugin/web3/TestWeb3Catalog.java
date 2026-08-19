@@ -13,10 +13,22 @@
  */
 package io.trino.plugin.web3;
 
+import io.airlift.slice.Slices;
 import io.trino.Session;
+import io.trino.plugin.web3.core.Web3TableHandle;
+import io.trino.plugin.web3.evm.EthereumTransactionsTable;
+import io.trino.spi.connector.Constraint;
+import io.trino.spi.predicate.Domain;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.StandaloneQueryRunner;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static io.trino.spi.type.VarcharType.VARCHAR;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +36,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestWeb3Catalog
 {
+    private static final String FIRST_HASH = "0x" + "a".repeat(64);
+    private static final String SECOND_HASH = "0x" + "b".repeat(64);
+
     @Test
     public void testShowSchemas()
             throws Exception
@@ -57,6 +72,36 @@ public class TestWeb3Catalog
                     "web3.rpc.json-rpc-batch-enabled", "sometimes")))
                     .hasMessageContaining("web3.rpc.json-rpc-batch-enabled must be true or false");
 
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_cache_boolean", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.cache.enabled", "sometimes")))
+                    .hasMessageContaining("web3.cache.enabled must be true or false");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_cache_size", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.cache.enabled", "true",
+                    "web3.cache.maximum-size", "1kB")))
+                    .hasMessageContaining("web3.cache.maximum-size must be between");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_cache_entry", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.cache.enabled", "true",
+                    "web3.cache.maximum-size", "1MB",
+                    "web3.cache.maximum-entry-size", "2MB")))
+                    .hasMessageContaining("web3.cache.maximum-entry-size must not exceed web3.cache.maximum-size");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_cache_ttl", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.cache.enabled", "true",
+                    "web3.cache.ttl", "0s")))
+                    .hasMessageContaining("web3.cache.ttl must be positive");
+
+            queryRunner.createCatalog("disabled_cache", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.cache.enabled", "false",
+                    "web3.cache.maximum-size", "1MB"));
+            assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
+                    .containsExactly("ethereum", "information_schema");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.maximum-transaction-hashes-per-query", "0")))
+                    .hasMessageContaining("web3.maximum-transaction-hashes-per-query must be between 1 and 10000");
+
             String secret = "do-not-leak-token";
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_url", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.ethereum.rpc-url", "http://" + secret + "@[invalid")))
@@ -70,5 +115,18 @@ public class TestWeb3Catalog
                             .collect(java.util.stream.Collectors.joining(",")))))
                     .hasMessageContaining("must contain at most 8 endpoints");
         }
+    }
+
+    @Test
+    public void testRejectsTransactionHashLimitDuringMetadataPushdown()
+    {
+        Web3Metadata metadata = new Web3Metadata(1);
+        Web3TableHandle table = new Web3TableHandle("ethereum", "transactions", Optional.empty());
+        Constraint constraint = new Constraint(TupleDomain.withColumnDomains(Map.of(
+                EthereumTransactionsTable.HASH_COLUMN,
+                Domain.multipleValues(VARCHAR, List.of(Slices.utf8Slice(FIRST_HASH), Slices.utf8Slice(SECOND_HASH))))));
+
+        assertThatThrownBy(() -> metadata.applyFilter(null, table, constraint))
+                .hasMessageContaining("hash predicate exceeds the configured query limit of 1");
     }
 }

@@ -15,6 +15,7 @@ package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.core.BlockRangeSplitter;
 import io.trino.plugin.web3.core.Web3TableHandle;
+import io.trino.plugin.web3.core.Web3TransactionHashSplit;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
@@ -33,8 +34,14 @@ public final class Web3SplitManager
 {
     private final long maximumBlocksPerSplit;
     private final long maximumBlocksPerQuery;
+    private final int maximumTransactionHashesPerQuery;
 
     public Web3SplitManager(long maximumBlocksPerSplit, long maximumBlocksPerQuery)
+    {
+        this(maximumBlocksPerSplit, maximumBlocksPerQuery, 1_000);
+    }
+
+    public Web3SplitManager(long maximumBlocksPerSplit, long maximumBlocksPerQuery, int maximumTransactionHashesPerQuery)
     {
         if (maximumBlocksPerSplit < 1) {
             throw new IllegalArgumentException("maximumBlocksPerSplit must be positive");
@@ -44,6 +51,10 @@ public final class Web3SplitManager
         }
         this.maximumBlocksPerSplit = maximumBlocksPerSplit;
         this.maximumBlocksPerQuery = maximumBlocksPerQuery;
+        if (maximumTransactionHashesPerQuery < 1) {
+            throw new IllegalArgumentException("maximumTransactionHashesPerQuery must be positive");
+        }
+        this.maximumTransactionHashesPerQuery = maximumTransactionHashesPerQuery;
     }
 
     @Override
@@ -62,10 +73,22 @@ public final class Web3SplitManager
         if (!(table instanceof Web3TableHandle web3Table)) {
             throw new IllegalArgumentException("table is not a Web3 table handle");
         }
+        if (!web3Table.transactionHashes().isEmpty()) {
+            if (web3Table.transactionHashes().size() > maximumTransactionHashesPerQuery) {
+                throw new TrinoException(
+                        StandardErrorCode.NOT_SUPPORTED,
+                        "ethereum.transactions hash predicate exceeds the configured query limit of " + maximumTransactionHashesPerQuery);
+            }
+            return new FixedSplitSource(web3Table.transactionHashes().stream()
+                    .map(Web3TransactionHashSplit::new)
+                    .map(io.trino.spi.connector.ConnectorSplit.class::cast)
+                    .toList());
+        }
         return web3Table.blockRange()
                 .<ConnectorSplitSource>map(range -> new FixedSplitSource(BlockRangeSplitter.split(range, maximumBlocksPerSplit, maximumBlocksPerQuery)))
                 .orElseThrow(() -> new TrinoException(
                         StandardErrorCode.NOT_SUPPORTED,
-                        web3Table.schemaName() + "." + web3Table.tableName() + " requires a bounded block_number predicate"));
+                        web3Table.schemaName() + "." + web3Table.tableName() + " requires a bounded block_number predicate" +
+                                (web3Table.tableName().equals("transactions") ? " or transaction hash equality/IN predicate" : "")));
     }
 }

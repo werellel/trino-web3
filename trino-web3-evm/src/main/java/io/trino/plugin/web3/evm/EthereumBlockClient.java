@@ -17,30 +17,66 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.trino.plugin.web3.core.BlockRange;
 import io.trino.plugin.web3.runtime.RemoteExecution;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
+import io.trino.plugin.web3.runtime.RemoteExecutionRuntime.ExecutionContext;
 import io.trino.plugin.web3.runtime.RemoteOperation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static java.lang.Long.parseUnsignedLong;
+import static io.trino.plugin.web3.evm.EthereumJson.toQuantity;
 import static java.util.Objects.requireNonNull;
 
 public final class EthereumBlockClient
 {
     private final RemoteExecutionRuntime runtime;
+    private final EthereumFinalityResolver finalityResolver;
 
     public EthereumBlockClient(RemoteExecutionRuntime runtime)
     {
+        this(runtime, new EthereumFinalityResolver());
+    }
+
+    EthereumBlockClient(RemoteExecutionRuntime runtime, EthereumFinalityResolver finalityResolver)
+    {
         this.runtime = requireNonNull(runtime, "runtime is null");
+        this.finalityResolver = requireNonNull(finalityResolver, "finalityResolver is null");
     }
 
     public RemoteExecution<List<EthereumBlock>> getBlocks(BlockRange range)
+    {
+        requireNonNull(range, "range is null");
+        if (!runtime.isCacheEnabled()) {
+            return getBlocksWithoutCache(range);
+        }
+
+        ExecutionContext context = runtime.newExecutionContext();
+        AtomicReference<CompletableFuture<?>> active = new AtomicReference<>();
+        CompletableFuture<EthereumFinalityBoundaries> boundaries = finalityResolver.resolve(context);
+        active.set(boundaries);
+        CompletableFuture<List<EthereumBlock>> result = boundaries.thenCompose(finality -> {
+            CompletableFuture<List<EthereumBlock>> blocks = EthereumBlockResponseLoader.load(context, range, finality, false)
+                    .thenApply(results -> decodeCached(range, results));
+            active.set(blocks);
+            return blocks;
+        });
+        result.whenComplete((value, failure) -> {
+            if (result.isCancelled()) {
+                Optional.ofNullable(active.get()).ifPresent(future -> future.cancel(true));
+            }
+        });
+        return context.execution(result);
+    }
+
+    private RemoteExecution<List<EthereumBlock>> getBlocksWithoutCache(BlockRange range)
     {
         List<RemoteOperation> requests = new ArrayList<>();
         for (long blockNumber = range.startInclusive(); blockNumber <= range.endInclusive(); blockNumber++) {
             requests.add(new RemoteOperation(
                     "eth_getBlockByNumber",
-                    List.of(toHex(blockNumber), false)));
+                    List.of(toQuantity(blockNumber), false)));
             if (blockNumber == Long.MAX_VALUE) {
                 break;
             }
@@ -64,7 +100,7 @@ public final class EthereumBlockClient
                 throw new IllegalStateException("Ethereum block response is missing number or hash");
             }
             long expectedNumber = range.startInclusive() + index;
-            long actualNumber = parseHex(number.textValue());
+            long actualNumber = parseQuantity(number.textValue());
             if (actualNumber != expectedNumber) {
                 throw new IllegalStateException("Ethereum block number does not match its request");
             }
@@ -73,17 +109,23 @@ public final class EthereumBlockClient
         return List.copyOf(blocks);
     }
 
-    private static String toHex(long value)
+    private static List<EthereumBlock> decodeCached(BlockRange range, List<JsonNode> results)
     {
-        return "0x" + Long.toHexString(value);
+        List<EthereumBlock> blocks = new ArrayList<>();
+        for (int index = 0; index < results.size(); index++) {
+            long blockNumber = range.startInclusive() + index;
+            String hash = EthereumBlockResponseLoader.validateBlock(results.get(index), blockNumber, null);
+            blocks.add(new EthereumBlock(blockNumber, hash));
+        }
+        return List.copyOf(blocks);
     }
 
-    private static long parseHex(String value)
+    private static long parseQuantity(String value)
     {
         if (!value.startsWith("0x")) {
             throw new IllegalStateException("Ethereum quantity is not hexadecimal");
         }
-        return parseUnsignedLong(value.substring(2), 16);
+        return Long.parseUnsignedLong(value.substring(2), 16);
     }
 
     public record EthereumBlock(long number, String hash)
@@ -96,4 +138,5 @@ public final class EthereumBlockClient
             requireNonNull(hash, "hash is null");
         }
     }
+
 }

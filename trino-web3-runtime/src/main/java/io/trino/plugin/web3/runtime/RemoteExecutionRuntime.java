@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
@@ -45,10 +46,13 @@ public final class RemoteExecutionRuntime
     private static final long BATCH_COALESCING_MILLIS = 1;
 
     private final Object lock = new Object();
+    private final ReentrantReadWriteLock cacheLifecycleLock = new ReentrantReadWriteLock();
     private final List<ProviderProfile> providers;
     private final Map<String, JsonRpcTransport> transports;
     private final ExecutionPolicy policy;
     private final RemoteExecutionScheduler scheduler;
+    private final RemoteResultCache cache;
+    private final int maximumCacheReadBytes;
     private final boolean batchingEnabled;
     private final ArrayDeque<SharedOperation> pending = new ArrayDeque<>();
     private final Map<RemoteOperation, SharedOperation> sharedOperations = new HashMap<>();
@@ -57,7 +61,7 @@ public final class RemoteExecutionRuntime
     private long nextPermitNanos;
     private int activeBatches;
     private boolean drainScheduled;
-    private boolean closed;
+    private volatile boolean closed;
 
     public RemoteExecutionRuntime(
             HttpClient httpClient,
@@ -71,7 +75,27 @@ public final class RemoteExecutionRuntime
                 providers,
                 createTransports(httpClient, providers, requestTimeout, maximumRequestBytes, maximumResponseBytes),
                 policy,
-                new ExecutorRemoteExecutionScheduler());
+                new ExecutorRemoteExecutionScheduler(),
+                RemoteCacheConfig.disabled(),
+                maximumResponseBytes);
+    }
+
+    public RemoteExecutionRuntime(
+            HttpClient httpClient,
+            List<ProviderProfile> providers,
+            Duration requestTimeout,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            ExecutionPolicy policy,
+            RemoteCacheConfig cacheConfig)
+    {
+        this(
+                providers,
+                createTransports(httpClient, providers, requestTimeout, maximumRequestBytes, maximumResponseBytes),
+                policy,
+                new ExecutorRemoteExecutionScheduler(),
+                cacheConfig,
+                maximumResponseBytes);
     }
 
     RemoteExecutionRuntime(
@@ -80,6 +104,27 @@ public final class RemoteExecutionRuntime
             ExecutionPolicy policy,
             RemoteExecutionScheduler scheduler)
     {
+        this(providers, transports, policy, scheduler, RemoteCacheConfig.disabled());
+    }
+
+    RemoteExecutionRuntime(
+            List<ProviderProfile> providers,
+            Map<String, JsonRpcTransport> transports,
+            ExecutionPolicy policy,
+            RemoteExecutionScheduler scheduler,
+            RemoteCacheConfig cacheConfig)
+    {
+        this(providers, transports, policy, scheduler, cacheConfig, cacheConfig.maximumEntryBytes());
+    }
+
+    RemoteExecutionRuntime(
+            List<ProviderProfile> providers,
+            Map<String, JsonRpcTransport> transports,
+            ExecutionPolicy policy,
+            RemoteExecutionScheduler scheduler,
+            RemoteCacheConfig cacheConfig,
+            int maximumCacheReadBytes)
+    {
         this.providers = List.copyOf(requireNonNull(providers, "providers is null"));
         if (this.providers.isEmpty()) {
             throw new IllegalArgumentException("providers is empty");
@@ -87,6 +132,11 @@ public final class RemoteExecutionRuntime
         this.transports = Map.copyOf(requireNonNull(transports, "transports is null"));
         this.policy = requireNonNull(policy, "policy is null");
         this.scheduler = requireNonNull(scheduler, "scheduler is null");
+        cache = new RemoteResultCache(requireNonNull(cacheConfig, "cacheConfig is null"));
+        if (maximumCacheReadBytes < 1) {
+            throw new IllegalArgumentException("maximumCacheReadBytes must be positive");
+        }
+        this.maximumCacheReadBytes = maximumCacheReadBytes;
         Set<String> providerNames = new java.util.HashSet<>();
         for (ProviderProfile provider : this.providers) {
             if (!providerNames.add(provider.name())) {
@@ -114,6 +164,26 @@ public final class RemoteExecutionRuntime
     {
         requireNonNull(operations, "operations is null");
         MetricScope scope = new MetricScope();
+        return executeBatchWithMetrics(operations, scope);
+    }
+
+    public ExecutionContext newExecutionContext()
+    {
+        return new ExecutionContext(new MetricScope());
+    }
+
+    public boolean isCacheEnabled()
+    {
+        return cache.isEnabled();
+    }
+
+    public RemoteCacheMetrics cacheMetrics()
+    {
+        return cache.metrics();
+    }
+
+    private RemoteExecution<List<RemoteResult>> executeBatchWithMetrics(List<RemoteOperation> operations, MetricScope scope)
+    {
         if (operations.size() > policy.maximumBatchSize()) {
             return new RemoteExecution<>(CompletableFuture.failedFuture(new IllegalArgumentException("logical batch exceeds maximumBatchSize")), scope::snapshot);
         }
@@ -128,6 +198,147 @@ public final class RemoteExecutionRuntime
             }
         });
         return new RemoteExecution<>(result, scope::snapshot);
+    }
+
+    public final class ExecutionContext
+    {
+        private final Object contextLock = new Object();
+        private final MetricScope scope;
+        private final AtomicLong retainedCacheReadBytes = new AtomicLong();
+        private boolean cancelled;
+
+        private ExecutionContext(MetricScope scope)
+        {
+            this.scope = scope;
+        }
+
+        public RemoteExecution<List<RemoteResult>> executeBatch(List<RemoteOperation> operations)
+        {
+            requireNonNull(operations, "operations is null");
+            RemoteExecution<List<RemoteResult>> execution = executeBatchWithMetrics(operations, scope);
+            trackCancellation(execution.future());
+            return execution;
+        }
+
+        public Optional<JsonNode> getCached(RemoteCacheKey key)
+        {
+            requireNonNull(key, "key is null");
+            if (isCancelled()) {
+                return Optional.empty();
+            }
+            long remainingBytes = Math.max(0, maximumCacheReadBytes - retainedCacheReadBytes.get());
+            Optional<RemoteResultCache.CachedValue> value;
+            cacheLifecycleLock.readLock().lock();
+            try {
+                if (closed) {
+                    return Optional.empty();
+                }
+                value = cache.get(key, remainingBytes);
+            }
+            finally {
+                cacheLifecycleLock.readLock().unlock();
+            }
+            if (value.isPresent()) {
+                RemoteResultCache.CachedValue cached = value.orElseThrow();
+                long retainedBytes = retainedCacheReadBytes.addAndGet(cached.serializedBytes());
+                if (retainedBytes > maximumCacheReadBytes || isCancelled()) {
+                    retainedCacheReadBytes.addAndGet(-cached.serializedBytes());
+                    if (cache.isEnabled()) {
+                        scope.cacheMiss();
+                    }
+                    return Optional.empty();
+                }
+                scope.cacheHit(cached.serializedBytes());
+                return Optional.of(cached.value());
+            }
+            if (cache.isEnabled()) {
+                scope.cacheMiss();
+            }
+            return Optional.empty();
+        }
+
+        public void admit(RemoteCacheKey key, JsonNode value)
+        {
+            requireNonNull(key, "key is null");
+            requireNonNull(value, "value is null");
+            if (isCancelled()) {
+                return;
+            }
+            Optional<RemoteResultCache.PreparedValue> prepared = cache.prepare(value);
+            if (prepared.isEmpty()) {
+                return;
+            }
+            int bytes;
+            synchronized (contextLock) {
+                if (cancelled) {
+                    return;
+                }
+                cacheLifecycleLock.readLock().lock();
+                try {
+                    if (closed) {
+                        return;
+                    }
+                    bytes = cache.put(key, prepared.orElseThrow());
+                }
+                finally {
+                    cacheLifecycleLock.readLock().unlock();
+                }
+            }
+            scope.cacheWrite(bytes);
+        }
+
+        public void invalidate(RemoteCacheKey key)
+        {
+            requireNonNull(key, "key is null");
+            cacheLifecycleLock.readLock().lock();
+            try {
+                if (!closed) {
+                    cache.invalidate(key);
+                }
+            }
+            finally {
+                cacheLifecycleLock.readLock().unlock();
+            }
+        }
+
+        public void revalidation()
+        {
+            if (cache.isEnabled()) {
+                scope.cacheRevalidation();
+            }
+        }
+
+        public <T> RemoteExecution<T> execution(CompletableFuture<T> future)
+        {
+            requireNonNull(future, "future is null");
+            trackCancellation(future);
+            future.whenComplete((value, failure) -> retainedCacheReadBytes.set(0));
+            return new RemoteExecution<>(future, scope::snapshot, retainedCacheReadBytes::get);
+        }
+
+        public RemoteExecutionMetrics metrics()
+        {
+            return scope.snapshot();
+        }
+
+        private boolean isCancelled()
+        {
+            synchronized (contextLock) {
+                return cancelled;
+            }
+        }
+
+        private void trackCancellation(CompletableFuture<?> future)
+        {
+            future.whenComplete((value, failure) -> {
+                if (future.isCancelled()) {
+                    synchronized (contextLock) {
+                        cancelled = true;
+                    }
+                    retainedCacheReadBytes.set(0);
+                }
+            });
+        }
     }
 
     public RemoteExecutionMetrics metrics()
@@ -503,6 +714,13 @@ public final class RemoteExecutionRuntime
             sharedOperations.clear();
             pending.clear();
         }
+        cacheLifecycleLock.writeLock().lock();
+        try {
+            cache.invalidateAll();
+        }
+        finally {
+            cacheLifecycleLock.writeLock().unlock();
+        }
         responses.forEach(response -> response.cancel(true));
         subscribers.forEach(subscriber -> subscriber.future.completeExceptionally(new CancellationException("RPC runtime is closed")));
         scheduler.close();
@@ -607,6 +825,11 @@ public final class RemoteExecutionRuntime
         private final AtomicLong requestLatencyNanos = new AtomicLong();
         private final AtomicLong batchCount = new AtomicLong();
         private final AtomicLong batchItemCount = new AtomicLong();
+        private final AtomicLong cacheHitCount = new AtomicLong();
+        private final AtomicLong cacheMissCount = new AtomicLong();
+        private final AtomicLong cacheRevalidationCount = new AtomicLong();
+        private final AtomicLong cacheBytesRead = new AtomicLong();
+        private final AtomicLong cacheBytesWritten = new AtomicLong();
 
         public void requestStarted(long batchItems)
         {
@@ -647,6 +870,27 @@ public final class RemoteExecutionRuntime
             failoverCount.incrementAndGet();
         }
 
+        public void cacheHit(long bytes)
+        {
+            cacheHitCount.incrementAndGet();
+            cacheBytesRead.addAndGet(bytes);
+        }
+
+        public void cacheMiss()
+        {
+            cacheMissCount.incrementAndGet();
+        }
+
+        public void cacheRevalidation()
+        {
+            cacheRevalidationCount.incrementAndGet();
+        }
+
+        public void cacheWrite(long bytes)
+        {
+            cacheBytesWritten.addAndGet(bytes);
+        }
+
         public RemoteExecutionMetrics snapshot()
         {
             return new RemoteExecutionMetrics(
@@ -658,7 +902,12 @@ public final class RemoteExecutionRuntime
                     failoverCount.get(),
                     requestLatencyNanos.get(),
                     batchCount.get(),
-                    batchItemCount.get());
+                    batchItemCount.get(),
+                    cacheHitCount.get(),
+                    cacheMissCount.get(),
+                    cacheRevalidationCount.get(),
+                    cacheBytesRead.get(),
+                    cacheBytesWritten.get());
         }
     }
 

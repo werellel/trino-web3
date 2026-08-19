@@ -37,4 +37,10 @@ public record ProviderProfile(String name, URI endpoint, ProviderCapabilities ca
             throw new IllegalArgumentException("endpoint must be an absolute HTTP(S) URL");
         }
     }
+
+    @Override
+    public String toString()
+    {
+        return "ProviderProfile{name=" + name + ", capabilities=" + capabilities + "}";
+    }
 }

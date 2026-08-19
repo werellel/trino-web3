@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -59,6 +60,7 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.cache.EvictableCacheBuilder")).isNotNull();
         }
     }
 
@@ -66,7 +68,8 @@ public class ITWeb3PluginArchive
     public void testPluginDistributionExecutesBoundedQuery()
             throws Exception
     {
-        HttpServer rpcServer = createRpcServer();
+        AtomicInteger blockDataRequests = new AtomicInteger();
+        HttpServer rpcServer = createRpcServer(blockDataRequests);
         HttpServer unavailablePrimary = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         unavailablePrimary.createContext("/", exchange -> {
             exchange.sendResponseHeaders(503, -1);
@@ -87,13 +90,17 @@ public class ITWeb3PluginArchive
                         "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:" + rpcServer.getAddress().getPort(),
                         "web3.rpc.json-rpc-batch-enabled", "false",
                         "web3.rpc.initial-backoff-millis", "1",
-                        "web3.rpc.provider-cooldown-millis", "1"));
+                        "web3.rpc.provider-cooldown-millis", "1",
+                        "web3.cache.enabled", "true"));
 
-                assertThat(queryRunner.execute("""
+                String query = """
                         SELECT block_hash
                         FROM web3.ethereum.blocks
                         WHERE block_number = 23000000
-                        """).getOnlyColumn()).containsExactly("0x15ef3c0");
+                        """;
+                assertThat(queryRunner.execute(query).getOnlyColumn()).containsExactly(hash('a'));
+                assertThat(queryRunner.execute(query).getOnlyColumn()).containsExactly(hash('a'));
+                assertThat(blockDataRequests).hasValue(1);
             }
         }
         finally {
@@ -126,15 +133,15 @@ public class ITWeb3PluginArchive
         return new PluginDistribution(pluginDirectory, List.copyOf(pluginJars));
     }
 
-    private static HttpServer createRpcServer()
+    private static HttpServer createRpcServer(AtomicInteger blockDataRequests)
             throws IOException
     {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", ITWeb3PluginArchive::handleRpcRequest);
+        server.createContext("/", exchange -> handleRpcRequest(exchange, blockDataRequests));
         return server;
     }
 
-    private static void handleRpcRequest(HttpExchange exchange)
+    private static void handleRpcRequest(HttpExchange exchange, AtomicInteger blockDataRequests)
             throws IOException
     {
         JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
@@ -146,14 +153,26 @@ public class ITWeb3PluginArchive
             response.put("jsonrpc", "2.0");
             response.put("id", request.path("id").asLong());
             ObjectNode block = response.putObject("result");
-            block.put("number", quantity);
-            block.put("hash", "0x" + Long.toHexString(Long.parseUnsignedLong(quantity.substring(2), 16)));
+            if (quantity.equals("safe") || quantity.equals("finalized")) {
+                block.put("number", "0x15ef3c0");
+                block.put("hash", hash('b'));
+            }
+            else {
+                blockDataRequests.incrementAndGet();
+                block.put("number", "0x15ef3c0");
+                block.put("hash", hash('a'));
+            }
         }
         byte[] body = OBJECT_MAPPER.writeValueAsBytes(requestDocument.isArray() ? responses : responses.get(0));
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);
         exchange.close();
+    }
+
+    private static String hash(char value)
+    {
+        return "0x" + String.valueOf(value).repeat(64);
     }
 
     private record PluginDistribution(Path directory, List<java.net.URL> jars)

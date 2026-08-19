@@ -11,23 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.web3.runtime;
+package io.trino.plugin.web3.core;
 
-/** Immutable worker-local runtime metrics with no request-specific labels. */
-public record RemoteExecutionMetrics(
-        long requestCount,
-        long failureCount,
-        long retryCount,
-        long throttledCount,
-        long inFlightRequests,
-        long failoverCount,
-        long requestLatencyNanos,
-        long batchCount,
-        long batchItemCount,
-        long cacheHitCount,
-        long cacheMissCount,
-        long cacheRevalidationCount,
-        long cacheBytesRead,
-        long cacheBytesWritten)
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.trino.spi.connector.ConnectorSplit;
+
+import static java.util.Objects.requireNonNull;
+
+public record Web3TransactionHashSplit(String transactionHash)
+        implements ConnectorSplit
 {
+    @JsonCreator
+    public Web3TransactionHashSplit(@JsonProperty("transactionHash") String transactionHash)
+    {
+        this.transactionHash = requireNonNull(transactionHash, "transactionHash is null");
+    }
 }

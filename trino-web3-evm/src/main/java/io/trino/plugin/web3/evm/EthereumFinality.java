@@ -11,23 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.web3.runtime;
+package io.trino.plugin.web3.evm;
 
-/** Immutable worker-local runtime metrics with no request-specific labels. */
-public record RemoteExecutionMetrics(
-        long requestCount,
-        long failureCount,
-        long retryCount,
-        long throttledCount,
-        long inFlightRequests,
-        long failoverCount,
-        long requestLatencyNanos,
-        long batchCount,
-        long batchItemCount,
-        long cacheHitCount,
-        long cacheMissCount,
-        long cacheRevalidationCount,
-        long cacheBytesRead,
-        long cacheBytesWritten)
+public enum EthereumFinality
 {
+    HEAD,
+    SAFE,
+    FINALIZED,
 }

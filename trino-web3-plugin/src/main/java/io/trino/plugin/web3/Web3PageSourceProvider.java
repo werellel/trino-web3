@@ -17,6 +17,7 @@ import io.airlift.slice.Slices;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3Split;
 import io.trino.plugin.web3.core.Web3TableHandle;
+import io.trino.plugin.web3.core.Web3TransactionHashSplit;
 import io.trino.plugin.web3.evm.EthereumBlockClient;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
 import io.trino.plugin.web3.runtime.RemoteExecution;
@@ -64,9 +65,6 @@ public final class Web3PageSourceProvider
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
-        if (!(split instanceof Web3Split web3Split)) {
-            throw new IllegalArgumentException("split is not a Web3 split");
-        }
         if (!(table instanceof Web3TableHandle web3Table)) {
             throw new IllegalArgumentException("table is not a Web3 table handle");
         }
@@ -79,10 +77,19 @@ public final class Web3PageSourceProvider
                 })
                 .toList();
         if (web3Table.tableName().equals("blocks")) {
+            if (!(split instanceof Web3Split web3Split)) {
+                throw new IllegalArgumentException("blocks table requires a block range split");
+            }
             return new EthereumBlocksPageSource(blockClient.getBlocks(web3Split.blockRange()), web3Columns);
         }
         if (web3Table.tableName().equals("transactions")) {
-            return new EthereumTransactionsPageSource(transactionClient.getTransactions(web3Split.blockRange()), web3Columns);
+            if (split instanceof Web3Split web3Split) {
+                return new EthereumTransactionsPageSource(transactionClient.getTransactions(web3Split.blockRange()), web3Columns);
+            }
+            if (split instanceof Web3TransactionHashSplit hashSplit) {
+                return new EthereumTransactionsPageSource(transactionClient.getTransaction(hashSplit.transactionHash()), web3Columns);
+            }
+            throw new IllegalArgumentException("transactions table requires a block range or transaction hash split");
         }
         throw new IllegalArgumentException("table is not a supported Ethereum table");
     }
@@ -162,7 +169,12 @@ public final class Web3PageSourceProvider
         @Override
         public long getMemoryUsage()
         {
-            return 0;
+            if (finished || !blocks.future().isDone() || blocks.future().isCompletedExceptionally() || blocks.future().isCancelled()) {
+                return blocks.memoryUsage();
+            }
+            return blocks.memoryUsage() + blocks.future().getNow(List.of()).stream()
+                    .mapToLong(block -> 48L + estimatedStringSize(block.hash()))
+                    .sum();
         }
 
         @Override
@@ -260,7 +272,14 @@ public final class Web3PageSourceProvider
         {
             switch (column.ordinal()) {
                 case 0 -> VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(transaction.hash()));
-                case 1 -> BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), transaction.blockNumber());
+                case 1 -> {
+                    if (transaction.blockNumber() == null) {
+                        pageBuilder.getBlockBuilder(channel).appendNull();
+                    }
+                    else {
+                        BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), transaction.blockNumber());
+                    }
+                }
                 case 2 -> VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(transaction.fromAddress()));
                 case 3 -> {
                     if (transaction.toAddress() == null) {
@@ -277,7 +296,15 @@ public final class Web3PageSourceProvider
         @Override
         public long getMemoryUsage()
         {
-            return 0;
+            if (finished || !transactions.future().isDone() || transactions.future().isCompletedExceptionally() || transactions.future().isCancelled()) {
+                return transactions.memoryUsage();
+            }
+            return transactions.memoryUsage() + transactions.future().getNow(List.of()).stream()
+                    .mapToLong(transaction -> 64L +
+                            estimatedStringSize(transaction.hash()) +
+                            estimatedStringSize(transaction.fromAddress()) +
+                            estimatedStringSize(transaction.toAddress()))
+                    .sum();
         }
 
         @Override
@@ -297,15 +324,25 @@ public final class Web3PageSourceProvider
 
     private static Metrics toMetrics(RemoteExecutionMetrics metrics)
     {
-        return new Metrics(Map.of(
-                "web3.rpc.requests", new Web3Count(metrics.requestCount()),
-                "web3.rpc.failures", new Web3Count(metrics.failureCount()),
-                "web3.rpc.retries", new Web3Count(metrics.retryCount()),
-                "web3.rpc.throttled", new Web3Count(metrics.throttledCount()),
-                "web3.rpc.in-flight", new Web3Count(metrics.inFlightRequests()),
-                "web3.rpc.failovers", new Web3Count(metrics.failoverCount()),
-                "web3.rpc.latency-nanos", new Web3Count(metrics.requestLatencyNanos()),
-                "web3.rpc.batches", new Web3Count(metrics.batchCount()),
-                "web3.rpc.batch-items", new Web3Count(metrics.batchItemCount())));
+        return new Metrics(Map.ofEntries(
+                Map.entry("web3.rpc.requests", new Web3Count(metrics.requestCount())),
+                Map.entry("web3.rpc.failures", new Web3Count(metrics.failureCount())),
+                Map.entry("web3.rpc.retries", new Web3Count(metrics.retryCount())),
+                Map.entry("web3.rpc.throttled", new Web3Count(metrics.throttledCount())),
+                Map.entry("web3.rpc.in-flight", new Web3Count(metrics.inFlightRequests())),
+                Map.entry("web3.rpc.failovers", new Web3Count(metrics.failoverCount())),
+                Map.entry("web3.rpc.latency-nanos", new Web3Count(metrics.requestLatencyNanos())),
+                Map.entry("web3.rpc.batches", new Web3Count(metrics.batchCount())),
+                Map.entry("web3.rpc.batch-items", new Web3Count(metrics.batchItemCount())),
+                Map.entry("web3.cache.hits", new Web3Count(metrics.cacheHitCount())),
+                Map.entry("web3.cache.misses", new Web3Count(metrics.cacheMissCount())),
+                Map.entry("web3.cache.revalidations", new Web3Count(metrics.cacheRevalidationCount())),
+                Map.entry("web3.cache.bytes-read", new Web3Count(metrics.cacheBytesRead())),
+                Map.entry("web3.cache.bytes-written", new Web3Count(metrics.cacheBytesWritten()))));
+    }
+
+    private static long estimatedStringSize(String value)
+    {
+        return value == null ? 0 : 40L + (long) value.length() * Character.BYTES;
     }
 }

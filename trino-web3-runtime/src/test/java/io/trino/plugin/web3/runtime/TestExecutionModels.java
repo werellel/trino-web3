@@ -15,6 +15,7 @@ package io.trino.plugin.web3.runtime;
 
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,5 +54,15 @@ public class TestExecutionModels
 
         assertThat(policy.retryPolicy()).isEqualTo(new RetryPolicy(5, Duration.ofMillis(7), Duration.ofMillis(8)));
         assertThat(policy.rateLimitPolicy()).isEqualTo(new RateLimitPolicy(6));
+    }
+
+    @Test
+    public void testProviderProfileDoesNotExposeEndpoint()
+    {
+        ProviderProfile provider = new ProviderProfile("primary", URI.create("https://secret.example/rpc?token=do-not-leak"));
+
+        assertThat(provider.toString())
+                .contains("primary")
+                .doesNotContain("secret.example", "do-not-leak");
     }
 }
