@@ -1,8 +1,9 @@
 # Connector SPI contract
 
 The connector targets Trino 475. Coordinator-side metadata and split planning
-remain deterministic and do not perform RPC. Worker-side PageSources own the
-cancellable `RemoteExecution` used for bounded EVM reads.
+remain deterministic and do not perform remote calls. Worker-side PageSources
+own the cancellable `RemoteExecution` used for bounded EVM JSON-RPC and Aptos
+REST reads.
 
 ## Predicate pushdown
 

@@ -417,6 +417,99 @@ public class TestDeterministicRemoteExecutionRuntime
         }
     }
 
+    @Test
+    public void testRestRequestsUseSingleFlightWithoutWireBatching()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        ProviderProfile provider = provider("primary", true);
+        RecordingRestTransport transport = new RecordingRestTransport();
+        transport.handler = request -> CompletableFuture.completedFuture(text(request.path()));
+        RestRemoteRequest request = new RestRemoteRequest("GET", "/v1/transactions", Map.of("start", List.of("10")), Optional.empty());
+
+        try (RemoteExecutionRuntime runtime = RemoteExecutionRuntime.forRest(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(2, 10, 100, 1, 100),
+                scheduler)) {
+            CompletableFuture<RemoteResult> first = runtime.execute(request);
+            CompletableFuture<RemoteResult> second = runtime.execute(request);
+            scheduler.runUntil(() -> first.isDone() && second.isDone());
+
+            assertThat(first.join().value().textValue()).isEqualTo("/v1/transactions");
+            assertThat(second.join().value().textValue()).isEqualTo("/v1/transactions");
+            assertThat(transport.requests).hasValue(1);
+            assertThat(runtime.metrics().batchItemCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testRestFailureRetriesOnFallbackProvider()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        ProviderProfile primary = provider("primary", true);
+        ProviderProfile fallback = provider("fallback", true);
+        RecordingRestTransport unavailable = new RecordingRestTransport();
+        unavailable.handler = request -> CompletableFuture.failedFuture(new RemoteHttpException(503, Optional.empty()));
+        RecordingRestTransport available = new RecordingRestTransport();
+        available.handler = request -> CompletableFuture.completedFuture(text("ok"));
+
+        try (RemoteExecutionRuntime runtime = RemoteExecutionRuntime.forRest(
+                List.of(primary, fallback),
+                Map.of(primary.name(), unavailable, fallback.name(), available),
+                policy(1, 10, 100, 2, 100),
+                scheduler)) {
+            CompletableFuture<RemoteResult> result = runtime.execute(new RestRemoteRequest("GET", "/v1", Map.of(), Optional.empty()));
+            scheduler.runUntil(result::isDone);
+
+            assertThat(result.join().value().textValue()).isEqualTo("ok");
+            assertThat(unavailable.requests).hasValue(1);
+            assertThat(available.requests).hasValue(1);
+            assertThat(runtime.metrics().retryCount()).isEqualTo(1);
+            assertThat(runtime.metrics().failoverCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testRestCancellationCancelsTransportFuture()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        ProviderProfile provider = provider("primary", true);
+        CompletableFuture<JsonNode> transportFuture = new CompletableFuture<>();
+        RecordingRestTransport transport = new RecordingRestTransport();
+        transport.handler = request -> transportFuture;
+
+        try (RemoteExecutionRuntime runtime = RemoteExecutionRuntime.forRest(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 100, 1, 100),
+                scheduler)) {
+            CompletableFuture<RemoteResult> result = runtime.execute(new RestRemoteRequest("GET", "/v1", Map.of(), Optional.empty()));
+            scheduler.runUntil(() -> transport.requests.get() == 1);
+
+            assertThat(result.cancel(true)).isTrue();
+            assertThat(transportFuture).isCancelled();
+        }
+    }
+
+    @Test
+    public void testRuntimeRejectsMismatchedProtocol()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        ProviderProfile provider = provider("primary", true);
+        RecordingRestTransport transport = new RecordingRestTransport();
+        transport.handler = request -> CompletableFuture.completedFuture(text("unused"));
+
+        try (RemoteExecutionRuntime runtime = RemoteExecutionRuntime.forRest(
+                List.of(provider),
+                Map.of(provider.name(), transport),
+                policy(1, 10, 100, 1, 100),
+                scheduler)) {
+            assertThatThrownBy(() -> runtime.execute(operation("eth_blockNumber")).join())
+                    .hasRootCauseMessage("remote request protocol does not match runtime protocol");
+            assertThat(transport.requests).hasValue(0);
+        }
+    }
+
     private static void assertIsolatedMetrics(RemoteExecutionMetrics metrics)
     {
         assertThat(metrics.requestCount()).isEqualTo(1);
@@ -487,6 +580,20 @@ public class TestDeterministicRemoteExecutionRuntime
         {
             batchRequests.incrementAndGet();
             return batchHandler.apply(requests);
+        }
+    }
+
+    private static final class RecordingRestTransport
+            implements RestTransport
+    {
+        private final AtomicInteger requests = new AtomicInteger();
+        private java.util.function.Function<RestRemoteRequest, CompletableFuture<JsonNode>> handler;
+
+        @Override
+        public CompletableFuture<JsonNode> execute(RestRemoteRequest request)
+        {
+            requests.incrementAndGet();
+            return handler.apply(request);
         }
     }
 

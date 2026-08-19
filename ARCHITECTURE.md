@@ -319,6 +319,12 @@ modules
 account_transactions
 ```
 
+The current M4 vertical slice implements `transactions` with a bounded
+`ledger_version` range. The adapter caps REST pages at 100 entries and validates
+the complete contiguous response before row publication. Aptos endpoints and
+HTTP lifecycle remain connector/runtime-owned; Aptos events, finality, and
+cache identity remain subsequent M4 work.
+
 ---
 
 ## `trino-web3-testing`
@@ -772,6 +778,13 @@ Solana
 Aptos
 → REST concurrency
 ```
+
+One runtime instance serves one chain protocol and provider set. JSON-RPC
+runtimes may coalesce compatible operations into a wire batch. REST runtimes
+always dispatch one request per wire attempt while reusing the same bounded
+queue, rate admission, retry, health, failover, cancellation, single-flight,
+and metric machinery. A catalog may own multiple schema-specific runtimes, all
+closed by the connector lifecycle.
 
 Therefore the runtime should not assume a single wire-level batching format.
 

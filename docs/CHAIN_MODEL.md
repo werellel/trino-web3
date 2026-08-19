@@ -41,6 +41,21 @@ executable adapter by schema. Adapter splits are transport-neutral range or
 discrete-value records; their column identity is preserved across Trino split
 serialization.
 
+## Current Aptos model
+
+M4 exposes `aptos.transactions` without mapping it to an EVM transaction.
+Rows contain `ledger_version`, `hash`, native transaction `type`, `success`,
+`vm_status`, and nullable `sender`. Reads require a bounded BIGINT
+`ledger_version` range. The adapter caps every REST page at 100 transactions,
+validates a complete contiguous response, rejects unsigned 64-bit versions
+that cannot be represented by Trino BIGINT, and produces rows only after the
+whole split is valid.
+
+The data client submits `GET /v1/transactions` through the shared runtime with
+bounded `start` and `limit` query values. It owns no endpoint, HTTP client,
+retry, rate, failover, or provider-health policy. Aptos events, head-aware
+partial-range behavior, finality, and cache admission remain later M4 work.
+
 ## Versioned descriptor contract
 
 Each adapter supplies one immutable descriptor with separate versions for the
@@ -90,5 +105,5 @@ Solana and Aptos adapters must model their native blocks, transactions,
 instructions, events, and finality semantics. They must not reuse EVM tables or
 Ethereum-specific decoding. Bitcoin, Tron, Sui, and Near follow the same
 registry boundary but keep UTXO, object, receipt, event, and finality semantics
-in their own adapters. Production execution for these chains remains later M4
-work.
+in their own adapters. Production execution for Aptos transactions is present;
+Aptos events and Solana execution remain later M4 work.

@@ -1,15 +1,16 @@
 # RPC Runtime
 
-The M2 runtime executes bounded, read-only remote JSON-RPC operations without
+The runtime executes bounded, read-only remote JSON-RPC and REST operations without
 depending on Trino SPI classes or chain table metadata. Chain adapters own
 method selection and response decoding; the runtime owns batching, admission,
 generic-provider selection, retry, cancellation, and metrics.
 
 M4 descriptors may inventory either JSON-RPC or REST operations. The runtime
-now defines transport-neutral request identity plus immutable, bounded
-JSON-RPC and endpoint-relative REST request values. The production scheduler
-and transport remain JSON-RPC-only; a REST descriptor is not executable until
-a bounded REST transport is connected. REST request values cannot select an
+uses transport-neutral request identity plus immutable, bounded JSON-RPC and
+endpoint-relative REST request values. JSON-RPC operations may be coalesced
+into protocol batches; REST operations always use one wire request. Both use
+the same queue, concurrency, rate, retry, provider health, failover,
+single-flight, cancellation, and metric state machine. REST request values cannot select an
 endpoint, supply headers, or carry an absolute/network-path URL. Descriptors
 never own HTTP clients, endpoints, credentials, retry, rate, failover, cache,
 or cancellation policy.
@@ -26,7 +27,8 @@ All limits are catalog properties under `web3.rpc.*` and have hard validation
 ceilings. Admission is scheduled asynchronously: rate waiting never sleeps on
 an execution worker. Individual operations enter a bounded queue, identical
 operations share an in-flight result, and compatible queued operations are
-coalesced into JSON-RPC batches.
+coalesced into JSON-RPC batches. REST requests are admitted individually and
+never consume an execution worker while waiting for a rate permit.
 
 Provider capabilities control the wire envelope. When every configured
 provider supports JSON-RPC batches, compatible operations may share a batch
@@ -65,7 +67,7 @@ each other's metrics.
 
 ## Cancellation and lifecycle
 
-Each catalog connector owns one runtime and closes it in
+Each configured chain schema owns one runtime and the catalog connector closes all of them in
 `Connector.shutdown()`. Cancelling a page source cancels its future and the
 in-flight HTTP request when no longer needed. The runtime does not create an
 executor or HTTP client per query or split.
@@ -76,12 +78,14 @@ only after every operation in that batch has no remaining subscribers.
 
 ## Cache integration
 
-M3 adds a bounded, worker-local result cache owned by the catalog runtime.
+M3 adds a bounded, worker-local result cache owned by the Ethereum runtime.
 The runtime owns storage, serialized-value isolation, weight/entry limits,
 optional TTL, eviction statistics, and execution-scoped cache counters. It
 does not decide whether a response is immutable. The EVM adapter validates a
 response, resolves its finality and canonical identity, and explicitly admits
-it only after the complete logical result is valid.
+it only after the complete logical result is valid. The Aptos REST vertical
+slice does not admit cache entries; Aptos finality and immutable cache identity
+remain adapter work before caching can be enabled for that schema.
 
 Cache misses continue through M2's asynchronous single-flight scheduler.
 Closing the runtime cancels queued/in-flight work, clears retained cache

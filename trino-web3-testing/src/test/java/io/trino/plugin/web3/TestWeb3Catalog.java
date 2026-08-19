@@ -53,7 +53,12 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("ethereum", "information_schema");
+            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
+                    .containsExactly("transactions");
+            assertThat(queryRunner.execute("DESCRIBE web3.aptos.transactions").getMaterializedRows())
+                    .extracting(row -> row.getField(0))
+                    .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender");
         }
     }
 
@@ -97,7 +102,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("ethereum", "information_schema");
+                    .containsExactly("aptos", "ethereum", "information_schema");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))
@@ -115,6 +120,26 @@ public class TestWeb3Catalog
                             .mapToObj(index -> "http://127.0.0.1:" + (8000 + index))
                             .collect(java.util.stream.Collectors.joining(",")))))
                     .hasMessageContaining("must contain at most 8 endpoints");
+
+            String aptosSecret = "do-not-leak-aptos-token";
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_aptos_url", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.aptos.rest-url", "https://" + aptosSecret + "@example.com")))
+                    .hasMessageContaining("web3.aptos.rest-url must contain HTTP(S) origins")
+                    .hasMessageNotContaining(aptosSecret);
+        }
+    }
+
+    @Test
+    public void testAptosReadRequiresConfiguredEndpoint()
+            throws Exception
+    {
+        Session session = testSessionBuilder().setCatalog("web3").setSchema("aptos").build();
+        try (StandaloneQueryRunner queryRunner = new StandaloneQueryRunner(session)) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of());
+
+            assertThatThrownBy(() -> queryRunner.execute("SELECT ledger_version FROM transactions WHERE ledger_version = 10"))
+                    .hasStackTraceContaining("no remote endpoint is configured for schema aptos");
         }
     }
 

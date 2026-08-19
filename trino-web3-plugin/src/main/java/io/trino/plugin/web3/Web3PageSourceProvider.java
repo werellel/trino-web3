@@ -56,6 +56,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 
@@ -73,12 +74,12 @@ public final class Web3PageSourceProvider
                 Web3Metadata::resolveBuiltInType);
     }
 
-    Web3PageSourceProvider(
+    static Web3PageSourceProvider forRuntimes(
             ExecutableChainRegistry adapters,
-            RemoteExecutionRuntime runtime,
+            Map<String, RemoteExecutionRuntime> runtimes,
             Function<String, Type> typeResolver)
     {
-        this(adapters, createClients(adapters, runtime), typeResolver);
+        return new Web3PageSourceProvider(adapters, createClients(adapters, runtimes), typeResolver);
     }
 
     private Web3PageSourceProvider(
@@ -89,8 +90,8 @@ public final class Web3PageSourceProvider
         requireNonNull(adapters, "adapters is null");
         tables = new ChainMetadataRegistry(adapters.descriptors(), requireNonNull(typeResolver, "typeResolver is null"));
         this.clientsBySchema = Map.copyOf(requireNonNull(clientsBySchema, "clientsBySchema is null"));
-        if (!this.clientsBySchema.keySet().equals(new java.util.HashSet<>(tables.schemas()))) {
-            throw new IllegalArgumentException("data clients do not match executable chain schemas");
+        if (!new java.util.HashSet<>(tables.schemas()).containsAll(this.clientsBySchema.keySet())) {
+            throw new IllegalArgumentException("data clients contain an unknown executable chain schema");
         }
     }
 
@@ -112,7 +113,10 @@ public final class Web3PageSourceProvider
         List<ProjectedColumn> projectedColumns = columns.stream()
                 .map(column -> projectedColumn(resolvedTable, column))
                 .toList();
-        ChainDataClient client = requireNonNull(clientsBySchema.get(web3Table.schemaName()), "chain data client is null");
+        ChainDataClient client = clientsBySchema.get(web3Table.schemaName());
+        if (client == null) {
+            throw new IllegalStateException("no remote endpoint is configured for schema " + web3Table.schemaName());
+        }
         RemoteExecution<List<ChainRow>> execution = client.execute(web3Table.tableName(), chainSplit);
         return new ChainPageSource(execution, projectedColumns);
     }
@@ -143,14 +147,18 @@ public final class Web3PageSourceProvider
         throw new IllegalArgumentException("split is not a supported Web3 chain split");
     }
 
-    private static Map<String, ChainDataClient> createClients(ExecutableChainRegistry adapters, RemoteExecutionRuntime runtime)
+    private static Map<String, ChainDataClient> createClients(ExecutableChainRegistry adapters, Map<String, RemoteExecutionRuntime> runtimes)
     {
         requireNonNull(adapters, "adapters is null");
-        requireNonNull(runtime, "runtime is null");
+        requireNonNull(runtimes, "runtimes is null");
         Map<String, ChainDataClient> clients = new LinkedHashMap<>();
-        adapters.adapters().forEach(adapter -> clients.put(
-                adapter.descriptor().schemaName(),
-                requireNonNull(adapter.createDataClient(runtime), "adapter data client is null")));
+        adapters.adapters().forEach(adapter -> {
+            String schemaName = adapter.descriptor().schemaName();
+            RemoteExecutionRuntime runtime = runtimes.get(schemaName);
+            if (runtime != null) {
+                clients.put(schemaName, requireNonNull(adapter.createDataClient(runtime), "adapter data client is null"));
+            }
+        });
         return Map.copyOf(clients);
     }
 
@@ -266,6 +274,13 @@ public final class Web3PageSourceProvider
                 throw new IllegalStateException("chain row has invalid bigint column " + column.name());
             }
             BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), value.longValue());
+            return;
+        }
+        if (column.type().equals(BOOLEAN)) {
+            if (!value.isBoolean()) {
+                throw new IllegalStateException("chain row has invalid boolean column " + column.name());
+            }
+            BOOLEAN.writeBoolean(pageBuilder.getBlockBuilder(channel), value.booleanValue());
             return;
         }
         if (column.type().equals(VARCHAR)) {

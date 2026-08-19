@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.web3;
 
+import io.trino.plugin.web3.aptos.AptosChainAdapter;
 import io.trino.plugin.web3.chain.ChainRegistry;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3TableHandle;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public final class Web3Metadata
@@ -47,7 +49,7 @@ public final class Web3Metadata
     {
         this(
                 maximumTransactionHashesPerQuery,
-                ChainRegistry.of(new EthereumChainAdapter()),
+                ChainRegistry.of(new EthereumChainAdapter(), new AptosChainAdapter()),
                 Web3Metadata::resolveBuiltInType);
     }
 
@@ -138,6 +140,7 @@ public final class Web3Metadata
     {
         return switch (type) {
             case "bigint" -> BIGINT;
+            case "boolean" -> BOOLEAN;
             case "varchar" -> VARCHAR;
             default -> throw new IllegalArgumentException("unsupported built-in descriptor type " + type);
         };

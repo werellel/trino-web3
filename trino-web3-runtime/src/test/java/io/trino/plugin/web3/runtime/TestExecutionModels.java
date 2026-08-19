@@ -68,6 +68,8 @@ public class TestExecutionModels
                 .hasMessage("REST path must be a bounded endpoint-relative absolute path");
         assertThatThrownBy(() -> new RestRemoteRequest("GET", "/v1\\transactions", Map.of(), Optional.empty()))
                 .hasMessage("REST path must be a bounded endpoint-relative absolute path");
+        assertThatThrownBy(() -> new RestRemoteRequest("GET", "/v1/../secret", Map.of(), Optional.empty()))
+                .hasMessage("REST path must not contain dot segments");
         assertThatThrownBy(() -> new RestRemoteRequest("GET", "/v1", Map.of(), Optional.of(body)))
                 .hasMessage("REST GET request must not contain a body");
     }

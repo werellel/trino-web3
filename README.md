@@ -11,7 +11,9 @@ add a versioned declarative contract, an executable adapter registry, and route
 Ethereum metadata, bounded split planning, and row decoding through the same
 code-based adapter. Descriptor method bindings now also select bounded access
 paths into named range and discrete-value table-handle predicates, without
-Ethereum fields in the generic Trino planning state. M3 adds an opt-in,
+Ethereum fields in the generic Trino planning state. The current M4 vertical
+slice also exposes native `aptos.transactions` through a bounded REST path,
+proving that the shared runtime is not JSON-RPC-only. M3 adds an opt-in,
 worker-local cache with
 EVM finality and reorganization correctness. The repository provides a
 catalog that can be loaded by Trino and queried with:
@@ -32,9 +34,9 @@ This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
 The worker-local runtime bounds concurrency, queue size, batch size, retries,
 and rate admission; it handles generic endpoint failover and `429`
 `Retry-After`. It does not implement receipts, logs, vendor-specific provider
-profiles, or non-EVM chains.
+profiles, Solana, or the remaining Aptos tables.
 
-## Ethereum blocks configuration
+## Chain endpoint configuration
 
 Configure an Ethereum-compatible JSON-RPC endpoint for a catalog that will
 query blocks:
@@ -43,6 +45,8 @@ query blocks:
 connector.name=web3
 web3.ethereum.rpc-url=http://127.0.0.1:8545
 web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
+web3.aptos.rest-url=http://127.0.0.1:8080
+web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
 web3.maximum-transaction-hashes-per-query=1000
@@ -69,6 +73,12 @@ catalog from loading.
 
 `web3.ethereum.rpc-url` is optional when only loading the catalog or reading
 metadata. A query of `ethereum.blocks` without it fails explicitly.
+`web3.aptos.rest-url` follows the same metadata-only rule and must be an
+HTTP(S) origin without credentials, a path, query, or fragment. Aptos REST
+requests share the configured concurrency, queue, rate, retry, cooldown,
+failover, request-size, and response-size limits, but are never placed in a
+JSON-RPC batch envelope. Aptos cache admission remains disabled until its
+finality and immutable identity are defined explicitly.
 The connector enforces hard upper bounds of 1,000 blocks per split, 10,000
 blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
 Fallback URLs are optional and are used in declaration order after a retryable
@@ -130,6 +140,10 @@ WHERE block_number BETWEEN 23000000 AND 23000010;
 SELECT hash, block_number, from_address, to_address
 FROM web3.ethereum.transactions
 WHERE hash IN ('0x...', '0x...');
+
+SELECT ledger_version, hash, type, success, vm_status, sender
+FROM web3.aptos.transactions
+WHERE ledger_version BETWEEN 1000 AND 1099;
 ```
 
 ## Compatibility
@@ -149,9 +163,9 @@ packaged-plugin integration test:
 mvn verify
 ```
 
-The test suite starts an in-process Trino runner and a deterministic local
-JSON-RPC mock. It does not contact an RPC provider and requires no credentials
-or external blockchain network.
+The test suite starts in-process Trino runners and deterministic local JSON-RPC
+and REST mocks. It does not contact a provider and requires no credentials or
+external blockchain network.
 
 ## Module layout
 
@@ -159,7 +173,8 @@ or external blockchain network.
 trino-web3-chain    Versioned descriptors, registry, evolution checks, and response mapping
 trino-web3-core     Trino planning handles and bounded range splitting
 trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
-trino-web3-runtime  Bounded generic JSON-RPC execution, transport, and metrics
+trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
+trino-web3-aptos    Aptos-native transactions planning, REST mapping, and decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
@@ -171,11 +186,10 @@ it does not contain endpoints, secrets, provider policy, finality logic, or
 scripts. Registry composition is fixed for a connector lifetime. Production
 execution is dispatched by schema through the executable registry; adapter
 splits retain their predicate column when crossing Trino's serialized split
-boundary. The runtime also defines bounded JSON-RPC and endpoint-relative REST
-request values, while only JSON-RPC has a production transport today. Solana,
-Aptos, Bitcoin, Tron, Sui, and Near queries remain M4 follow-up work;
-the presence of the descriptor foundation does not claim those chains are
-queryable yet.
+boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
+REST request values through the same policy state machine. Aptos transactions
+are the first REST vertical slice. Aptos events, Solana, Bitcoin, Tron, Sui,
+and Near queries remain M4 follow-up work.
 
 ## Development rules
 

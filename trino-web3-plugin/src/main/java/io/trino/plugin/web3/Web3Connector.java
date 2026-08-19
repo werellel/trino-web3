@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.web3;
 
+import io.trino.plugin.web3.aptos.AptosChainAdapter;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -32,8 +33,9 @@ import io.trino.spi.type.TypeManager;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -44,7 +46,7 @@ public final class Web3Connector
     private final ConnectorMetadata metadata;
     private final ConnectorSplitManager splitManager;
     private final ConnectorPageSourceProvider pageSourceProvider;
-    private final RemoteExecutionRuntime runtime;
+    private final Map<String, RemoteExecutionRuntime> runtimes;
 
     public Web3Connector()
     {
@@ -54,6 +56,7 @@ public final class Web3Connector
                 1_000,
                 1_048_576,
                 16 * 1_048_576,
+                List.of(),
                 List.of(),
                 true,
                 ExecutionPolicy.defaults(),
@@ -68,6 +71,7 @@ public final class Web3Connector
             int maximumRequestBytes,
             int maximumResponseBytes,
             List<URI> ethereumRpcEndpoints,
+            List<URI> aptosRestEndpoints,
             boolean jsonRpcBatchEnabled,
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
@@ -80,6 +84,7 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
+                aptosRestEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -95,6 +100,7 @@ public final class Web3Connector
             int maximumRequestBytes,
             int maximumResponseBytes,
             List<URI> ethereumRpcEndpoints,
+            List<URI> aptosRestEndpoints,
             boolean jsonRpcBatchEnabled,
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
@@ -107,15 +113,32 @@ public final class Web3Connector
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
                 components.adapters());
-        runtime = ethereumRpcEndpoints.isEmpty() ? null : createRuntime(ethereumRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig);
-        pageSourceProvider = Optional.ofNullable(runtime)
-                .<ConnectorPageSourceProvider>map(value -> new Web3PageSourceProvider(components.adapters(), value, components.typeResolver()))
-                .orElseGet(() -> (transaction, session, split, table, columns, dynamicFilter) -> {
-                    throw new IllegalStateException("web3.ethereum.rpc-url must be configured before querying Ethereum data");
-                });
+        HttpClient httpClient = HttpClient.newHttpClient();
+        Map<String, RemoteExecutionRuntime> configuredRuntimes = new LinkedHashMap<>();
+        if (!ethereumRpcEndpoints.isEmpty()) {
+            configuredRuntimes.put("ethereum", createJsonRpcRuntime(
+                    httpClient,
+                    ethereumRpcEndpoints,
+                    maximumRequestBytes,
+                    maximumResponseBytes,
+                    jsonRpcBatchEnabled,
+                    executionPolicy,
+                    cacheConfig));
+        }
+        if (!aptosRestEndpoints.isEmpty()) {
+            configuredRuntimes.put("aptos", createRestRuntime(
+                    httpClient,
+                    aptosRestEndpoints,
+                    maximumRequestBytes,
+                    maximumResponseBytes,
+                    executionPolicy));
+        }
+        runtimes = Map.copyOf(configuredRuntimes);
+        pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
     }
 
-    private static RemoteExecutionRuntime createRuntime(
+    private static RemoteExecutionRuntime createJsonRpcRuntime(
+            HttpClient httpClient,
             List<URI> endpoints,
             int maximumRequestBytes,
             int maximumResponseBytes,
@@ -124,13 +147,8 @@ public final class Web3Connector
             RemoteCacheConfig cacheConfig)
     {
         return new RemoteExecutionRuntime(
-                HttpClient.newHttpClient(),
-                java.util.stream.IntStream.range(0, endpoints.size())
-                        .mapToObj(index -> new ProviderProfile(
-                                index == 0 ? "primary" : "fallback-" + index,
-                                endpoints.get(index),
-                                new ProviderCapabilities(jsonRpcBatchEnabled)))
-                        .toList(),
+                httpClient,
+                providerProfiles(endpoints, jsonRpcBatchEnabled),
                 Duration.ofSeconds(10),
                 maximumRequestBytes,
                 maximumResponseBytes,
@@ -138,9 +156,36 @@ public final class Web3Connector
                 cacheConfig);
     }
 
+    private static RemoteExecutionRuntime createRestRuntime(
+            HttpClient httpClient,
+            List<URI> endpoints,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            ExecutionPolicy executionPolicy)
+    {
+        return RemoteExecutionRuntime.forRest(
+                httpClient,
+                providerProfiles(endpoints, false),
+                Duration.ofSeconds(10),
+                maximumRequestBytes,
+                maximumResponseBytes,
+                executionPolicy,
+                RemoteCacheConfig.disabled());
+    }
+
+    private static List<ProviderProfile> providerProfiles(List<URI> endpoints, boolean jsonRpcBatchEnabled)
+    {
+        return java.util.stream.IntStream.range(0, endpoints.size())
+                .mapToObj(index -> new ProviderProfile(
+                        index == 0 ? "primary" : "fallback-" + index,
+                        endpoints.get(index),
+                        new ProviderCapabilities(jsonRpcBatchEnabled)))
+                .toList();
+    }
+
     private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, io.trino.spi.type.Type> typeResolver)
     {
-        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(new EthereumChainAdapter());
+        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(new EthereumChainAdapter(), new AptosChainAdapter());
         return new ConnectorComponents(
                 adapters,
                 new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),
@@ -177,9 +222,7 @@ public final class Web3Connector
     @Override
     public void shutdown()
     {
-        if (runtime != null) {
-            runtime.close();
-        }
+        runtimes.values().forEach(RemoteExecutionRuntime::close);
     }
 
     private record ConnectorComponents(

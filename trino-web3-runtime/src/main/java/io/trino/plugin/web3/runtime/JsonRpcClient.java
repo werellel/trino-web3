@@ -202,28 +202,13 @@ public final class JsonRpcClient
     }
 
     public static final class JsonRpcHttpException
-            extends RuntimeException
+            extends RemoteHttpException
     {
         private static final long serialVersionUID = 1L;
 
-        private final int statusCode;
-        private final String retryAfter;
-
         public JsonRpcHttpException(int statusCode, Optional<String> retryAfter)
         {
-            super("JSON-RPC endpoint returned HTTP " + statusCode);
-            this.statusCode = statusCode;
-            this.retryAfter = requireNonNull(retryAfter, "retryAfter is null").orElse(null);
-        }
-
-        public int statusCode()
-        {
-            return statusCode;
-        }
-
-        public Optional<String> retryAfter()
-        {
-            return Optional.ofNullable(retryAfter);
+            super("JSON-RPC endpoint returned HTTP " + statusCode, statusCode, retryAfter);
         }
     }
 

@@ -20,15 +20,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import static java.util.Objects.requireNonNull;
 
-/** Immutable endpoint-relative REST request value. Transport support is added separately. */
+/** Immutable endpoint-relative REST request value. */
 public final class RestRemoteRequest
         implements RemoteRequest
 {
@@ -104,6 +104,9 @@ public final class RestRemoteRequest
             if (uri.isAbsolute() || uri.getRawAuthority() != null || uri.getRawQuery() != null || uri.getRawFragment() != null) {
                 throw new IllegalArgumentException("REST path must be a bounded endpoint-relative absolute path");
             }
+            if (!uri.normalize().getRawPath().equals(uri.getRawPath())) {
+                throw new IllegalArgumentException("REST path must not contain dot segments");
+            }
         }
         catch (URISyntaxException e) {
             throw new IllegalArgumentException("REST path must be a bounded endpoint-relative absolute path", e);
@@ -114,7 +117,7 @@ public final class RestRemoteRequest
     private static Map<String, List<String>> immutableQueryParameters(Map<String, List<String>> parameters)
     {
         requireNonNull(parameters, "queryParameters is null");
-        Map<String, List<String>> copy = new LinkedHashMap<>();
+        Map<String, List<String>> copy = new TreeMap<>();
         int valueCount = 0;
         for (Map.Entry<String, List<String>> entry : parameters.entrySet()) {
             if (entry.getKey() == null || !QUERY_NAME.matcher(entry.getKey()).matches()) {
@@ -166,6 +169,11 @@ public final class RestRemoteRequest
     @Override
     public String toString()
     {
-        return "RestRemoteRequest{operation=" + operationName() + ", queryParameters=" + queryParameters.size() + ", bodyPresent=" + body.isPresent() + "}";
+        return "RestRemoteRequest{method=" + method + ", pathSegments=" + pathSegments() + ", queryParameters=" + queryParameters.size() + ", bodyPresent=" + body.isPresent() + "}";
+    }
+
+    private int pathSegments()
+    {
+        return Math.toIntExact(path.chars().filter(character -> character == '/').count());
     }
 }

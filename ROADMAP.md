@@ -492,6 +492,10 @@ Near-head reorg tests must remain correct.
 
 Prove that the architecture is genuinely multi-chain rather than EVM-specific.
 
+Implementation status: the versioned adapter foundation and the first Aptos
+`transactions` REST vertical slice are implemented. Aptos events and the
+Solana vertical slice remain before M4 acceptance is complete.
+
 Add:
 
 ```text

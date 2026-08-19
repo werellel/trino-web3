@@ -35,6 +35,8 @@ public final class Web3ConnectorFactory
     public static final String CONNECTOR_NAME = "web3";
     private static final String ETHEREUM_RPC_URL = "web3.ethereum.rpc-url";
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
+    private static final String APTOS_REST_URL = "web3.aptos.rest-url";
+    private static final String APTOS_REST_FALLBACK_URLS = "web3.aptos.rest-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
     private static final String MAXIMUM_TRANSACTION_HASHES_PER_QUERY = "web3.maximum-transaction-hashes-per-query";
@@ -76,17 +78,13 @@ public final class Web3ConnectorFactory
             throw new IllegalArgumentException("Unsupported Web3 connector configuration property");
         }
 
-        List<URI> endpoints = Stream.concat(
-                        Optional.ofNullable(config.get(ETHEREUM_RPC_URL)).map(value -> parseHttpUri(value, ETHEREUM_RPC_URL)).stream(),
-                        Optional.ofNullable(config.get(ETHEREUM_RPC_FALLBACK_URLS))
-                                .stream()
-                                .flatMap(value -> Stream.of(value.split(",")))
-                                .map(String::trim)
-                                .filter(value -> !value.isEmpty())
-                                .map(value -> parseHttpUri(value, ETHEREUM_RPC_FALLBACK_URLS)))
-                .toList();
-        if (endpoints.size() > 8) {
+        List<URI> ethereumEndpoints = parseEndpoints(config, ETHEREUM_RPC_URL, ETHEREUM_RPC_FALLBACK_URLS, false);
+        if (ethereumEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.ethereum.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> aptosEndpoints = parseEndpoints(config, APTOS_REST_URL, APTOS_REST_FALLBACK_URLS, true);
+        if (aptosEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.aptos.rest-url and fallback URLs must contain at most 8 endpoints");
         }
         long maximumBlocksPerSplit = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_SPLIT))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_SPLIT, 1_000))
@@ -142,7 +140,8 @@ public final class Web3ConnectorFactory
                 maximumTransactionHashesPerQuery,
                 maximumRequestBytes,
                 maximumResponseBytes,
-                endpoints,
+                ethereumEndpoints,
+                aptosEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -153,6 +152,8 @@ public final class Web3ConnectorFactory
     {
         return key.equals(ETHEREUM_RPC_URL) ||
                 key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
+                key.equals(APTOS_REST_URL) ||
+                key.equals(APTOS_REST_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
                 key.equals(MAXIMUM_TRANSACTION_HASHES_PER_QUERY) ||
@@ -171,6 +172,35 @@ public final class Web3ConnectorFactory
                 key.equals(CACHE_MAXIMUM_SIZE) ||
                 key.equals(CACHE_MAXIMUM_ENTRY_SIZE) ||
                 key.equals(CACHE_TTL);
+    }
+
+    private static List<URI> parseEndpoints(
+            Map<String, String> config,
+            String primaryProperty,
+            String fallbackProperty,
+            boolean requireOrigin)
+    {
+        return Stream.concat(
+                        Optional.ofNullable(config.get(primaryProperty))
+                                .map(value -> parseEndpoint(value, primaryProperty, requireOrigin))
+                                .stream(),
+                        Optional.ofNullable(config.get(fallbackProperty))
+                                .stream()
+                                .flatMap(value -> Stream.of(value.split(",")))
+                                .map(String::trim)
+                                .filter(value -> !value.isEmpty())
+                                .map(value -> parseEndpoint(value, fallbackProperty, requireOrigin)))
+                .toList();
+    }
+
+    private static URI parseEndpoint(String value, String propertyName, boolean requireOrigin)
+    {
+        URI uri = parseHttpUri(value, propertyName);
+        String path = uri.getRawPath();
+        if (requireOrigin && (uri.getRawUserInfo() != null || uri.getRawQuery() != null || !(path.isEmpty() || path.equals("/")))) {
+            throw new IllegalArgumentException(propertyName + " must contain HTTP(S) origins without credentials, path, query, or fragment");
+        }
+        return uri;
     }
 
     private static URI parseHttpUri(String value, String propertyName)

@@ -59,9 +59,11 @@ public class ITWeb3PluginArchive
             assertThat(pluginClassNames).containsExactly("io.trino.plugin.web3.Web3Plugin");
             assertThat(classLoader.loadClass("io.trino.plugin.web3.chain.ChainDescriptor")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.adapter.ExecutableChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.aptos.AptosChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.RestClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.cache.EvictableCacheBuilder")).isNotNull();
         }
     }
@@ -94,6 +96,9 @@ public class ITWeb3PluginArchive
                         "web3.rpc.initial-backoff-millis", "1",
                         "web3.rpc.provider-cooldown-millis", "1",
                         "web3.cache.enabled", "true"));
+
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
+                        .containsExactly("transactions");
 
                 String query = """
                         SELECT block_hash

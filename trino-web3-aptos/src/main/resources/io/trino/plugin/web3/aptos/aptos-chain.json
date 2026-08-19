@@ -1,0 +1,44 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "aptos",
+  "schemaName": "aptos",
+  "adapterVersion": 1,
+  "tables": [
+    {
+      "name": "transactions",
+      "version": 1,
+      "columns": [
+        {"name": "ledger_version", "type": "bigint", "nullable": false},
+        {"name": "hash", "type": "varchar", "nullable": false},
+        {"name": "type", "type": "varchar", "nullable": false},
+        {"name": "success", "type": "boolean", "nullable": false},
+        {"name": "vm_status", "type": "varchar", "nullable": false},
+        {"name": "sender", "type": "varchar", "nullable": true}
+      ],
+      "methods": [
+        {
+          "name": "by-ledger-version-range",
+          "protocol": "REST",
+          "action": "GET",
+          "path": "/v1/transactions",
+          "bindings": [
+            {"target": "start", "kind": "SPLIT", "value": "ledger_version", "location": "QUERY", "required": true},
+            {"target": "limit", "kind": "LITERAL", "value": "100", "location": "QUERY", "required": true}
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "",
+            "fields": [
+              {"column": "ledger_version", "pointer": "/version", "required": true},
+              {"column": "hash", "pointer": "/hash", "required": true},
+              {"column": "type", "pointer": "/type", "required": true},
+              {"column": "success", "pointer": "/success", "required": true},
+              {"column": "vm_status", "pointer": "/vm_status", "required": true},
+              {"column": "sender", "pointer": "/sender", "required": false}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

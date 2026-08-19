@@ -39,7 +39,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
-/** Shared worker-local scheduler for bounded, read-only JSON-RPC operations. */
+/** Shared worker-local scheduler for bounded, read-only remote operations. */
 public final class RemoteExecutionRuntime
         implements AutoCloseable
 {
@@ -48,14 +48,16 @@ public final class RemoteExecutionRuntime
     private final Object lock = new Object();
     private final ReentrantReadWriteLock cacheLifecycleLock = new ReentrantReadWriteLock();
     private final List<ProviderProfile> providers;
-    private final Map<String, JsonRpcTransport> transports;
+    private final Map<String, JsonRpcTransport> jsonRpcTransports;
+    private final Map<String, RestTransport> restTransports;
+    private final RemoteRequest.Protocol protocol;
     private final ExecutionPolicy policy;
     private final RemoteExecutionScheduler scheduler;
     private final RemoteResultCache cache;
     private final int maximumCacheReadBytes;
     private final boolean batchingEnabled;
     private final ArrayDeque<SharedOperation> pending = new ArrayDeque<>();
-    private final Map<RemoteOperation, SharedOperation> sharedOperations = new HashMap<>();
+    private final Map<RemoteRequest, SharedOperation> sharedOperations = new HashMap<>();
     private final Map<String, Long> unhealthyUntilNanos = new HashMap<>();
     private final MetricScope metrics = new MetricScope();
     private long nextPermitNanos;
@@ -74,6 +76,8 @@ public final class RemoteExecutionRuntime
         this(
                 providers,
                 createTransports(httpClient, providers, requestTimeout, maximumRequestBytes, maximumResponseBytes),
+                Map.of(),
+                RemoteRequest.Protocol.JSON_RPC,
                 policy,
                 new ExecutorRemoteExecutionScheduler(),
                 RemoteCacheConfig.disabled(),
@@ -92,6 +96,28 @@ public final class RemoteExecutionRuntime
         this(
                 providers,
                 createTransports(httpClient, providers, requestTimeout, maximumRequestBytes, maximumResponseBytes),
+                Map.of(),
+                RemoteRequest.Protocol.JSON_RPC,
+                policy,
+                new ExecutorRemoteExecutionScheduler(),
+                cacheConfig,
+                maximumResponseBytes);
+    }
+
+    public static RemoteExecutionRuntime forRest(
+            HttpClient httpClient,
+            List<ProviderProfile> providers,
+            Duration requestTimeout,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            ExecutionPolicy policy,
+            RemoteCacheConfig cacheConfig)
+    {
+        return new RemoteExecutionRuntime(
+                providers,
+                Map.of(),
+                createRestTransports(httpClient, providers, requestTimeout, maximumRequestBytes, maximumResponseBytes),
+                RemoteRequest.Protocol.REST,
                 policy,
                 new ExecutorRemoteExecutionScheduler(),
                 cacheConfig,
@@ -104,7 +130,7 @@ public final class RemoteExecutionRuntime
             ExecutionPolicy policy,
             RemoteExecutionScheduler scheduler)
     {
-        this(providers, transports, policy, scheduler, RemoteCacheConfig.disabled());
+        this(providers, transports, Map.of(), RemoteRequest.Protocol.JSON_RPC, policy, scheduler, RemoteCacheConfig.disabled(), 1);
     }
 
     RemoteExecutionRuntime(
@@ -114,7 +140,7 @@ public final class RemoteExecutionRuntime
             RemoteExecutionScheduler scheduler,
             RemoteCacheConfig cacheConfig)
     {
-        this(providers, transports, policy, scheduler, cacheConfig, cacheConfig.maximumEntryBytes());
+        this(providers, transports, Map.of(), RemoteRequest.Protocol.JSON_RPC, policy, scheduler, cacheConfig, cacheConfig.maximumEntryBytes());
     }
 
     RemoteExecutionRuntime(
@@ -125,11 +151,43 @@ public final class RemoteExecutionRuntime
             RemoteCacheConfig cacheConfig,
             int maximumCacheReadBytes)
     {
+        this(providers, transports, Map.of(), RemoteRequest.Protocol.JSON_RPC, policy, scheduler, cacheConfig, maximumCacheReadBytes);
+    }
+
+    static RemoteExecutionRuntime forRest(
+            List<ProviderProfile> providers,
+            Map<String, RestTransport> transports,
+            ExecutionPolicy policy,
+            RemoteExecutionScheduler scheduler)
+    {
+        return new RemoteExecutionRuntime(
+                providers,
+                Map.of(),
+                transports,
+                RemoteRequest.Protocol.REST,
+                policy,
+                scheduler,
+                RemoteCacheConfig.disabled(),
+                1);
+    }
+
+    private RemoteExecutionRuntime(
+            List<ProviderProfile> providers,
+            Map<String, JsonRpcTransport> jsonRpcTransports,
+            Map<String, RestTransport> restTransports,
+            RemoteRequest.Protocol protocol,
+            ExecutionPolicy policy,
+            RemoteExecutionScheduler scheduler,
+            RemoteCacheConfig cacheConfig,
+            int maximumCacheReadBytes)
+    {
         this.providers = List.copyOf(requireNonNull(providers, "providers is null"));
         if (this.providers.isEmpty()) {
             throw new IllegalArgumentException("providers is empty");
         }
-        this.transports = Map.copyOf(requireNonNull(transports, "transports is null"));
+        this.jsonRpcTransports = Map.copyOf(requireNonNull(jsonRpcTransports, "jsonRpcTransports is null"));
+        this.restTransports = Map.copyOf(requireNonNull(restTransports, "restTransports is null"));
+        this.protocol = requireNonNull(protocol, "protocol is null");
         this.policy = requireNonNull(policy, "policy is null");
         this.scheduler = requireNonNull(scheduler, "scheduler is null");
         cache = new RemoteResultCache(requireNonNull(cacheConfig, "cacheConfig is null"));
@@ -142,17 +200,26 @@ public final class RemoteExecutionRuntime
             if (!providerNames.add(provider.name())) {
                 throw new IllegalArgumentException("provider names must be unique");
             }
-            if (!this.transports.containsKey(provider.name())) {
+            boolean transportPresent = switch (protocol) {
+                case JSON_RPC -> this.jsonRpcTransports.containsKey(provider.name());
+                case REST -> this.restTransports.containsKey(provider.name());
+            };
+            if (!transportPresent) {
                 throw new IllegalArgumentException("provider transport is missing");
             }
         }
-        batchingEnabled = this.providers.stream()
+        batchingEnabled = protocol == RemoteRequest.Protocol.JSON_RPC && this.providers.stream()
                 .allMatch(provider -> provider.capabilities().supportsJsonRpcBatch());
     }
 
     public CompletableFuture<RemoteResult> execute(RemoteOperation operation)
     {
-        return execute(operation, new MetricScope());
+        return execute((RemoteRequest) operation);
+    }
+
+    public CompletableFuture<RemoteResult> execute(RemoteRequest request)
+    {
+        return execute(request, new MetricScope());
     }
 
     public CompletableFuture<List<RemoteResult>> executeBatch(List<RemoteOperation> operations)
@@ -218,6 +285,13 @@ public final class RemoteExecutionRuntime
             RemoteExecution<List<RemoteResult>> execution = executeBatchWithMetrics(operations, scope);
             trackCancellation(execution.future());
             return execution;
+        }
+
+        public RemoteExecution<RemoteResult> execute(RemoteRequest request)
+        {
+            CompletableFuture<RemoteResult> future = RemoteExecutionRuntime.this.execute(request, scope);
+            trackCancellation(future);
+            return new RemoteExecution<>(future, scope::snapshot);
         }
 
         public Optional<JsonNode> getCached(RemoteCacheKey key)
@@ -346,9 +420,12 @@ public final class RemoteExecutionRuntime
         return metrics.snapshot();
     }
 
-    private CompletableFuture<RemoteResult> execute(RemoteOperation operation, MetricScope scope)
+    private CompletableFuture<RemoteResult> execute(RemoteRequest operation, MetricScope scope)
     {
         requireNonNull(operation, "operation is null");
+        if (operation.protocol() != protocol) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("remote request protocol does not match runtime protocol"));
+        }
         Subscriber subscriber = new Subscriber(scope);
         synchronized (lock) {
             if (closed) {
@@ -445,7 +522,7 @@ public final class RemoteExecutionRuntime
     private void startBatch(Batch batch)
     {
         ProviderProfile provider;
-        List<JsonRpcClient.JsonRpcRequest> requests;
+        List<RemoteRequest> requests;
         AttemptMetrics attemptMetrics;
         synchronized (lock) {
             if (closed || batch.finished) {
@@ -478,11 +555,9 @@ public final class RemoteExecutionRuntime
                 return;
             }
             provider = selection.provider().orElseThrow();
-            requests = new ArrayList<>();
-            for (int index = 0; index < batch.operations.size(); index++) {
-                RemoteOperation operation = batch.operations.get(index).operation;
-                requests.add(new JsonRpcClient.JsonRpcRequest(index, operation.method(), operation.parameters()));
-            }
+            requests = batch.operations.stream()
+                    .map(operation -> operation.operation)
+                    .toList();
             attemptMetrics = new AttemptMetrics();
             batch.operations.forEach(operation -> operation.subscribers.forEach(subscriber -> attemptMetrics.addScope(subscriber.scope, operation)));
             batch.attemptMetrics = attemptMetrics;
@@ -492,16 +567,10 @@ public final class RemoteExecutionRuntime
 
         CompletableFuture<List<JsonNode>> response;
         try {
-            JsonRpcTransport transport = transports.get(provider.name());
-            if (provider.capabilities().supportsJsonRpcBatch()) {
-                response = transport.executeBatch(requests);
-            }
-            else {
-                if (requests.size() != 1) {
-                    throw new IllegalStateException("non-batch provider received multiple operations");
-                }
-                response = transport.execute(requests.getFirst()).thenApply(List::of);
-            }
+            response = switch (protocol) {
+                case JSON_RPC -> executeJsonRpc(provider, requests);
+                case REST -> executeRest(provider, requests);
+            };
         }
         catch (RuntimeException e) {
             response = CompletableFuture.failedFuture(e);
@@ -520,6 +589,40 @@ public final class RemoteExecutionRuntime
                 failBatch(batch, provider, unwrap(failure));
             }
         });
+    }
+
+    private CompletableFuture<List<JsonNode>> executeJsonRpc(ProviderProfile provider, List<RemoteRequest> operations)
+    {
+        List<JsonRpcClient.JsonRpcRequest> requests = new ArrayList<>();
+        for (int index = 0; index < operations.size(); index++) {
+            if (!(operations.get(index) instanceof RemoteOperation operation)) {
+                throw new IllegalStateException("JSON-RPC runtime received a non-JSON-RPC request");
+            }
+            requests.add(new JsonRpcClient.JsonRpcRequest(index, operation.method(), operation.parameters()));
+        }
+        JsonRpcTransport transport = jsonRpcTransports.get(provider.name());
+        if (provider.capabilities().supportsJsonRpcBatch()) {
+            return transport.executeBatch(requests);
+        }
+        if (requests.size() != 1) {
+            throw new IllegalStateException("non-batch provider received multiple operations");
+        }
+        return transport.execute(requests.getFirst()).thenApply(List::of);
+    }
+
+    private CompletableFuture<List<JsonNode>> executeRest(ProviderProfile provider, List<RemoteRequest> requests)
+    {
+        if (requests.size() != 1 || !(requests.getFirst() instanceof RestRemoteRequest request)) {
+            throw new IllegalStateException("REST runtime received an invalid wire batch");
+        }
+        CompletableFuture<JsonNode> response = restTransports.get(provider.name()).execute(request);
+        CompletableFuture<List<JsonNode>> result = response.thenApply(List::of);
+        result.whenComplete((value, failure) -> {
+            if (result.isCancelled()) {
+                response.cancel(true);
+            }
+        });
+        return result;
     }
 
     private void completeBatch(Batch batch, ProviderProfile provider, List<JsonNode> values)
@@ -553,7 +656,7 @@ public final class RemoteExecutionRuntime
             }
             metrics.failure();
             attemptMetrics.failure();
-            if (failure instanceof JsonRpcClient.JsonRpcHttpException httpFailure && httpFailure.statusCode() == 429) {
+            if (failure instanceof RemoteHttpException httpFailure && httpFailure.statusCode() == 429) {
                 metrics.throttled();
                 attemptMetrics.throttled();
             }
@@ -624,7 +727,7 @@ public final class RemoteExecutionRuntime
 
     private Duration retryDelay(Throwable failure, int attempt)
     {
-        if (failure instanceof JsonRpcClient.JsonRpcHttpException httpFailure && httpFailure.statusCode() == 429) {
+        if (failure instanceof RemoteHttpException httpFailure && httpFailure.statusCode() == 429) {
             return httpFailure.retryAfter().flatMap(this::parseRetryAfter)
                     .map(value -> minDuration(value, policy.maximumBackoff()))
                     .orElseGet(() -> exponentialBackoff(attempt));
@@ -673,6 +776,24 @@ public final class RemoteExecutionRuntime
         return transports;
     }
 
+    private static Map<String, RestTransport> createRestTransports(
+            HttpClient httpClient,
+            List<ProviderProfile> providers,
+            Duration requestTimeout,
+            int maximumRequestBytes,
+            int maximumResponseBytes)
+    {
+        requireNonNull(httpClient, "httpClient is null");
+        requireNonNull(requestTimeout, "requestTimeout is null");
+        Map<String, RestTransport> transports = new HashMap<>();
+        for (ProviderProfile provider : requireNonNull(providers, "providers is null")) {
+            if (transports.put(provider.name(), new RestClient(httpClient, provider.endpoint(), requestTimeout, maximumRequestBytes, maximumResponseBytes)) != null) {
+                throw new IllegalArgumentException("provider names must be unique");
+            }
+        }
+        return transports;
+    }
+
     private static Duration minDuration(Duration left, Duration right)
     {
         return left.compareTo(right) <= 0 ? left : right;
@@ -680,7 +801,7 @@ public final class RemoteExecutionRuntime
 
     private static boolean isRetryable(Throwable failure)
     {
-        if (failure instanceof JsonRpcClient.JsonRpcHttpException httpFailure) {
+        if (failure instanceof RemoteHttpException httpFailure) {
             return httpFailure.statusCode() == 429 || httpFailure.statusCode() >= 500;
         }
         return !(failure instanceof CancellationException) &&
@@ -740,12 +861,12 @@ public final class RemoteExecutionRuntime
 
     private static final class SharedOperation
     {
-        private final RemoteOperation operation;
+        private final RemoteRequest operation;
         private final List<Subscriber> subscribers = new ArrayList<>();
         private boolean queued = true;
         private Batch batch;
 
-        private SharedOperation(RemoteOperation operation)
+        private SharedOperation(RemoteRequest operation)
         {
             this.operation = operation;
         }
