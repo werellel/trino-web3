@@ -13,12 +13,16 @@
  */
 package io.trino.plugin.web3.runtime;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,6 +40,36 @@ public class TestExecutionModels
         assertThat(operation).isEqualTo(new RemoteOperation("eth_getBlockByNumber", List.of("0x1", false)));
         assertThatThrownBy(() -> operation.parameters().add("unexpected"))
                 .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(operation.protocol()).isEqualTo(RemoteRequest.Protocol.JSON_RPC);
+    }
+
+    @Test
+    public void testRestRequestIsEndpointRelativeBoundedAndImmutable()
+            throws Exception
+    {
+        ObjectNode body = (ObjectNode) new ObjectMapper().readTree("{\"limit\":10}");
+        Map<String, List<String>> query = new java.util.LinkedHashMap<>();
+        query.put("ledger_version", new ArrayList<>(List.of("123")));
+        RestRemoteRequest request = new RestRemoteRequest("POST", "/v1/transactions", query, Optional.of(body));
+        query.clear();
+        body.put("secret", "changed");
+
+        assertThat(request.protocol()).isEqualTo(RemoteRequest.Protocol.REST);
+        assertThat(request.operationName()).isEqualTo("POST /v1/transactions");
+        assertThat(request.queryParameters()).containsEntry("ledger_version", List.of("123"));
+        assertThat(request.body().orElseThrow().has("secret")).isFalse();
+        assertThat(request.toString()).doesNotContain("ledger_version", "123", "limit");
+        assertThatThrownBy(() -> request.queryParameters().put("other", List.of("value")))
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        assertThatThrownBy(() -> new RestRemoteRequest("GET", "https://secret.example/v1", Map.of(), Optional.empty()))
+                .hasMessage("REST path must be a bounded endpoint-relative absolute path");
+        assertThatThrownBy(() -> new RestRemoteRequest("GET", "//secret.example/v1", Map.of(), Optional.empty()))
+                .hasMessage("REST path must be a bounded endpoint-relative absolute path");
+        assertThatThrownBy(() -> new RestRemoteRequest("GET", "/v1\\transactions", Map.of(), Optional.empty()))
+                .hasMessage("REST path must be a bounded endpoint-relative absolute path");
+        assertThatThrownBy(() -> new RestRemoteRequest("GET", "/v1", Map.of(), Optional.of(body)))
+                .hasMessage("REST GET request must not contain a body");
     }
 
     @Test

@@ -13,17 +13,30 @@
  */
 package io.trino.plugin.web3;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.airlift.slice.Slices;
+import io.trino.plugin.web3.adapter.ChainDataClient;
+import io.trino.plugin.web3.adapter.ChainRow;
+import io.trino.plugin.web3.adapter.ChainSplit;
+import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
+import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
+import io.trino.plugin.web3.core.Web3DiscreteValueSplit;
+import io.trino.plugin.web3.core.Web3RangeSplit;
 import io.trino.plugin.web3.core.Web3Split;
 import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.core.Web3TransactionHashSplit;
 import io.trino.plugin.web3.evm.EthereumBlockClient;
+import io.trino.plugin.web3.evm.EthereumChainAdapter;
+import io.trino.plugin.web3.evm.EthereumChainDataClient;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
 import io.trino.plugin.web3.runtime.RemoteExecution;
 import io.trino.plugin.web3.runtime.RemoteExecutionMetrics;
+import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -33,12 +46,14 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metrics;
+import io.trino.spi.type.Type;
 
-import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -47,13 +62,36 @@ import static java.util.Objects.requireNonNull;
 public final class Web3PageSourceProvider
         implements ConnectorPageSourceProvider
 {
-    private final EthereumBlockClient blockClient;
-    private final EthereumTransactionClient transactionClient;
+    private final ChainMetadataRegistry tables;
+    private final Map<String, ChainDataClient> clientsBySchema;
 
     public Web3PageSourceProvider(EthereumBlockClient blockClient, EthereumTransactionClient transactionClient)
     {
-        this.blockClient = requireNonNull(blockClient, "blockClient is null");
-        this.transactionClient = requireNonNull(transactionClient, "transactionClient is null");
+        this(
+                ExecutableChainRegistry.of(new EthereumChainAdapter()),
+                Map.of("ethereum", new EthereumChainDataClient(blockClient, transactionClient)),
+                Web3Metadata::resolveBuiltInType);
+    }
+
+    Web3PageSourceProvider(
+            ExecutableChainRegistry adapters,
+            RemoteExecutionRuntime runtime,
+            Function<String, Type> typeResolver)
+    {
+        this(adapters, createClients(adapters, runtime), typeResolver);
+    }
+
+    private Web3PageSourceProvider(
+            ExecutableChainRegistry adapters,
+            Map<String, ChainDataClient> clientsBySchema,
+            Function<String, Type> typeResolver)
+    {
+        requireNonNull(adapters, "adapters is null");
+        tables = new ChainMetadataRegistry(adapters.descriptors(), requireNonNull(typeResolver, "typeResolver is null"));
+        this.clientsBySchema = Map.copyOf(requireNonNull(clientsBySchema, "clientsBySchema is null"));
+        if (!this.clientsBySchema.keySet().equals(new java.util.HashSet<>(tables.schemas()))) {
+            throw new IllegalArgumentException("data clients do not match executable chain schemas");
+        }
     }
 
     @Override
@@ -68,46 +106,76 @@ public final class Web3PageSourceProvider
         if (!(table instanceof Web3TableHandle web3Table)) {
             throw new IllegalArgumentException("table is not a Web3 table handle");
         }
-        List<Web3ColumnHandle> web3Columns = columns.stream()
-                .map(column -> {
-                    if (!(column instanceof Web3ColumnHandle web3Column)) {
-                        throw new IllegalArgumentException("column is not a Web3 column handle");
-                    }
-                    return web3Column;
-                })
+        ChainSplit chainSplit = toChainSplit(split);
+        ChainMetadataRegistry.ResolvedTable resolvedTable = tables.table(web3Table)
+                .orElseThrow(() -> new IllegalArgumentException("unknown executable chain table " + web3Table.schemaName() + "." + web3Table.tableName()));
+        List<ProjectedColumn> projectedColumns = columns.stream()
+                .map(column -> projectedColumn(resolvedTable, column))
                 .toList();
-        if (web3Table.tableName().equals("blocks")) {
-            if (!(split instanceof Web3Split web3Split)) {
-                throw new IllegalArgumentException("blocks table requires a block range split");
-            }
-            return new EthereumBlocksPageSource(blockClient.getBlocks(web3Split.blockRange()), web3Columns);
-        }
-        if (web3Table.tableName().equals("transactions")) {
-            if (split instanceof Web3Split web3Split) {
-                return new EthereumTransactionsPageSource(transactionClient.getTransactions(web3Split.blockRange()), web3Columns);
-            }
-            if (split instanceof Web3TransactionHashSplit hashSplit) {
-                return new EthereumTransactionsPageSource(transactionClient.getTransaction(hashSplit.transactionHash()), web3Columns);
-            }
-            throw new IllegalArgumentException("transactions table requires a block range or transaction hash split");
-        }
-        throw new IllegalArgumentException("table is not a supported Ethereum table");
+        ChainDataClient client = requireNonNull(clientsBySchema.get(web3Table.schemaName()), "chain data client is null");
+        RemoteExecution<List<ChainRow>> execution = client.execute(web3Table.tableName(), chainSplit);
+        return new ChainPageSource(execution, projectedColumns);
     }
 
-    private static final class EthereumBlocksPageSource
+    private static ChainSplit toChainSplit(ConnectorSplit split)
+    {
+        requireNonNull(split, "split is null");
+        if (split instanceof Web3RangeSplit rangeSplit) {
+            return new RangeChainSplit(
+                    rangeSplit.column(),
+                    rangeSplit.startInclusive(),
+                    rangeSplit.endInclusive());
+        }
+        if (split instanceof Web3DiscreteValueSplit valueSplit) {
+            return new DiscreteValueChainSplit(valueSplit.column(), valueSplit.value());
+        }
+        // Accept M1-M3 split values so in-process callers and rolling upgrades
+        // retain the established Ethereum serialization contract.
+        if (split instanceof Web3Split rangeSplit) {
+            return new RangeChainSplit(
+                    "block_number",
+                    rangeSplit.blockRange().startInclusive(),
+                    rangeSplit.blockRange().endInclusive());
+        }
+        if (split instanceof Web3TransactionHashSplit valueSplit) {
+            return new DiscreteValueChainSplit("hash", valueSplit.transactionHash());
+        }
+        throw new IllegalArgumentException("split is not a supported Web3 chain split");
+    }
+
+    private static Map<String, ChainDataClient> createClients(ExecutableChainRegistry adapters, RemoteExecutionRuntime runtime)
+    {
+        requireNonNull(adapters, "adapters is null");
+        requireNonNull(runtime, "runtime is null");
+        Map<String, ChainDataClient> clients = new LinkedHashMap<>();
+        adapters.adapters().forEach(adapter -> clients.put(
+                adapter.descriptor().schemaName(),
+                requireNonNull(adapter.createDataClient(runtime), "adapter data client is null")));
+        return Map.copyOf(clients);
+    }
+
+    private static ProjectedColumn projectedColumn(ChainMetadataRegistry.ResolvedTable table, ColumnHandle column)
+    {
+        if (!(column instanceof Web3ColumnHandle web3Column)) {
+            throw new IllegalArgumentException("column is not a Web3 column handle");
+        }
+        ColumnMetadata metadata = table.columnMetadata(web3Column);
+        boolean nullable = table.descriptor().columns().get(web3Column.ordinal()).nullable();
+        return new ProjectedColumn(web3Column.name(), metadata.getType(), nullable);
+    }
+
+    private static final class ChainPageSource
             implements ConnectorPageSource
     {
-        private final RemoteExecution<List<EthereumBlockClient.EthereumBlock>> blocks;
-        private final List<Web3ColumnHandle> columns;
+        private final RemoteExecution<List<ChainRow>> rows;
+        private final List<ProjectedColumn> columns;
         private boolean finished;
         private long completedPositions;
 
-        private EthereumBlocksPageSource(
-                RemoteExecution<List<EthereumBlockClient.EthereumBlock>> blocks,
-                List<Web3ColumnHandle> columns)
+        private ChainPageSource(RemoteExecution<List<ChainRow>> rows, List<ProjectedColumn> columns)
         {
-            this.blocks = requireNonNull(blocks, "blocks is null");
-            this.columns = List.copyOf(columns);
+            this.rows = requireNonNull(rows, "rows is null");
+            this.columns = List.copyOf(requireNonNull(columns, "columns is null"));
         }
 
         @Override
@@ -137,189 +205,77 @@ public final class Web3PageSourceProvider
         @Override
         public CompletableFuture<?> isBlocked()
         {
-            return blocks.future();
+            return rows.future();
         }
 
         @Override
         public SourcePage getNextSourcePage()
         {
-            if (finished || !blocks.future().isDone()) {
+            if (finished || !rows.future().isDone()) {
                 return null;
             }
-            List<EthereumBlockClient.EthereumBlock> resolvedBlocks = blocks.future().join();
-            PageBuilder pageBuilder = new PageBuilder(columns.stream()
-                    .map(column -> column.ordinal() == 0 ? BIGINT : VARCHAR)
-                    .toList());
-            for (EthereumBlockClient.EthereumBlock block : resolvedBlocks) {
+            List<ChainRow> resolvedRows = rows.future().join();
+            PageBuilder pageBuilder = new PageBuilder(columns.stream().map(ProjectedColumn::type).toList());
+            for (ChainRow row : resolvedRows) {
                 pageBuilder.declarePosition();
                 for (int channel = 0; channel < columns.size(); channel++) {
-                    if (columns.get(channel).ordinal() == 0) {
-                        BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), block.number());
-                    }
-                    else {
-                        VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(block.hash()));
-                    }
+                    writeValue(pageBuilder, channel, columns.get(channel), row.value(columns.get(channel).name()));
                 }
             }
             finished = true;
-            completedPositions = resolvedBlocks.size();
+            completedPositions = resolvedRows.size();
             return SourcePage.create(pageBuilder.build());
         }
 
         @Override
         public long getMemoryUsage()
         {
-            if (finished || !blocks.future().isDone() || blocks.future().isCompletedExceptionally() || blocks.future().isCancelled()) {
-                return blocks.memoryUsage();
+            if (finished || !rows.future().isDone() || rows.future().isCompletedExceptionally() || rows.future().isCancelled()) {
+                return rows.memoryUsage();
             }
-            return blocks.memoryUsage() + blocks.future().getNow(List.of()).stream()
-                    .mapToLong(block -> 48L + estimatedStringSize(block.hash()))
+            return rows.memoryUsage() + rows.future().getNow(List.of()).stream()
+                    .mapToLong(ChainRow::retainedSizeInBytes)
                     .sum();
         }
 
         @Override
         public Metrics getMetrics()
         {
-            return toMetrics(blocks.metrics());
+            return toMetrics(rows.metrics());
         }
 
         @Override
         public void close()
-                throws IOException
         {
             finished = true;
-            blocks.future().cancel(true);
+            rows.future().cancel(true);
         }
     }
 
-    private static final class EthereumTransactionsPageSource
-            implements ConnectorPageSource
+    private static void writeValue(PageBuilder pageBuilder, int channel, ProjectedColumn column, JsonNode value)
     {
-        private final RemoteExecution<List<EthereumTransactionClient.EthereumTransaction>> transactions;
-        private final List<Web3ColumnHandle> columns;
-        private boolean finished;
-        private long completedPositions;
-
-        private EthereumTransactionsPageSource(
-                RemoteExecution<List<EthereumTransactionClient.EthereumTransaction>> transactions,
-                List<Web3ColumnHandle> columns)
-        {
-            this.transactions = requireNonNull(transactions, "transactions is null");
-            this.columns = List.copyOf(columns);
-        }
-
-        @Override
-        public long getCompletedBytes()
-        {
-            return 0;
-        }
-
-        @Override
-        public OptionalLong getCompletedPositions()
-        {
-            return OptionalLong.of(completedPositions);
-        }
-
-        @Override
-        public long getReadTimeNanos()
-        {
-            return 0;
-        }
-
-        @Override
-        public boolean isFinished()
-        {
-            return finished;
-        }
-
-        @Override
-        public CompletableFuture<?> isBlocked()
-        {
-            return transactions.future();
-        }
-
-        @Override
-        public SourcePage getNextSourcePage()
-        {
-            if (finished || !transactions.future().isDone()) {
-                return null;
+        if (value.isNull()) {
+            if (!column.nullable()) {
+                throw new IllegalStateException("chain row has null for non-nullable column " + column.name());
             }
-            List<EthereumTransactionClient.EthereumTransaction> resolvedTransactions = transactions.future().join();
-            PageBuilder pageBuilder = new PageBuilder(columns.stream()
-                    .map(EthereumTransactionsPageSource::typeFor)
-                    .toList());
-            for (EthereumTransactionClient.EthereumTransaction transaction : resolvedTransactions) {
-                pageBuilder.declarePosition();
-                for (int channel = 0; channel < columns.size(); channel++) {
-                    writeTransactionValue(pageBuilder, channel, columns.get(channel), transaction);
-                }
+            pageBuilder.getBlockBuilder(channel).appendNull();
+            return;
+        }
+        if (column.type().equals(BIGINT)) {
+            if (!value.isIntegralNumber() || !value.canConvertToLong()) {
+                throw new IllegalStateException("chain row has invalid bigint column " + column.name());
             }
-            finished = true;
-            completedPositions = resolvedTransactions.size();
-            return SourcePage.create(pageBuilder.build());
+            BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), value.longValue());
+            return;
         }
-
-        private static io.trino.spi.type.Type typeFor(Web3ColumnHandle column)
-        {
-            return column.ordinal() == 1 ? BIGINT : VARCHAR;
-        }
-
-        private static void writeTransactionValue(
-                PageBuilder pageBuilder,
-                int channel,
-                Web3ColumnHandle column,
-                EthereumTransactionClient.EthereumTransaction transaction)
-        {
-            switch (column.ordinal()) {
-                case 0 -> VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(transaction.hash()));
-                case 1 -> {
-                    if (transaction.blockNumber() == null) {
-                        pageBuilder.getBlockBuilder(channel).appendNull();
-                    }
-                    else {
-                        BIGINT.writeLong(pageBuilder.getBlockBuilder(channel), transaction.blockNumber());
-                    }
-                }
-                case 2 -> VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(transaction.fromAddress()));
-                case 3 -> {
-                    if (transaction.toAddress() == null) {
-                        pageBuilder.getBlockBuilder(channel).appendNull();
-                    }
-                    else {
-                        VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(transaction.toAddress()));
-                    }
-                }
-                default -> throw new IllegalArgumentException("unknown Ethereum transactions column");
+        if (column.type().equals(VARCHAR)) {
+            if (!value.isTextual()) {
+                throw new IllegalStateException("chain row has invalid varchar column " + column.name());
             }
+            VARCHAR.writeSlice(pageBuilder.getBlockBuilder(channel), Slices.utf8Slice(value.textValue()));
+            return;
         }
-
-        @Override
-        public long getMemoryUsage()
-        {
-            if (finished || !transactions.future().isDone() || transactions.future().isCompletedExceptionally() || transactions.future().isCancelled()) {
-                return transactions.memoryUsage();
-            }
-            return transactions.memoryUsage() + transactions.future().getNow(List.of()).stream()
-                    .mapToLong(transaction -> 64L +
-                            estimatedStringSize(transaction.hash()) +
-                            estimatedStringSize(transaction.fromAddress()) +
-                            estimatedStringSize(transaction.toAddress()))
-                    .sum();
-        }
-
-        @Override
-        public Metrics getMetrics()
-        {
-            return toMetrics(transactions.metrics());
-        }
-
-        @Override
-        public void close()
-                throws IOException
-        {
-            finished = true;
-            transactions.future().cancel(true);
-        }
+        throw new IllegalStateException("no chain row writer for Trino type " + column.type());
     }
 
     private static Metrics toMetrics(RemoteExecutionMetrics metrics)
@@ -341,8 +297,12 @@ public final class Web3PageSourceProvider
                 Map.entry("web3.cache.bytes-written", new Web3Count(metrics.cacheBytesWritten()))));
     }
 
-    private static long estimatedStringSize(String value)
+    private record ProjectedColumn(String name, Type type, boolean nullable)
     {
-        return value == null ? 0 : 40L + (long) value.length() * Character.BYTES;
+        private ProjectedColumn
+        {
+            requireNonNull(name, "name is null");
+            requireNonNull(type, "type is null");
+        }
     }
 }

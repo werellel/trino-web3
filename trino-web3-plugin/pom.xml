@@ -16,6 +16,16 @@
     <dependencies>
         <dependency>
             <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-chain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-core</artifactId>
             <version>${project.version}</version>
         </dependency>

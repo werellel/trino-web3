@@ -6,8 +6,14 @@ model rather than forcing non-EVM chains into an EVM schema.
 
 ## Status
 
-Milestones M0 through M3 are complete. M3 adds an opt-in, worker-local cache
-with EVM finality and reorganization correctness. The repository provides a
+Milestones M0 through M3 are complete. M4 is in progress: its first increments
+add a versioned declarative contract, an executable adapter registry, and route
+Ethereum metadata, bounded split planning, and row decoding through the same
+code-based adapter. Descriptor method bindings now also select bounded access
+paths into named range and discrete-value table-handle predicates, without
+Ethereum fields in the generic Trino planning state. M3 adds an opt-in,
+worker-local cache with
+EVM finality and reorganization correctness. The repository provides a
 catalog that can be loaded by Trino and queried with:
 
 ```sql
@@ -109,7 +115,8 @@ one PageSource truthfully.
 
 Build `trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip`
 with `mvn package`, then extract it as one Trino plugin directory. The ZIP
-contains the plugin, core, EVM, runtime, and runtime library JARs.
+contains the plugin, chain descriptor API, adapter execution API, core, EVM,
+runtime, and runtime library JARs.
 
 ```sql
 SELECT block_number, block_hash
@@ -149,15 +156,26 @@ or external blockchain network.
 ## Module layout
 
 ```text
+trino-web3-chain    Versioned descriptors, registry, evolution checks, and response mapping
 trino-web3-core     Trino planning handles and bounded range splitting
+trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
 trino-web3-runtime  Bounded generic JSON-RPC execution, transport, and metrics
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
 ```
 
-Additional EVM tables, non-EVM chains, disk/shared cache, and later runtime behavior
-will be added only when their respective roadmap milestones begin.
+The descriptor format is `web3.trino.io/v1alpha1`. It declares native metadata,
+remote method inventory, restricted request bindings, and response mappings;
+it does not contain endpoints, secrets, provider policy, finality logic, or
+scripts. Registry composition is fixed for a connector lifetime. Production
+execution is dispatched by schema through the executable registry; adapter
+splits retain their predicate column when crossing Trino's serialized split
+boundary. The runtime also defines bounded JSON-RPC and endpoint-relative REST
+request values, while only JSON-RPC has a production transport today. Solana,
+Aptos, Bitcoin, Tron, Sui, and Near queries remain M4 follow-up work;
+the presence of the descriptor foundation does not claim those chains are
+queryable yet.
 
 ## Development rules
 

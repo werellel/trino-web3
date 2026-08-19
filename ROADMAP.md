@@ -558,6 +558,20 @@ JSON-RPC-only runtime
 
 ## ChainAdapter maturity
 
+M4 begins with a versioned declarative adapter contract. It must provide:
+
+* strict format-version validation;
+* explicit adapter and table evolution versions;
+* native schema, table, and type declarations;
+* JSON-RPC and REST method inventories;
+* restricted split, predicate, projection, and literal request bindings;
+* tolerant declared-field response mapping;
+* immutable connector-lifetime registry composition.
+
+This foundation must be used by an existing production path before additional
+chains are added. It is not permission to expose metadata-only tables or to put
+scripts, credentials, transport policy, or finality semantics into descriptors.
+
 By the end of M4, adding a new chain should primarily require:
 
 * table definitions
@@ -573,6 +587,10 @@ and should not require rewriting:
 * cache
 * provider failover
 * Trino page execution
+
+Bitcoin, Tron, Sui, Near, and additional chains should subsequently use this
+same extension boundary. Their support does not change the M4 acceptance floor
+of meaningful Solana and Aptos vertical slices.
 
 ## Acceptance criteria
 

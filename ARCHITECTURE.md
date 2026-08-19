@@ -140,7 +140,9 @@ trino-web3/
 ├── ROADMAP.md
 ├── PLANS.md
 │
+├── trino-web3-chain/
 ├── trino-web3-core/
+├── trino-web3-adapter/
 ├── trino-web3-runtime/
 ├── trino-web3-evm/
 ├── trino-web3-solana/
@@ -151,6 +153,43 @@ trino-web3/
 
 Suggested responsibilities:
 
+## `trino-web3-chain`
+
+Contains the Trino-independent, versioned chain adapter contract.
+
+Responsibilities:
+
+* immutable chain, table, column, remote-method, request-binding, and response-mapping descriptors
+* strict `web3.trino.io/v1alpha1` JSON parsing and validation
+* connector-lifetime chain registry with unique chain and schema ownership
+* explicit adapter and table evolution checks
+* tolerant mapping of declared fields from evolving provider responses
+
+Must not contain Trino SPI types, HTTP clients, provider configuration,
+credentials, retry policy, finality policy, or executable scripts. Descriptors
+are assembly data; complex chain semantics remain in code-based adapters.
+
+---
+
+## `trino-web3-adapter`
+
+Contains the Trino-independent execution contract implemented by code-based
+chain adapters.
+
+Responsibilities:
+
+* immutable pushed scan and bounded split models
+* executable adapter registry keyed by native schema
+* adapter-created data clients backed by the shared runtime
+* named decoded rows with explicit missing/null distinction and retained-size accounting
+
+It must not contain Trino SPI, HTTP transport, provider policy, retry, rate,
+cache ownership, or a universal blockchain schema. Declarative descriptors
+describe stable assembly data; code adapters own planning, decoding, finality,
+and other chain semantics.
+
+---
+
 ## `trino-web3-core`
 
 Contains connector-independent domain abstractions shared across chain modules.
@@ -158,8 +197,6 @@ Contains connector-independent domain abstractions shared across chain modules.
 Examples:
 
 * `ChainId`
-* `ChainAdapter`
-* `ChainTable`
 * `RemoteScan`
 * `RemoteOperation`
 * `RemotePredicate`
@@ -333,32 +370,36 @@ Dependencies must flow downward.
 
 ```text
 trino-web3-plugin
-        ↓
-trino-web3-core
-        ↓
-chain modules
-        ↓
-trino-web3-runtime
+ ├── trino-web3-chain
+ ├── trino-web3-core
+ └── chain modules
+          ├── trino-web3-chain
+          ├── trino-web3-core
+          └── trino-web3-runtime
 ```
 
 A more practical dependency graph may be:
 
 ```text
 plugin
+ ├── chain
  ├── core
  ├── evm
  ├── solana
  └── aptos
 
 evm
+ ├── chain
  ├── core
  └── runtime
 
 solana
+ ├── chain
  ├── core
  └── runtime
 
 aptos
+ ├── chain
  ├── core
  └── runtime
 
@@ -369,6 +410,9 @@ runtime
 Forbidden dependency directions:
 
 ```text
+chain → trino SPI
+chain → runtime
+chain → chain implementations
 runtime → trino SPI
 runtime → EVM
 runtime → Solana
@@ -469,29 +513,25 @@ This provides cleaner separation for:
 
 A chain adapter owns chain-native semantics.
 
-Conceptually:
+The production adapter boundary starts with one immutable, versioned
+descriptor:
 
 ```java
 interface ChainAdapter
 {
-    String schemaName();
-
-    List<ChainTable> listTables();
-
-    Optional<ChainTable> getTable(String name);
-
-    RemoteScan planScan(
-            ChainTable table,
-            RemotePredicate predicate,
-            List<String> projectedColumns);
-
-    List<RemoteOperation> createOperations(RemoteScan scan);
-
-    PageDecoder createDecoder(ChainTable table);
+    ChainDescriptor descriptor();
 }
 ```
 
-The exact API may evolve.
+`ChainDescriptor` declares native tables and types, JSON-RPC or REST method
+inventory, bounded binding sources, and explicit JSON response pointers. The
+format version controls syntax; adapter and table versions control evolution.
+Changing a descriptor without the corresponding version increment is rejected
+by compatibility validation.
+
+The registry is immutable for a connector lifetime. There is no query-time hot
+reload, and an operator descriptor is not exposed until an executable bounded
+adapter exists for it.
 
 The important boundary is semantic ownership.
 
@@ -510,6 +550,11 @@ A chain adapter must not know:
 * retry policy
 * provider credential handling
 * global concurrency policy
+
+Descriptors additionally cannot contain endpoints, secrets, provider headers,
+arbitrary expressions, or executable code. Unknown provider response fields
+are ignored, optional mapped fields become null, and missing required fields
+fail without embedding the remote payload in the exception.
 
 ---
 
@@ -626,6 +671,14 @@ WHERE input LIKE '%deadbeef%'
 ```
 
 must not be translated to arbitrary RPC behavior unless the remote protocol natively supports it.
+
+The production coordinator derives bounded access paths from descriptor method
+bindings. Required `SPLIT` and `PREDICATE` inputs must all be satisfiable before
+a method is selected. The immutable table handle stores the selected method and
+named predicate values; it has no EVM-specific fields. Range domains removed
+from the residual are enforced by adapter-generated splits. Discrete string
+domains remain residual because native identifier equality and normalization
+belong to the chain adapter.
 
 ---
 

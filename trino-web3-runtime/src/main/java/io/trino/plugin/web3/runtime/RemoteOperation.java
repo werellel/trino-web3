@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
  * method and parameters as opaque data and does not interpret chain semantics.
  */
 public record RemoteOperation(String method, List<Object> parameters)
+        implements RemoteRequest
 {
     public RemoteOperation
     {
@@ -31,5 +32,17 @@ public record RemoteOperation(String method, List<Object> parameters)
             throw new IllegalArgumentException("method is blank");
         }
         parameters = List.copyOf(parameters);
+    }
+
+    @Override
+    public Protocol protocol()
+    {
+        return Protocol.JSON_RPC;
+    }
+
+    @Override
+    public String operationName()
+    {
+        return method;
     }
 }

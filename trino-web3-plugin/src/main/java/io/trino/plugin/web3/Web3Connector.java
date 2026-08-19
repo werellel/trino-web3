@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.web3;
 
-import io.trino.plugin.web3.evm.EthereumBlockClient;
-import io.trino.plugin.web3.evm.EthereumTransactionClient;
+import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
 import io.trino.plugin.web3.runtime.ProviderCapabilities;
 import io.trino.plugin.web3.runtime.ProviderProfile;
@@ -27,12 +27,14 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.transaction.IsolationLevel;
+import io.trino.spi.type.TypeManager;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,7 +48,17 @@ public final class Web3Connector
 
     public Web3Connector()
     {
-        this(100, 10_000, 1_000, 1_048_576, 16 * 1_048_576, List.of(), true, ExecutionPolicy.defaults(), RemoteCacheConfig.disabled());
+        this(
+                100,
+                10_000,
+                1_000,
+                1_048_576,
+                16 * 1_048_576,
+                List.of(),
+                true,
+                ExecutionPolicy.defaults(),
+                RemoteCacheConfig.disabled(),
+                createComponents(1_000, Web3Metadata::resolveBuiltInType));
     }
 
     public Web3Connector(
@@ -58,13 +70,46 @@ public final class Web3Connector
             List<URI> ethereumRpcEndpoints,
             boolean jsonRpcBatchEnabled,
             ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig)
+            RemoteCacheConfig cacheConfig,
+            TypeManager typeManager)
     {
-        metadata = new Web3Metadata(maximumTransactionHashesPerQuery);
-        splitManager = new Web3SplitManager(maximumBlocksPerSplit, maximumBlocksPerQuery, maximumTransactionHashesPerQuery);
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                ethereumRpcEndpoints,
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                createComponents(
+                        maximumTransactionHashesPerQuery,
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+    }
+
+    private Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            List<URI> ethereumRpcEndpoints,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            ConnectorComponents components)
+    {
+        requireNonNull(components, "components is null");
+        metadata = components.metadata();
+        splitManager = new Web3SplitManager(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                components.adapters());
         runtime = ethereumRpcEndpoints.isEmpty() ? null : createRuntime(ethereumRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig);
         pageSourceProvider = Optional.ofNullable(runtime)
-                .<ConnectorPageSourceProvider>map(Web3Connector::createPageSourceProvider)
+                .<ConnectorPageSourceProvider>map(value -> new Web3PageSourceProvider(components.adapters(), value, components.typeResolver()))
                 .orElseGet(() -> (transaction, session, split, table, columns, dynamicFilter) -> {
                     throw new IllegalStateException("web3.ethereum.rpc-url must be configured before querying Ethereum data");
                 });
@@ -93,11 +138,13 @@ public final class Web3Connector
                 cacheConfig);
     }
 
-    private static Web3PageSourceProvider createPageSourceProvider(RemoteExecutionRuntime runtime)
+    private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, io.trino.spi.type.Type> typeResolver)
     {
-        return new Web3PageSourceProvider(
-                new EthereumBlockClient(runtime),
-                new EthereumTransactionClient(runtime));
+        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(new EthereumChainAdapter());
+        return new ConnectorComponents(
+                adapters,
+                new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),
+                typeResolver);
     }
 
     @Override
@@ -132,6 +179,19 @@ public final class Web3Connector
     {
         if (runtime != null) {
             runtime.close();
+        }
+    }
+
+    private record ConnectorComponents(
+            ExecutableChainRegistry adapters,
+            ConnectorMetadata metadata,
+            Function<String, io.trino.spi.type.Type> typeResolver)
+    {
+        private ConnectorComponents
+        {
+            requireNonNull(adapters, "adapters is null");
+            requireNonNull(metadata, "metadata is null");
+            requireNonNull(typeResolver, "typeResolver is null");
         }
     }
 }

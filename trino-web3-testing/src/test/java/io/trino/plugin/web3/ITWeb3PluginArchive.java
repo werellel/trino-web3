@@ -57,6 +57,8 @@ public class ITWeb3PluginArchive
                     .toList();
 
             assertThat(pluginClassNames).containsExactly("io.trino.plugin.web3.Web3Plugin");
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.chain.ChainDescriptor")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.adapter.ExecutableChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();

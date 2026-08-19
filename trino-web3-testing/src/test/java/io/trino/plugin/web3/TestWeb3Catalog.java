@@ -15,8 +15,8 @@ package io.trino.plugin.web3;
 
 import io.airlift.slice.Slices;
 import io.trino.Session;
+import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3TableHandle;
-import io.trino.plugin.web3.evm.EthereumTransactionsTable;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -123,10 +124,29 @@ public class TestWeb3Catalog
         Web3Metadata metadata = new Web3Metadata(1);
         Web3TableHandle table = new Web3TableHandle("ethereum", "transactions", Optional.empty());
         Constraint constraint = new Constraint(TupleDomain.withColumnDomains(Map.of(
-                EthereumTransactionsTable.HASH_COLUMN,
+                new Web3ColumnHandle("hash", 0),
                 Domain.multipleValues(VARCHAR, List.of(Slices.utf8Slice(FIRST_HASH), Slices.utf8Slice(SECOND_HASH))))));
 
         assertThatThrownBy(() -> metadata.applyFilter(null, table, constraint))
                 .hasMessageContaining("hash predicate exceeds the configured query limit of 1");
+    }
+
+    @Test
+    public void testPrefersDiscreteAccessPathWhenMultipleMethodsAreBounded()
+    {
+        Web3Metadata metadata = new Web3Metadata(10);
+        Web3TableHandle table = new Web3TableHandle("ethereum", "transactions");
+        Constraint constraint = new Constraint(TupleDomain.withColumnDomains(Map.of(
+                new Web3ColumnHandle("hash", 0), Domain.singleValue(VARCHAR, Slices.utf8Slice(FIRST_HASH)),
+                new Web3ColumnHandle("block_number", 1), Domain.singleValue(BIGINT, 23_000_000L))));
+
+        var result = metadata.applyFilter(null, table, constraint).orElseThrow();
+        Web3TableHandle pushed = (Web3TableHandle) result.getHandle();
+
+        assertThat(pushed.methodName()).contains("by-hash");
+        assertThat(pushed.discreteValues()).containsEntry("hash", List.of(FIRST_HASH));
+        assertThat(pushed.ranges()).isEmpty();
+        assertThat(result.getRemainingFilter().getDomains().orElseThrow())
+                .containsKey(new Web3ColumnHandle("hash", 0));
     }
 }

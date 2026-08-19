@@ -13,9 +13,17 @@
  */
 package io.trino.plugin.web3;
 
-import io.trino.plugin.web3.core.BlockRangeSplitter;
+import io.trino.plugin.web3.adapter.ChainPlanningException;
+import io.trino.plugin.web3.adapter.ChainScan;
+import io.trino.plugin.web3.adapter.ChainSplit;
+import io.trino.plugin.web3.adapter.ChainSplitLimits;
+import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
+import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.adapter.RangeChainSplit;
+import io.trino.plugin.web3.core.Web3DiscreteValueSplit;
+import io.trino.plugin.web3.core.Web3RangeSplit;
 import io.trino.plugin.web3.core.Web3TableHandle;
-import io.trino.plugin.web3.core.Web3TransactionHashSplit;
+import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
@@ -27,14 +35,16 @@ import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static java.util.Objects.requireNonNull;
 
 public final class Web3SplitManager
         implements ConnectorSplitManager
 {
-    private final long maximumBlocksPerSplit;
-    private final long maximumBlocksPerQuery;
-    private final int maximumTransactionHashesPerQuery;
+    private final ExecutableChainRegistry adapters;
+    private final ChainSplitLimits limits;
 
     public Web3SplitManager(long maximumBlocksPerSplit, long maximumBlocksPerQuery)
     {
@@ -43,18 +53,21 @@ public final class Web3SplitManager
 
     public Web3SplitManager(long maximumBlocksPerSplit, long maximumBlocksPerQuery, int maximumTransactionHashesPerQuery)
     {
-        if (maximumBlocksPerSplit < 1) {
-            throw new IllegalArgumentException("maximumBlocksPerSplit must be positive");
-        }
-        if (maximumBlocksPerQuery < maximumBlocksPerSplit) {
-            throw new IllegalArgumentException("maximumBlocksPerQuery is smaller than maximumBlocksPerSplit");
-        }
-        this.maximumBlocksPerSplit = maximumBlocksPerSplit;
-        this.maximumBlocksPerQuery = maximumBlocksPerQuery;
-        if (maximumTransactionHashesPerQuery < 1) {
-            throw new IllegalArgumentException("maximumTransactionHashesPerQuery must be positive");
-        }
-        this.maximumTransactionHashesPerQuery = maximumTransactionHashesPerQuery;
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                ExecutableChainRegistry.of(new EthereumChainAdapter()));
+    }
+
+    Web3SplitManager(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            ExecutableChainRegistry adapters)
+    {
+        this.adapters = requireNonNull(adapters, "adapters is null");
+        limits = new ChainSplitLimits(maximumBlocksPerSplit, maximumBlocksPerQuery, maximumTransactionHashesPerQuery);
     }
 
     @Override
@@ -73,22 +86,34 @@ public final class Web3SplitManager
         if (!(table instanceof Web3TableHandle web3Table)) {
             throw new IllegalArgumentException("table is not a Web3 table handle");
         }
-        if (!web3Table.transactionHashes().isEmpty()) {
-            if (web3Table.transactionHashes().size() > maximumTransactionHashesPerQuery) {
-                throw new TrinoException(
-                        StandardErrorCode.NOT_SUPPORTED,
-                        "ethereum.transactions hash predicate exceeds the configured query limit of " + maximumTransactionHashesPerQuery);
-            }
-            return new FixedSplitSource(web3Table.transactionHashes().stream()
-                    .map(Web3TransactionHashSplit::new)
-                    .map(io.trino.spi.connector.ConnectorSplit.class::cast)
+        Map<String, ChainScan.LongRange> ranges = web3Table.ranges().entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        entry -> new ChainScan.LongRange(entry.getValue().startInclusive(), entry.getValue().endInclusive())));
+        ChainScan scan = new ChainScan(
+                web3Table.tableName(),
+                web3Table.methodName(),
+                ranges,
+                web3Table.discreteValues());
+        try {
+            java.util.List<ChainSplit> splits = adapters.adapterForSchema(web3Table.schemaName()).planSplits(scan, limits);
+            return new FixedSplitSource(splits.stream()
+                    .map(Web3SplitManager::toConnectorSplit)
                     .toList());
         }
-        return web3Table.blockRange()
-                .<ConnectorSplitSource>map(range -> new FixedSplitSource(BlockRangeSplitter.split(range, maximumBlocksPerSplit, maximumBlocksPerQuery)))
-                .orElseThrow(() -> new TrinoException(
-                        StandardErrorCode.NOT_SUPPORTED,
-                        web3Table.schemaName() + "." + web3Table.tableName() + " requires a bounded block_number predicate" +
-                                (web3Table.tableName().equals("transactions") ? " or transaction hash equality/IN predicate" : "")));
+        catch (ChainPlanningException e) {
+            throw new TrinoException(StandardErrorCode.NOT_SUPPORTED, e.getMessage());
+        }
+    }
+
+    private static io.trino.spi.connector.ConnectorSplit toConnectorSplit(ChainSplit split)
+    {
+        if (split instanceof RangeChainSplit range) {
+            return new Web3RangeSplit(range.column(), range.startInclusive(), range.endInclusive());
+        }
+        if (split instanceof DiscreteValueChainSplit value) {
+            return new Web3DiscreteValueSplit(value.column(), value.value());
+        }
+        throw new IllegalStateException("chain adapter returned an unsupported split type");
     }
 }

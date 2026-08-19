@@ -41,6 +41,28 @@ Trino 475 may log a late remote-task callback rejection while a standalone test
 server is closing. This is test-harness teardown noise after query completion;
 Failsafe results and connector resource cleanup remain authoritative.
 
+M4 descriptor tests cover strict JSON round trips, unknown fields, unsupported
+and trailing format input, registry ordering and duplicate ownership, immutable
+addition/removal, adapter and table evolution versions, protocol-specific
+JSON-RPC/REST invariants, duplicate definitions and references, tolerant
+provider response evolution, required-field failure without payload leakage,
+explicit response-row limits, and Ethereum's exact built-in descriptor
+contract. Connector tests prove that multiple native descriptors produce
+independent Trino schemas and tables. Executable-adapter tests cover registry
+composition, immutable scans and rows, Ethereum's exact range and discrete
+split planning, bounded-query rejection, and descriptor-named block and
+transaction rows. Existing local-RPC connector tests exercise the
+registry-dispatched PageSource path, including metrics, memory, cancellation,
+cache, non-batch execution, and failover. The packaged-plugin integration test
+also loads both chain contract modules from the assembled ZIP.
+
+Descriptor-driven pushdown tests use non-EVM native names (`ledger_version` and
+`signature`) to prove that required access-path bindings produce named range or
+discrete predicates without schema-name branching. They also prove exact range
+enforcement, conservative discrete residuals, missing-required-binding
+rejection, deterministic method choice, handle immutability, bounded diagnostic
+output, and EVM-side hash validation.
+
 `BenchmarkRemoteResultCache` is a JMH benchmark for cache hit, miss, and
 serialization/admission costs at 1 KiB and 64 KiB payload sizes. Generate its
 test classes and classpath, then run it with the same Java 23 used by Maven:

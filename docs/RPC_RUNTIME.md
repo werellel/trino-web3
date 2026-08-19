@@ -5,6 +5,15 @@ depending on Trino SPI classes or chain table metadata. Chain adapters own
 method selection and response decoding; the runtime owns batching, admission,
 generic-provider selection, retry, cancellation, and metrics.
 
+M4 descriptors may inventory either JSON-RPC or REST operations. The runtime
+now defines transport-neutral request identity plus immutable, bounded
+JSON-RPC and endpoint-relative REST request values. The production scheduler
+and transport remain JSON-RPC-only; a REST descriptor is not executable until
+a bounded REST transport is connected. REST request values cannot select an
+endpoint, supply headers, or carry an absolute/network-path URL. Descriptors
+never own HTTP clients, endpoints, credentials, retry, rate, failover, cache,
+or cancellation policy.
+
 ## Bounds
 
 The default worker-local `ExecutionPolicy` has 16 concurrent wire requests, a

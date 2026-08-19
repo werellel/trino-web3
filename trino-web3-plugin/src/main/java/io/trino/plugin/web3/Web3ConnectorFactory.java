@@ -145,7 +145,8 @@ public final class Web3ConnectorFactory
                 endpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
-                cacheConfig);
+                cacheConfig,
+                context.getTypeManager());
     }
 
     private static boolean isSupportedProperty(String key)

@@ -12,8 +12,10 @@
     <name>Trino Web3</name>
 
     <modules>
+        <module>trino-web3-chain</module>
         <module>trino-web3-core</module>
         <module>trino-web3-runtime</module>
+        <module>trino-web3-adapter</module>
         <module>trino-web3-evm</module>
         <module>trino-web3-plugin</module>
         <module>trino-web3-testing</module>

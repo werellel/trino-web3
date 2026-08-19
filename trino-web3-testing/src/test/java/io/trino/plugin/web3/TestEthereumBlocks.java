@@ -20,10 +20,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.trino.plugin.web3.core.BlockRange;
+import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3Split;
 import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.evm.EthereumBlockClient;
-import io.trino.plugin.web3.evm.EthereumBlocksTable;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
 import io.trino.plugin.web3.runtime.ProviderProfile;
@@ -152,7 +152,7 @@ public class TestEthereumBlocks
                 null,
                 new Web3Split(range),
                 new Web3TableHandle("ethereum", "blocks", Optional.of(range)),
-                java.util.List.of(EthereumBlocksTable.BLOCK_NUMBER_COLUMN),
+                java.util.List.of(new Web3ColumnHandle("block_number", 0)),
                 null);
 
         CompletableFuture<?> blocked = pageSource.isBlocked();
@@ -210,7 +210,7 @@ public class TestEthereumBlocks
                     null,
                     new Web3Split(range),
                     new Web3TableHandle("ethereum", "blocks", Optional.of(range)),
-                    java.util.List.of(EthereumBlocksTable.BLOCK_NUMBER_COLUMN),
+                    java.util.List.of(new Web3ColumnHandle("block_number", 0)),
                     null);
 
             pageSource.isBlocked().join();

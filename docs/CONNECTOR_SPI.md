@@ -6,12 +6,20 @@ cancellable `RemoteExecution` used for bounded EVM reads.
 
 ## Predicate pushdown
 
-`block_number` equality and a single bounded range are fully enforced by the
-connector and may be removed from the remaining constraint. Transaction
-`hash` equality and discrete `IN` domains are normalized to lower-case only for
-Ethereum RPC and cache identity. Because the exposed Trino type is `VARCHAR`,
-the original hash domain remains as a residual constraint so Trino preserves
-case-sensitive SQL comparison semantics.
+Metadata evaluates one descriptor method at a time. Required `SPLIT` and
+`PREDICATE` bindings define a bounded access path. A method is selected only
+when all its required input bindings are satisfied by an existing handle value
+or a supported Trino domain. Complete paths using more constrained columns are
+preferred; discrete lookup wins a deterministic tie over a range lookup.
+
+BIGINT equality and a single bounded range are supported for `SPLIT` bindings
+and are fully enforced by adapter splits, so they may be removed from the
+remaining constraint. VARCHAR equality and discrete `IN` domains are supported
+for `PREDICATE` bindings. Their original domains remain as residual constraints
+because identifier normalization and equality are chain-specific. Ethereum
+transaction hashes are validated and normalized only after the generic
+coordinator planning boundary, while Trino preserves case-sensitive SQL
+comparison semantics.
 
 The configured distinct hash limit is enforced while Metadata extracts the
 domain. Extraction stops as soon as the limit is exceeded, before a large table
@@ -19,8 +27,10 @@ handle or split list can be constructed. Split planning repeats the check as a
 defense for deserialized or externally constructed handles.
 
 Unbounded block and transaction scans are rejected during split planning.
-Planning handles and splits contain only immutable bounded logical state; they
-never contain clients, caches, credentials, or cancellation resources.
+Planning handles contain the selected descriptor method plus immutable maps of
+named ranges and discrete values. Splits preserve the native predicate column.
+Neither contains clients, caches, credentials, endpoints, or cancellation
+resources, and their diagnostic strings expose counts rather than values.
 
 ## PageSource lifecycle
 
