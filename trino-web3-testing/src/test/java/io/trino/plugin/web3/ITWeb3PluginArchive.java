@@ -102,6 +102,8 @@ public class ITWeb3PluginArchive
                         .containsExactly("events", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana").getOnlyColumn())
                         .containsExactly("blocks", "instructions", "transactions");
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.system").getOnlyColumn())
+                        .containsExactly("cache_stats", "chains", "providers", "rate_limits", "rpc_metrics");
 
                 String query = """
                         SELECT block_hash

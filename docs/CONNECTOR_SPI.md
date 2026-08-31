@@ -5,6 +5,15 @@ remain deterministic and do not perform remote calls. Worker-side PageSources
 own the cancellable `RemoteExecution` used for bounded EVM and Solana JSON-RPC
 and Aptos REST transaction and account-event reads.
 
+## System tables
+
+The connector registers five `SINGLE_COORDINATOR` system tables under
+`web3.system`: `chains`, `providers`, `rpc_metrics`, `rate_limits`, and
+`cache_stats`. Their cursor construction reads only local immutable descriptor
+data and bounded runtime snapshots; it does not perform metadata RPC calls or
+endpoint probes. The exact columns and security contract are documented in
+[`SYSTEM_TABLES.md`](SYSTEM_TABLES.md).
+
 ## Predicate pushdown
 
 Metadata evaluates one descriptor method at a time. Required `SPLIT` and

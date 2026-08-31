@@ -249,6 +249,39 @@ public final class RemoteExecutionRuntime
         return cache.metrics();
     }
 
+    /**
+     * Returns a local, immutable observability snapshot. It never probes a
+     * provider and deliberately excludes endpoints and request data.
+     */
+    public RemoteRuntimeSnapshot snapshot()
+    {
+        List<RemoteRuntimeSnapshot.ProviderSnapshot> providerSnapshots;
+        synchronized (lock) {
+            long now = scheduler.nanoTime();
+            providerSnapshots = providers.stream()
+                    .map(provider -> providerSnapshot(provider, now))
+                    .toList();
+        }
+        return new RemoteRuntimeSnapshot(
+                protocol,
+                policy,
+                cache.isEnabled(),
+                metrics(),
+                cache.metrics(),
+                providerSnapshots);
+    }
+
+    private RemoteRuntimeSnapshot.ProviderSnapshot providerSnapshot(ProviderProfile provider, long now)
+    {
+        long remainingNanos = Math.max(0, unhealthyUntilNanos.getOrDefault(provider.name(), 0L) - now);
+        long remainingMillis = remainingNanos == 0 ? 0 : Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+        return new RemoteRuntimeSnapshot.ProviderSnapshot(
+                provider.name(),
+                provider.capabilities().supportsJsonRpcBatch(),
+                remainingNanos == 0 ? RemoteRuntimeSnapshot.ProviderSnapshot.State.AVAILABLE : RemoteRuntimeSnapshot.ProviderSnapshot.State.COOLDOWN,
+                remainingMillis);
+    }
+
     private RemoteExecution<List<RemoteResult>> executeBatchWithMetrics(List<RemoteOperation> operations, MetricScope scope)
     {
         if (operations.size() > policy.maximumBatchSize()) {

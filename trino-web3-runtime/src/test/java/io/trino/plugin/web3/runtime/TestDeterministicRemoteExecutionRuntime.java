@@ -101,6 +101,29 @@ public class TestDeterministicRemoteExecutionRuntime
     }
 
     @Test
+    public void testSnapshotReportsOnlyLocalProviderCooldownState()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        transport.batchHandler = requests -> CompletableFuture.failedFuture(httpFailure(503));
+        ProviderProfile provider = provider("primary", true);
+        ExecutionPolicy policy = new ExecutionPolicy(1, 10, 10, 2, 100, Duration.ofMillis(1), Duration.ofMillis(10), Duration.ofMillis(50));
+        try (RemoteExecutionRuntime runtime = runtime(List.of(provider), Map.of(provider.name(), transport), policy, scheduler)) {
+            runtime.execute(operation("method"));
+            scheduler.runUntil(() -> transport.batchRequests.get() == 1);
+
+            RemoteRuntimeSnapshot snapshot = runtime.snapshot();
+            assertThat(snapshot.protocol()).isEqualTo(RemoteRequest.Protocol.JSON_RPC);
+            assertThat(snapshot.providers()).containsExactly(new RemoteRuntimeSnapshot.ProviderSnapshot(
+                    "primary",
+                    true,
+                    RemoteRuntimeSnapshot.ProviderSnapshot.State.COOLDOWN,
+                    50));
+            assertThat(snapshot.executionPolicy()).isEqualTo(policy);
+        }
+    }
+
+    @Test
     public void testRateAdmissionUsesAsynchronousScheduling()
     {
         ManualScheduler scheduler = new ManualScheduler();

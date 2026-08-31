@@ -28,6 +28,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.SystemTable;
 import io.trino.spi.transaction.IsolationLevel;
 import io.trino.spi.type.TypeManager;
 
@@ -37,6 +38,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -48,6 +50,7 @@ public final class Web3Connector
     private final ConnectorSplitManager splitManager;
     private final ConnectorPageSourceProvider pageSourceProvider;
     private final Map<String, RemoteExecutionRuntime> runtimes;
+    private final Set<SystemTable> systemTables;
 
     public Web3Connector()
     {
@@ -151,6 +154,7 @@ public final class Web3Connector
         }
         runtimes = Map.copyOf(configuredRuntimes);
         pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
+        systemTables = Web3SystemTables.create(components.adapters(), runtimes);
     }
 
     private static RemoteExecutionRuntime createJsonRpcRuntime(
@@ -234,6 +238,12 @@ public final class Web3Connector
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
         return pageSourceProvider;
+    }
+
+    @Override
+    public Set<SystemTable> getSystemTables()
+    {
+        return systemTables;
     }
 
     @Override

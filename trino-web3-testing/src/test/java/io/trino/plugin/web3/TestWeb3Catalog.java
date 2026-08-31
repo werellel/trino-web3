@@ -53,7 +53,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema", "solana");
+            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema", "solana", "system");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                     .containsExactly("events", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
@@ -69,6 +69,55 @@ public class TestWeb3Catalog
             assertThat(queryRunner.execute("DESCRIBE web3.solana.instructions").getMaterializedRows())
                     .extracting(row -> row.getField(0))
                     .containsExactly("slot", "transaction_signature", "instruction_index", "program_id", "account_indices", "data");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.system").getOnlyColumn())
+                    .containsExactly("cache_stats", "chains", "providers", "rate_limits", "rpc_metrics");
+            assertThat(queryRunner.execute("SELECT schema_name, runtime_configured, configured_provider_count, cache_enabled FROM web3.system.chains ORDER BY schema_name").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
+                    .containsExactly(
+                            org.assertj.core.groups.Tuple.tuple("aptos", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("ethereum", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("solana", false, 0L, false));
+        }
+    }
+
+    @Test
+    public void testSystemTablesExposeSafeConfiguredRuntimeSnapshots()
+            throws Exception
+    {
+        String secret = "do-not-leak-system-table-secret";
+        Session session = testSessionBuilder().setCatalog("web3").build();
+        try (StandaloneQueryRunner queryRunner = new StandaloneQueryRunner(session)) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://" + secret + "@127.0.0.1:1",
+                    "web3.rpc.maximum-concurrency", "3",
+                    "web3.rpc.maximum-queue-size", "7",
+                    "web3.rpc.maximum-batch-size", "5",
+                    "web3.rpc.maximum-attempts", "2",
+                    "web3.rpc.requests-per-second", "11",
+                    "web3.cache.enabled", "true",
+                    "web3.cache.maximum-size", "1MB",
+                    "web3.cache.maximum-entry-size", "64kB"));
+
+            assertThat(queryRunner.execute("SELECT provider_name, protocol, json_rpc_batch_enabled, state, cooldown_remaining_millis FROM web3.system.providers WHERE schema_name = 'ethereum'").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple("primary", "JSON_RPC", true, "AVAILABLE", 0L));
+            assertThat(queryRunner.execute("SELECT maximum_concurrency, maximum_queue_size, maximum_batch_size, maximum_attempts, requests_per_second FROM web3.system.rate_limits WHERE schema_name = 'ethereum'").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple(3L, 7L, 5L, 2L, 11L));
+            assertThat(queryRunner.execute("SELECT cache_enabled, entry_count, retained_bytes, eviction_count FROM web3.system.cache_stats WHERE schema_name = 'ethereum'").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple(true, 0L, 0L, 0L));
+            assertThat(queryRunner.execute("SELECT request_count, failure_count, retry_count, throttled_count, in_flight_request_count FROM web3.system.rpc_metrics WHERE schema_name = 'ethereum'").getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple(0L, 0L, 0L, 0L, 0L));
+
+            List<String> values = List.of("chains", "providers", "rpc_metrics", "rate_limits", "cache_stats").stream()
+                    .flatMap(table -> queryRunner.execute("SELECT * FROM web3.system." + table).getMaterializedRows().stream())
+                    .flatMap(row -> row.getFields().stream())
+                    .map(String::valueOf)
+                    .toList();
+            assertThat(values).noneMatch(value -> value.contains(secret));
         }
     }
 
@@ -112,7 +161,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("aptos", "ethereum", "information_schema", "solana");
+                    .containsExactly("aptos", "ethereum", "information_schema", "solana", "system");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))

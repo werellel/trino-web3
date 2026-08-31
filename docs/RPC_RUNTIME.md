@@ -65,6 +65,12 @@ subscriber joins the active attempt's scope explicitly. Trino PageSources
 publish these scoped counters, so unrelated concurrent splits do not appear in
 each other's metrics.
 
+`RemoteExecutionRuntime.snapshot()` exposes only node-local runtime counters
+for operator system tables. It is local-only and never probes a provider. Its
+provider state is intentionally narrow: `AVAILABLE` means not in the generic
+runtime cooldown, while `COOLDOWN` means temporarily avoided after a retryable
+failure. Neither state proves reachability or expected chain identity.
+
 ## Cancellation and lifecycle
 
 Each configured chain schema owns one runtime and the catalog connector closes all of them in

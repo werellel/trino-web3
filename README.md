@@ -6,12 +6,13 @@ model rather than forcing non-EVM chains into an EVM schema.
 
 ## Status
 
-Milestones M0 through M3 are complete. M4 is in progress: its first increments
-add a versioned declarative contract, an executable adapter registry, and route
-Ethereum metadata, bounded split planning, and row decoding through the same
+Milestones M0 through M4 are complete. M5.1 adds safe coordinator-local runtime
+snapshots through `web3.system`. M4 established a versioned declarative contract,
+an executable adapter registry, and routes Ethereum metadata, bounded split
+planning, and row decoding through the same
 code-based adapter. Descriptor method bindings now also select bounded access
 paths into named range and discrete-value table-handle predicates, without
-Ethereum fields in the generic Trino planning state. The current M4 vertical
+Ethereum fields in the generic Trino planning state. The M4 vertical
 slice also exposes native `aptos.transactions` and account-scoped
 `aptos.events` through bounded REST paths, plus native `solana.blocks`,
 `solana.transactions`, and `solana.instructions` through bounded JSON-RPC
@@ -39,6 +40,15 @@ and rate admission; it handles generic endpoint failover and `429`
 `Retry-After`. It does not implement receipts, logs, vendor-specific provider
 profiles, Solana inner instructions, or additional Aptos tables beyond
 transactions and events.
+
+## Runtime snapshots
+
+The following system tables expose configured local runtime state without
+performing remote calls: `web3.system.chains`, `web3.system.providers`,
+`web3.system.rpc_metrics`, `web3.system.rate_limits`, and
+`web3.system.cache_stats`. They never expose endpoints, credentials, request
+data, hashes, or addresses. See [system table snapshots](docs/SYSTEM_TABLES.md)
+for the complete contract.
 
 ## Chain endpoint configuration
 

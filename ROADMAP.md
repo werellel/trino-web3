@@ -620,6 +620,12 @@ with native tables for each chain.
 
 # 9. M5 — Production hardening and OSS v1
 
+## Implementation status
+
+M5.1 delivers safe local runtime snapshots through the five target system
+tables. Endpoint identity validation, broader structured metrics, release
+engineering, and the remaining production-hardening work remain in M5.
+
 ## Goal
 
 Reach a quality level appropriate for public production beta usage.
