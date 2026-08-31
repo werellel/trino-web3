@@ -220,4 +220,6 @@ follow-up work.
 Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md),
 [ROADMAP.md](ROADMAP.md), and [PLANS.md](PLANS.md) before significant changes.
 The main invariants are bounded remote work, native chain data models, and a
-provider-independent runtime.
+provider-independent runtime. New production chain adapters must also satisfy
+[the extension checklist](docs/NEW_CHAIN_ADAPTER_CHECKLIST.md); descriptors
+alone never expose metadata-only tables.

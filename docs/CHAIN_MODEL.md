@@ -115,7 +115,9 @@ match the selected method.
 
 ## Adding a chain
 
-Before a new chain is exposed, its design must define:
+Before a new chain is exposed, complete
+[the new chain adapter checklist](NEW_CHAIN_ADAPTER_CHECKLIST.md). Its design
+must define:
 
 - native schemas, tables, columns, and identifiers;
 - bounded predicates and split-generation limits;

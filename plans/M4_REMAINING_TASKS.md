@@ -1,8 +1,8 @@
 # Plan: M4 remaining multi-chain tasks
 
 Status: Aptos `transactions`/`events`, Solana
-`blocks`/`transactions`/`instructions`, and descriptor compatibility coverage
-are implemented. The extension checklist remains before M4 acceptance.
+`blocks`/`transactions`/`instructions`, descriptor compatibility coverage, and
+the extension checklist are implemented.
 
 ## Objective
 
@@ -45,21 +45,24 @@ the descriptor value.
 
 ### 4. Prepare the extension boundary for additional chains
 
-Document and test the adapter checklist for Bitcoin, Tron, Sui, and Near. Do
-not add metadata-only tables or operator descriptor packs until each table has
-an executable, bounded, cancelled, and tested path. Provider-specific policy
-must remain in the runtime/provider layers.
+Completed. [`docs/NEW_CHAIN_ADAPTER_CHECKLIST.md`](../docs/NEW_CHAIN_ADAPTER_CHECKLIST.md)
+defines the native-model, bounded executable-path, finality/cache, cancellation,
+metrics, mock-test, and ZIP gates for Bitcoin, Tron, Sui, Near, and future
+adapters. The connector registry remains typed to `ExecutableChainAdapter`, and
+tests ensure the default metadata schemas remain aligned with the built-in
+executable registry. Metadata-only registration and operator descriptor packs
+remain prohibited.
 
 ## M4 acceptance checklist
 
-- [ ] `SHOW TABLES FROM web3.ethereum` succeeds.
+- [x] `SHOW TABLES FROM web3.ethereum` succeeds.
 - [x] `SHOW TABLES FROM web3.aptos` exposes `transactions` and `events`.
 - [x] `SHOW TABLES FROM web3.solana` exposes native Solana tables.
 - [x] Aptos and Solana scans use bounded splits and protocol-appropriate
       runtime execution.
-- [ ] No paid external provider is required by tests.
-- [ ] Unit, connector, cancellation, failure-mode, and ZIP loading tests pass.
-- [ ] Maven validation, static checks, and documentation checks pass.
+- [x] No paid external provider is required by tests.
+- [x] Unit, connector, cancellation, failure-mode, and ZIP loading tests pass.
+- [x] Maven validation, static checks, and documentation checks pass.
 
 ## Non-goals for this plan
 

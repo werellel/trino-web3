@@ -56,6 +56,8 @@ public class TestWeb3Catalog
             assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema", "solana");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                     .containsExactly("events", "transactions");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
+                    .containsExactly("blocks", "transactions");
             assertThat(queryRunner.execute("DESCRIBE web3.aptos.transactions").getMaterializedRows())
                     .extracting(row -> row.getField(0))
                     .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender");

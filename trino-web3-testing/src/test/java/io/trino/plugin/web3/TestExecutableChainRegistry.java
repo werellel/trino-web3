@@ -37,5 +37,9 @@ final class TestExecutableChainRegistry
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("solana")).isInstanceOf(SolanaChainAdapter.class);
         assertThat(registry.adapterForSchema("aptos")).isInstanceOf(AptosChainAdapter.class);
+        assertThat(new Web3Metadata(10).listSchemaNames(null))
+                .containsExactlyElementsOf(registry.descriptors().descriptors().stream()
+                        .map(descriptor -> descriptor.schemaName())
+                        .toList());
     }
 }
