@@ -1,7 +1,8 @@
 # Plan: M4 remaining multi-chain tasks
 
-Status: Aptos `transactions` and `events` are implemented; the tasks below
-remain before M4 acceptance.
+Status: Aptos `transactions`/`events` and Solana
+`blocks`/`transactions`/`instructions` are implemented. Descriptor compatibility
+coverage and the extension checklist remain before M4 acceptance.
 
 ## Objective
 
@@ -24,11 +25,13 @@ finalized and the optional cache TTL is operational only.
 
 ### 2. Add the Solana vertical slice
 
-Add a Solana-native adapter for `solana.blocks`, `solana.transactions`, and
-`solana.instructions` using Solana JSON-RPC semantics. Do not translate
-instructions or accounts into EVM concepts. Use bounded slot ranges, explicit
-request limits, descriptor mappings, local mock JSON-RPC tests, cancellation,
-and packaged-plugin integration tests.
+Completed. The Solana adapter exposes `solana.blocks`, `solana.transactions`,
+and `solana.instructions` through bounded slot ranges and shared JSON-RPC
+`getBlock` execution with `commitment=finalized`. It preserves native compiled
+top-level instructions and returns no rows for a null block result. Local mock
+tests cover batch execution, native rows, unbounded rejection, and ZIP loading.
+The initial slice intentionally has no cache admission: cache identity and
+reorganization behavior require a separate adapter contract.
 
 ### 3. Strengthen descriptor compatibility tests
 
@@ -48,8 +51,8 @@ must remain in the runtime/provider layers.
 
 - [ ] `SHOW TABLES FROM web3.ethereum` succeeds.
 - [x] `SHOW TABLES FROM web3.aptos` exposes `transactions` and `events`.
-- [ ] `SHOW TABLES FROM web3.solana` exposes native Solana tables.
-- [ ] Aptos and Solana scans use bounded splits and protocol-appropriate
+- [x] `SHOW TABLES FROM web3.solana` exposes native Solana tables.
+- [x] Aptos and Solana scans use bounded splits and protocol-appropriate
       runtime execution.
 - [ ] No paid external provider is required by tests.
 - [ ] Unit, connector, cancellation, failure-mode, and ZIP loading tests pass.
@@ -67,7 +70,7 @@ must remain in the runtime/provider layers.
 
 ```bash
 mvn validate
-mvn -pl trino-web3-runtime,trino-web3-aptos,trino-web3-evm,trino-web3-testing -am test -DskipITs
+mvn -pl trino-web3-runtime,trino-web3-solana,trino-web3-aptos,trino-web3-evm,trino-web3-testing -am test -DskipITs
 mvn clean verify
 git diff --check
 unzip -Z1 trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip

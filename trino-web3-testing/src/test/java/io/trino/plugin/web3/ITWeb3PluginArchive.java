@@ -60,6 +60,7 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.chain.ChainDescriptor")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.adapter.ExecutableChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.aptos.AptosChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.solana.SolanaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
@@ -99,6 +100,8 @@ public class ITWeb3PluginArchive
 
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                         .containsExactly("events", "transactions");
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana").getOnlyColumn())
+                        .containsExactly("blocks", "instructions", "transactions");
 
                 String query = """
                         SELECT block_hash

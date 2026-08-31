@@ -78,14 +78,15 @@ only after every operation in that batch has no remaining subscribers.
 
 ## Cache integration
 
-M3 adds a bounded, worker-local result cache owned by the Ethereum runtime.
+M3 adds a bounded, worker-local result cache owned by each configured runtime.
 The runtime owns storage, serialized-value isolation, weight/entry limits,
 optional TTL, eviction statistics, and execution-scoped cache counters. It
 does not decide whether a response is immutable. The EVM adapter validates a
 response, resolves its finality and canonical identity, and explicitly admits
-it only after the complete logical result is valid. The Aptos REST vertical
-slice does not admit cache entries; Aptos finality and immutable cache identity
-remain adapter work before caching can be enabled for that schema.
+it only after the complete logical result is valid. Aptos admits only complete,
+validated committed ledger and event ranges with adapter-defined identities.
+The Solana vertical slice intentionally performs no cache admission until its
+slot/hash identity and reorganization contract are defined by the adapter.
 
 Cache misses continue through M2's asynchronous single-flight scheduler.
 Closing the runtime cancels queued/in-flight work, clears retained cache

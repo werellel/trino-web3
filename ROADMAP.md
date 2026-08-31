@@ -492,14 +492,17 @@ Near-head reorg tests must remain correct.
 
 Prove that the architecture is genuinely multi-chain rather than EVM-specific.
 
-Implementation status: the versioned adapter foundation and Aptos
-`transactions`/`events` REST vertical slices are implemented. The Solana
-vertical slice remains before M4 acceptance is complete.
+Implementation status: the versioned adapter foundation, Aptos
+`transactions`/`events` REST vertical slices, and Solana
+`blocks`/`transactions`/`instructions` JSON-RPC vertical slices are implemented.
+Solana's initial slice uses bounded finalized-slot `getBlock` reads and does not
+admit cache entries until its adapter-defined identity and reorganization
+contract are complete.
 
 The ordered remaining work is tracked in
-[`plans/M4_REMAINING_TASKS.md`](plans/M4_REMAINING_TASKS.md): Aptos
-finality/cache identity, Solana native tables, descriptor compatibility coverage,
-and the checklist for subsequent chain adapters.
+[`plans/M4_REMAINING_TASKS.md`](plans/M4_REMAINING_TASKS.md): completed
+vertical slices, descriptor compatibility coverage, and the checklist for
+subsequent chain adapters.
 
 Add:
 

@@ -324,8 +324,8 @@ The current M4 vertical slices implement `transactions` with a bounded
 bounded `sequence_number` range. The adapter caps REST pages at 100 entries and
 validates the complete contiguous transaction response or the matching event
 GUID/sequence response before row publication. Aptos endpoints and HTTP
-lifecycle remain connector/runtime-owned; finality and cache identity remain
-subsequent M4 work.
+lifecycle remain connector/runtime-owned. The Aptos adapter treats committed
+range identities as finalized for cache admission after complete validation.
 
 ---
 

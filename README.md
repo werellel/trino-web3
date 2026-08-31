@@ -13,8 +13,10 @@ code-based adapter. Descriptor method bindings now also select bounded access
 paths into named range and discrete-value table-handle predicates, without
 Ethereum fields in the generic Trino planning state. The current M4 vertical
 slice also exposes native `aptos.transactions` and account-scoped
-`aptos.events` through bounded REST paths, proving that the shared runtime is
-not JSON-RPC-only. M3 adds an opt-in,
+`aptos.events` through bounded REST paths, plus native `solana.blocks`,
+`solana.transactions`, and `solana.instructions` through bounded JSON-RPC
+`getBlock` paths. This proves that the shared runtime is not EVM- or
+JSON-RPC-only. M3 adds an opt-in,
 worker-local cache with
 EVM finality and reorganization correctness. The repository provides a
 catalog that can be loaded by Trino and queried with:
@@ -35,7 +37,8 @@ This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
 The worker-local runtime bounds concurrency, queue size, batch size, retries,
 and rate admission; it handles generic endpoint failover and `429`
 `Retry-After`. It does not implement receipts, logs, vendor-specific provider
-profiles, Solana, or additional Aptos tables beyond transactions and events.
+profiles, Solana inner instructions, or additional Aptos tables beyond
+transactions and events.
 
 ## Chain endpoint configuration
 
@@ -48,6 +51,8 @@ web3.ethereum.rpc-url=http://127.0.0.1:8545
 web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
 web3.aptos.rest-url=http://127.0.0.1:8080
 web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
+web3.solana.rpc-url=http://127.0.0.1:8899
+web3.solana.rpc-fallback-urls=http://127.0.0.1:8900,http://127.0.0.1:8901
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
 web3.maximum-transaction-hashes-per-query=1000
@@ -78,8 +83,14 @@ metadata. A query of `ethereum.blocks` without it fails explicitly.
 HTTP(S) origin without credentials, a path, query, or fragment. Aptos REST
 requests share the configured concurrency, queue, rate, retry, cooldown,
 failover, request-size, and response-size limits, but are never placed in a
-JSON-RPC batch envelope. Aptos cache admission remains disabled until its
-finality and immutable identity are defined explicitly.
+JSON-RPC batch envelope. Aptos cache admission uses committed range identities
+after complete native-response validation.
+`web3.solana.rpc-url` follows Ethereum's metadata-only rule. Solana scans use
+`getBlock` with `commitment=finalized`; every table requires a bounded `slot`
+predicate. A null block result produces no rows. The initial instruction table
+contains compiled top-level instructions only; it intentionally excludes inner
+instructions and parsed instruction variants. Solana cache admission is disabled
+until a stable cache identity and reorganization policy are defined.
 The connector enforces hard upper bounds of 1,000 blocks per split, 10,000
 blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
 Fallback URLs are optional and are used in declaration order after a retryable
@@ -127,7 +138,7 @@ one PageSource truthfully.
 Build `trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip`
 with `mvn package`, then extract it as one Trino plugin directory. The ZIP
 contains the plugin, chain descriptor API, adapter execution API, core, EVM,
-runtime, and runtime library JARs.
+Solana, Aptos, runtime, and runtime library JARs.
 
 ```sql
 SELECT block_number, block_hash
@@ -151,6 +162,10 @@ FROM web3.aptos.events
 WHERE account_address = '0x1'
   AND creation_number = '7'
   AND sequence_number BETWEEN 0 AND 99;
+
+SELECT slot, transaction_signature, instruction_index, program_id, account_indices, data
+FROM web3.solana.instructions
+WHERE slot BETWEEN 1000 AND 1099;
 ```
 
 ## Compatibility
@@ -183,6 +198,7 @@ trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row c
 trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
 trino-web3-aptos    Aptos-native transaction/event planning, REST mapping, and decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
+trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
 ```
@@ -195,8 +211,9 @@ execution is dispatched by schema through the executable registry; adapter
 splits retain their predicate column when crossing Trino's serialized split
 boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
 REST request values through the same policy state machine. Aptos transactions
-and account event streams are REST vertical slices. Solana, Bitcoin, Tron, Sui,
-and Near queries remain M4 follow-up work.
+and account event streams are REST vertical slices. Solana uses bounded
+`getBlock` JSON-RPC reads. Bitcoin, Tron, Sui, and Near queries remain M4
+follow-up work.
 
 ## Development rules
 

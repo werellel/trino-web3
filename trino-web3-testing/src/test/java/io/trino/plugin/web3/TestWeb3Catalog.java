@@ -53,7 +53,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema");
+            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema", "solana");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                     .containsExactly("events", "transactions");
             assertThat(queryRunner.execute("DESCRIBE web3.aptos.transactions").getMaterializedRows())
@@ -62,6 +62,11 @@ public class TestWeb3Catalog
             assertThat(queryRunner.execute("DESCRIBE web3.aptos.events").getMaterializedRows())
                     .extracting(row -> row.getField(0))
                     .containsExactly("account_address", "creation_number", "sequence_number", "event_type", "data");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana").getOnlyColumn())
+                    .containsExactly("blocks", "instructions", "transactions");
+            assertThat(queryRunner.execute("DESCRIBE web3.solana.instructions").getMaterializedRows())
+                    .extracting(row -> row.getField(0))
+                    .containsExactly("slot", "transaction_signature", "instruction_index", "program_id", "account_indices", "data");
         }
     }
 
@@ -105,7 +110,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("aptos", "ethereum", "information_schema");
+                    .containsExactly("aptos", "ethereum", "information_schema", "solana");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))
@@ -129,6 +134,12 @@ public class TestWeb3Catalog
                     "web3.aptos.rest-url", "https://" + aptosSecret + "@example.com")))
                     .hasMessageContaining("web3.aptos.rest-url must contain HTTP(S) origins")
                     .hasMessageNotContaining(aptosSecret);
+
+            String solanaSecret = "do-not-leak-solana-token";
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_solana_url", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
+                    "web3.solana.rpc-url", "http://" + solanaSecret + "@[invalid")))
+                    .hasMessageContaining("web3.solana.rpc-url contains an invalid URL")
+                    .hasMessageNotContaining(solanaSecret);
         }
     }
 
@@ -143,6 +154,20 @@ public class TestWeb3Catalog
 
             assertThatThrownBy(() -> queryRunner.execute("SELECT ledger_version FROM transactions WHERE ledger_version = 10"))
                     .hasStackTraceContaining("no remote endpoint is configured for schema aptos");
+        }
+    }
+
+    @Test
+    public void testSolanaReadRequiresConfiguredEndpoint()
+            throws Exception
+    {
+        Session session = testSessionBuilder().setCatalog("web3").setSchema("solana").build();
+        try (StandaloneQueryRunner queryRunner = new StandaloneQueryRunner(session)) {
+            queryRunner.installPlugin(new Web3Plugin());
+            queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of());
+
+            assertThatThrownBy(() -> queryRunner.execute("SELECT slot FROM blocks WHERE slot = 10"))
+                    .hasStackTraceContaining("no remote endpoint is configured for schema solana");
         }
     }
 

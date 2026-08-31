@@ -1,0 +1,108 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "solana",
+  "schemaName": "solana",
+  "adapterVersion": 1,
+  "tables": [
+    {
+      "name": "blocks",
+      "version": 1,
+      "columns": [
+        {"name": "slot", "type": "bigint", "nullable": false},
+        {"name": "blockhash", "type": "varchar", "nullable": false},
+        {"name": "parent_slot", "type": "bigint", "nullable": false},
+        {"name": "block_time", "type": "bigint", "nullable": true}
+      ],
+      "methods": [
+        {
+          "name": "by-slot",
+          "protocol": "JSON_RPC",
+          "action": "getBlock",
+          "path": "",
+          "bindings": [
+            {"target": "0", "kind": "SPLIT", "value": "slot", "location": "PARAMETER", "required": true},
+            {"target": "1", "kind": "LITERAL", "value": "{\"commitment\":\"finalized\",\"encoding\":\"json\",\"transactionDetails\":\"none\",\"rewards\":false,\"maxSupportedTransactionVersion\":0}", "location": "PARAMETER", "required": true}
+          ],
+          "response": {
+            "cardinality": "SINGLE",
+            "rowsPointer": "",
+            "fields": [
+              {"column": "slot", "pointer": "/slot", "required": true},
+              {"column": "blockhash", "pointer": "/blockhash", "required": true},
+              {"column": "parent_slot", "pointer": "/parentSlot", "required": true},
+              {"column": "block_time", "pointer": "/blockTime", "required": false}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "version": 1,
+      "columns": [
+        {"name": "slot", "type": "bigint", "nullable": false},
+        {"name": "signature", "type": "varchar", "nullable": false},
+        {"name": "success", "type": "boolean", "nullable": false},
+        {"name": "fee", "type": "bigint", "nullable": false}
+      ],
+      "methods": [
+        {
+          "name": "by-slot",
+          "protocol": "JSON_RPC",
+          "action": "getBlock",
+          "path": "",
+          "bindings": [
+            {"target": "0", "kind": "SPLIT", "value": "slot", "location": "PARAMETER", "required": true},
+            {"target": "1", "kind": "LITERAL", "value": "{\"commitment\":\"finalized\",\"encoding\":\"json\",\"transactionDetails\":\"full\",\"rewards\":false,\"maxSupportedTransactionVersion\":0}", "location": "PARAMETER", "required": true}
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/transactions",
+            "fields": [
+              {"column": "slot", "pointer": "/slot", "required": true},
+              {"column": "signature", "pointer": "/transaction/signatures/0", "required": true},
+              {"column": "success", "pointer": "/meta/err", "required": true},
+              {"column": "fee", "pointer": "/meta/fee", "required": true}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "instructions",
+      "version": 1,
+      "columns": [
+        {"name": "slot", "type": "bigint", "nullable": false},
+        {"name": "transaction_signature", "type": "varchar", "nullable": false},
+        {"name": "instruction_index", "type": "bigint", "nullable": false},
+        {"name": "program_id", "type": "varchar", "nullable": false},
+        {"name": "account_indices", "type": "varchar", "nullable": false},
+        {"name": "data", "type": "varchar", "nullable": false}
+      ],
+      "methods": [
+        {
+          "name": "by-slot",
+          "protocol": "JSON_RPC",
+          "action": "getBlock",
+          "path": "",
+          "bindings": [
+            {"target": "0", "kind": "SPLIT", "value": "slot", "location": "PARAMETER", "required": true},
+            {"target": "1", "kind": "LITERAL", "value": "{\"commitment\":\"finalized\",\"encoding\":\"json\",\"transactionDetails\":\"full\",\"rewards\":false,\"maxSupportedTransactionVersion\":0}", "location": "PARAMETER", "required": true}
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/transactions",
+            "fields": [
+              {"column": "slot", "pointer": "/slot", "required": true},
+              {"column": "transaction_signature", "pointer": "/transaction/signatures/0", "required": true},
+              {"column": "instruction_index", "pointer": "/transaction/message/instructions/0", "required": true},
+              {"column": "program_id", "pointer": "/transaction/message/accountKeys/0", "required": true},
+              {"column": "account_indices", "pointer": "/transaction/message/instructions/0/accounts", "required": true},
+              {"column": "data", "pointer": "/transaction/message/instructions/0/data", "required": true}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

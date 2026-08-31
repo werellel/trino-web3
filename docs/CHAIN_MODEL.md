@@ -41,6 +41,22 @@ executable adapter by schema. Adapter splits are transport-neutral range or
 discrete-value records; their column identity is preserved across Trino split
 serialization.
 
+## Current Solana model
+
+M4 exposes `solana.blocks`, `solana.transactions`, and
+`solana.instructions` through bounded BIGINT `slot` ranges. Each operation is
+a shared-runtime JSON-RPC `getBlock` call with `commitment=finalized`; a null
+block result yields no rows. Blocks preserve `slot`, `blockhash`, `parent_slot`,
+and optional `block_time`. Transactions preserve the primary signature,
+success derived from the native `meta.err`, and fee. Instructions preserve the
+compiled top-level instruction order, resolved program ID, account-index JSON,
+and native base58 data. Inner instructions, parsed instruction variants, and
+versioned account-key object forms are intentionally not in this initial table.
+
+The initial Solana slice makes no cache admission. A future cache contract must
+define canonical blockhash identity, commitment/finality semantics, and how a
+slot lookup is revalidated before any completed result is retained.
+
 ## Current Aptos model
 
 M4 exposes `aptos.transactions` and `aptos.events` without mapping either to
@@ -112,5 +128,5 @@ Solana and Aptos adapters must model their native blocks, transactions,
 instructions, events, and finality semantics. They must not reuse EVM tables or
 Ethereum-specific decoding. Bitcoin, Tron, Sui, and Near follow the same
 registry boundary but keep UTXO, object, receipt, event, and finality semantics
-in their own adapters. Production execution for Aptos transactions and events
-is present; Solana execution remains later M4 work.
+in their own adapters. Production execution for Aptos transactions/events and
+Solana blocks/transactions/instructions is present.

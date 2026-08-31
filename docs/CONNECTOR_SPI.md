@@ -2,8 +2,8 @@
 
 The connector targets Trino 475. Coordinator-side metadata and split planning
 remain deterministic and do not perform remote calls. Worker-side PageSources
-own the cancellable `RemoteExecution` used for bounded EVM JSON-RPC and Aptos
-REST transaction and account-event reads.
+own the cancellable `RemoteExecution` used for bounded EVM and Solana JSON-RPC
+and Aptos REST transaction and account-event reads.
 
 ## Predicate pushdown
 

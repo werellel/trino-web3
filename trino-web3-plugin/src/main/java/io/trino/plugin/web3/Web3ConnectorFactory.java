@@ -35,6 +35,8 @@ public final class Web3ConnectorFactory
     public static final String CONNECTOR_NAME = "web3";
     private static final String ETHEREUM_RPC_URL = "web3.ethereum.rpc-url";
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
+    private static final String SOLANA_RPC_URL = "web3.solana.rpc-url";
+    private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
     private static final String APTOS_REST_FALLBACK_URLS = "web3.aptos.rest-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
@@ -81,6 +83,10 @@ public final class Web3ConnectorFactory
         List<URI> ethereumEndpoints = parseEndpoints(config, ETHEREUM_RPC_URL, ETHEREUM_RPC_FALLBACK_URLS, false);
         if (ethereumEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.ethereum.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> solanaEndpoints = parseEndpoints(config, SOLANA_RPC_URL, SOLANA_RPC_FALLBACK_URLS, false);
+        if (solanaEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.solana.rpc-url and fallback URLs must contain at most 8 endpoints");
         }
         List<URI> aptosEndpoints = parseEndpoints(config, APTOS_REST_URL, APTOS_REST_FALLBACK_URLS, true);
         if (aptosEndpoints.size() > 8) {
@@ -141,6 +147,7 @@ public final class Web3ConnectorFactory
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumEndpoints,
+                solanaEndpoints,
                 aptosEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
@@ -152,6 +159,8 @@ public final class Web3ConnectorFactory
     {
         return key.equals(ETHEREUM_RPC_URL) ||
                 key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
+                key.equals(SOLANA_RPC_URL) ||
+                key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||
                 key.equals(APTOS_REST_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||

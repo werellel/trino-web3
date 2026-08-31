@@ -111,6 +111,16 @@ not a finality mechanism. Each catalog's Aptos primary and fallback origins
 must serve the same network; the worker-local runtime keeps cache entries
 isolated by connector instance and never includes origins or secrets in a key.
 
+### Solana
+
+The initial Solana `getBlock` vertical slice requests `commitment=finalized`,
+but does not admit any response to the cache. A finalized commitment alone does
+not define a cache identity: a later admission policy must key immutable payload
+by canonical `blockhash`, define how a `slot` lookup is revalidated, and cover
+unavailable/null block results. Until that contract exists, repeated Solana
+scans execute through the normal bounded runtime path and null results are not
+negative cached.
+
 ## Admission and failure
 
 Only an adapter-committed, fully validated successful RPC result is admitted.
@@ -124,6 +134,9 @@ The same prohibition applies to Aptos partial ledger/event ranges, wrong ledger
 versions, mismatched event GUIDs, non-contiguous sequences, and malformed
 required fields. A rejected Aptos response is neither cached nor treated as a
 negative result.
+
+The same prohibition applies to all Solana responses in this slice because the
+adapter performs no Solana cache admission.
 
 If a retained value cannot be decoded, the entry is invalidated and the normal
 bounded remote path is used. Cache failure is never reported as remote absence
