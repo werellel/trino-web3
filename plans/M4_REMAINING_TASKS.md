@@ -1,7 +1,7 @@
 # Plan: M4 remaining multi-chain tasks
 
-Status: Aptos `transactions` is implemented; the tasks below remain before M4
-acceptance.
+Status: Aptos `transactions` and `events` are implemented; the tasks below
+remain before M4 acceptance.
 
 ## Objective
 
@@ -12,23 +12,17 @@ documentation, and an executable adapter path.
 
 ## Priority order
 
-### 1. Add Aptos events
+### 1. Define Aptos finality and cache identity
 
-Implement `aptos.events` as a second Aptos REST table with its native response
-shape. Define the supported range/cursor predicates, descriptor mappings,
-nullable fields, page limits, malformed-response behavior, and exact Trino
-schema. Add local REST tests covering pushdown, split generation, decoding,
-partial responses, cancellation, and plugin ZIP loading.
+Completed. `aptos.transactions` uses committed `ledger_version` ranges as its
+immutable cache identity; `aptos.events` uses canonical event
+`(account_address, creation_number, sequence_number)` identity. The adapter
+admits only fully decoded contiguous ranges, and rejects partial, malformed, or
+mismatched responses without negative caching. The selected REST range
+endpoints do not expose a moving head alias, so committed data is treated as
+finalized and the optional cache TTL is operational only.
 
-### 2. Define Aptos finality and cache identity
-
-Document which Aptos identifiers are immutable, how ledger versions relate to
-canonical history, and whether a finalized/safe/head distinction is available
-through the selected REST API. Keep caching disabled until the contract is
-explicit. If caching is enabled later, add immutable cache keys, mutable-head
-TTL behavior, reorg handling, and regression tests.
-
-### 3. Add the Solana vertical slice
+### 2. Add the Solana vertical slice
 
 Add a Solana-native adapter for `solana.blocks`, `solana.transactions`, and
 `solana.instructions` using Solana JSON-RPC semantics. Do not translate
@@ -36,14 +30,14 @@ instructions or accounts into EVM concepts. Use bounded slot ranges, explicit
 request limits, descriptor mappings, local mock JSON-RPC tests, cancellation,
 and packaged-plugin integration tests.
 
-### 4. Strengthen descriptor compatibility tests
+### 3. Strengthen descriptor compatibility tests
 
 Cover descriptor version evolution, optional fields, unknown response fields,
 unsupported methods, schema/table ownership conflicts, and adapter registry
 composition across multiple protocols. Verify that malformed descriptors fail
 at catalog construction and never expose endpoint values or response payloads.
 
-### 5. Prepare the extension boundary for additional chains
+### 4. Prepare the extension boundary for additional chains
 
 Document and test the adapter checklist for Bitcoin, Tron, Sui, and Near. Do
 not add metadata-only tables or operator descriptor packs until each table has
@@ -53,7 +47,7 @@ must remain in the runtime/provider layers.
 ## M4 acceptance checklist
 
 - [ ] `SHOW TABLES FROM web3.ethereum` succeeds.
-- [ ] `SHOW TABLES FROM web3.aptos` exposes `transactions` and `events`.
+- [x] `SHOW TABLES FROM web3.aptos` exposes `transactions` and `events`.
 - [ ] `SHOW TABLES FROM web3.solana` exposes native Solana tables.
 - [ ] Aptos and Solana scans use bounded splits and protocol-appropriate
       runtime execution.

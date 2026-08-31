@@ -20,8 +20,10 @@ import io.trino.plugin.web3.adapter.ChainSplit;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.core.Web3DiscreteValueSplit;
+import io.trino.plugin.web3.core.Web3KeyedRangeSplit;
 import io.trino.plugin.web3.core.Web3RangeSplit;
 import io.trino.plugin.web3.core.Web3TableHandle;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
@@ -111,6 +113,9 @@ public final class Web3SplitManager
     {
         if (split instanceof RangeChainSplit range) {
             return new Web3RangeSplit(range.column(), range.startInclusive(), range.endInclusive());
+        }
+        if (split instanceof KeyedRangeChainSplit range) {
+            return new Web3KeyedRangeSplit(range.keys(), range.rangeColumn(), range.startInclusive(), range.endInclusive());
         }
         if (split instanceof DiscreteValueChainSplit value) {
             return new Web3DiscreteValueSplit(value.column(), value.value());

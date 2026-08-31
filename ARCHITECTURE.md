@@ -319,11 +319,13 @@ modules
 account_transactions
 ```
 
-The current M4 vertical slice implements `transactions` with a bounded
-`ledger_version` range. The adapter caps REST pages at 100 entries and validates
-the complete contiguous response before row publication. Aptos endpoints and
-HTTP lifecycle remain connector/runtime-owned; Aptos events, finality, and
-cache identity remain subsequent M4 work.
+The current M4 vertical slices implement `transactions` with a bounded
+`ledger_version` range and `events` with account/creation-number keys plus a
+bounded `sequence_number` range. The adapter caps REST pages at 100 entries and
+validates the complete contiguous transaction response or the matching event
+GUID/sequence response before row publication. Aptos endpoints and HTTP
+lifecycle remain connector/runtime-owned; finality and cache identity remain
+subsequent M4 work.
 
 ---
 

@@ -2,7 +2,7 @@
   "apiVersion": "web3.trino.io/v1alpha1",
   "name": "aptos",
   "schemaName": "aptos",
-  "adapterVersion": 1,
+  "adapterVersion": 2,
   "tables": [
     {
       "name": "transactions",
@@ -35,6 +35,42 @@
               {"column": "success", "pointer": "/success", "required": true},
               {"column": "vm_status", "pointer": "/vm_status", "required": true},
               {"column": "sender", "pointer": "/sender", "required": false}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "events",
+      "version": 1,
+      "columns": [
+        {"name": "account_address", "type": "varchar", "nullable": false},
+        {"name": "creation_number", "type": "varchar", "nullable": false},
+        {"name": "sequence_number", "type": "bigint", "nullable": false},
+        {"name": "event_type", "type": "varchar", "nullable": false},
+        {"name": "data", "type": "varchar", "nullable": false}
+      ],
+      "methods": [
+        {
+          "name": "by-account-creation-number-sequence-range",
+          "protocol": "REST",
+          "action": "GET",
+          "path": "/v1/accounts/{account_address}/events/{creation_number}",
+          "bindings": [
+            {"target": "account_address", "kind": "PREDICATE", "value": "account_address", "location": "PATH", "required": true},
+            {"target": "creation_number", "kind": "PREDICATE", "value": "creation_number", "location": "PATH", "required": true},
+            {"target": "start", "kind": "SPLIT", "value": "sequence_number", "location": "QUERY", "required": true},
+            {"target": "limit", "kind": "LITERAL", "value": "100", "location": "QUERY", "required": true}
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "",
+            "fields": [
+              {"column": "account_address", "pointer": "/guid/account_address", "required": true},
+              {"column": "creation_number", "pointer": "/guid/creation_number", "required": true},
+              {"column": "sequence_number", "pointer": "/sequence_number", "required": true},
+              {"column": "event_type", "pointer": "/type", "required": true},
+              {"column": "data", "pointer": "/data", "required": true}
             ]
           }
         }

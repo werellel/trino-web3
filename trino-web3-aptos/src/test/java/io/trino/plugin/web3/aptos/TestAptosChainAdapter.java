@@ -16,9 +16,11 @@ package io.trino.plugin.web3.aptos;
 import io.trino.plugin.web3.adapter.ChainPlanningException;
 import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
+import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -31,7 +33,7 @@ public class TestAptosChainAdapter
     private final AptosChainAdapter adapter = new AptosChainAdapter();
 
     @Test
-    public void testDescriptorDefinesNativeTransactionsTable()
+    public void testDescriptorDefinesNativeTables()
     {
         var descriptor = adapter.descriptor();
         var table = descriptor.table("transactions").orElseThrow();
@@ -41,6 +43,10 @@ public class TestAptosChainAdapter
         assertThat(table.columns()).extracting(column -> column.name())
                 .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender");
         assertThat(table.method("by-ledger-version-range").orElseThrow().protocol()).isEqualTo(REST);
+        var events = descriptor.table("events").orElseThrow();
+        assertThat(events.columns()).extracting(column -> column.name())
+                .containsExactly("account_address", "creation_number", "sequence_number", "event_type", "data");
+        assertThat(events.method("by-account-creation-number-sequence-range").orElseThrow().protocol()).isEqualTo(REST);
     }
 
     @Test
@@ -100,6 +106,66 @@ public class TestAptosChainAdapter
         assertThat(adapter.planSplits(scan, new ChainSplitLimits(1_000, 1_000, 100)))
                 .containsExactly(
                         new RangeChainSplit("ledger_version", 1, 100),
-                        new RangeChainSplit("ledger_version", 101, 101));
+                new RangeChainSplit("ledger_version", 101, 101));
+    }
+
+    @Test
+    public void testPlansBoundedAccountEventStreamSplits()
+    {
+        ChainScan scan = new ChainScan(
+                "events",
+                Optional.of("by-account-creation-number-sequence-range"),
+                Map.of("sequence_number", new ChainScan.LongRange(10, 12)),
+                Map.of(
+                        "account_address", List.of("0x0001"),
+                        "creation_number", List.of("007")));
+
+        assertThat(adapter.planSplits(scan, new ChainSplitLimits(2, 10, 100)))
+                .containsExactly(
+                        new KeyedRangeChainSplit(Map.of("account_address", "0x1", "creation_number", "7"), "sequence_number", 10, 11),
+                        new KeyedRangeChainSplit(Map.of("account_address", "0x1", "creation_number", "7"), "sequence_number", 12, 12));
+    }
+
+    @Test
+    public void testRejectsUnboundedOrAmbiguousEventScans()
+    {
+        ChainSplitLimits limits = new ChainSplitLimits(10, 10, 10);
+        assertThatThrownBy(() -> adapter.planSplits(
+                new ChainScan("events", Map.of(), Map.of(
+                        "account_address", List.of("0x1"),
+                        "creation_number", List.of("7"))),
+                limits))
+                .isInstanceOf(ChainPlanningException.class)
+                .hasMessage("aptos.events requires a bounded sequence_number predicate");
+        assertThatThrownBy(() -> adapter.planSplits(
+                new ChainScan(
+                        "events",
+                        Map.of("sequence_number", new ChainScan.LongRange(0, 1)),
+                        Map.of(
+                                "account_address", List.of("0x1", "0x2"),
+                                "creation_number", List.of("7"))),
+                limits))
+                .isInstanceOf(ChainPlanningException.class)
+                .hasMessage("aptos.events requires exactly one account_address predicate");
+        assertThatThrownBy(() -> adapter.planSplits(
+                new ChainScan(
+                        "events",
+                        Map.of("sequence_number", new ChainScan.LongRange(0, 1)),
+                        Map.of(
+                                "account_address", List.of("invalid"),
+                                "creation_number", List.of("7"))),
+                limits))
+                .isInstanceOf(ChainPlanningException.class)
+                .hasMessage("aptos.events has an invalid account_address");
+        assertThatThrownBy(() -> adapter.planSplits(
+                new ChainScan(
+                        "events",
+                        Map.of("sequence_number", new ChainScan.LongRange(0, 1)),
+                        Map.of(
+                                "account_address", List.of("0x1"),
+                                "creation_number", List.of("18446744073709551616"))),
+                limits))
+                .isInstanceOf(ChainPlanningException.class)
+                .hasMessage("aptos.events has an invalid creation_number");
     }
 }

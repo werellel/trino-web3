@@ -98,7 +98,7 @@ public class ITWeb3PluginArchive
                         "web3.cache.enabled", "true"));
 
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
-                        .containsExactly("transactions");
+                        .containsExactly("events", "transactions");
 
                 String query = """
                         SELECT block_hash

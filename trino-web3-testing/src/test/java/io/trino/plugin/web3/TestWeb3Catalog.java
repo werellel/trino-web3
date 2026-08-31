@@ -55,10 +55,13 @@ public class TestWeb3Catalog
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
             assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
-                    .containsExactly("transactions");
+                    .containsExactly("events", "transactions");
             assertThat(queryRunner.execute("DESCRIBE web3.aptos.transactions").getMaterializedRows())
                     .extracting(row -> row.getField(0))
                     .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender");
+            assertThat(queryRunner.execute("DESCRIBE web3.aptos.events").getMaterializedRows())
+                    .extracting(row -> row.getField(0))
+                    .containsExactly("account_address", "creation_number", "sequence_number", "event_type", "data");
         }
     }
 

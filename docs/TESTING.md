@@ -64,15 +64,17 @@ rejection, deterministic method choice, handle immutability, bounded diagnostic
 output, and EVM-side hash validation.
 
 The Aptos M4 suite covers the strict built-in descriptor, the native
-`ledger_version` access path, the 100-transaction REST page cap, deterministic
-split planning, complete contiguous response validation, optional sender,
-malformed fields, signed BIGINT overflow, and payload-safe failures. REST
-runtime tests cover URI/query construction, GET and POST bodies, request and
-response bounds, malformed JSON, HTTP 429 metadata, single-flight, no wire
-batching, retry/failover, protocol mismatch, and transport cancellation. Trino
-integration tests prove Aptos schema/table discovery, bounded SQL execution,
-boolean and nullable page writing, unbounded-scan rejection before remote work,
-and an explicit missing-endpoint failure. All fixtures are local.
+`ledger_version` and account-event stream access paths, the 100-entry REST page
+cap, deterministic split planning, complete contiguous response validation,
+optional sender, event GUID/sequence identity, malformed fields, signed BIGINT
+overflow, and payload-safe failures. REST runtime tests cover URI/query
+construction, GET and POST bodies, request and response bounds, malformed JSON,
+HTTP 429 metadata, single-flight, no wire batching, retry/failover, protocol
+mismatch, and transport cancellation. Trino integration tests prove Aptos
+schema/table discovery, bounded transaction and event SQL execution, compact
+JSON-text event payload projection, boolean and nullable page writing,
+unbounded-scan rejection before remote work, and an explicit missing-endpoint
+failure. All fixtures are local.
 
 `BenchmarkRemoteResultCache` is a JMH benchmark for cache hit, miss, and
 serialization/admission costs at 1 KiB and 64 KiB payload sizes. Generate its

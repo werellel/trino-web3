@@ -131,7 +131,8 @@ public final class Web3Connector
                     aptosRestEndpoints,
                     maximumRequestBytes,
                     maximumResponseBytes,
-                    executionPolicy));
+                    executionPolicy,
+                    cacheConfig));
         }
         runtimes = Map.copyOf(configuredRuntimes);
         pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
@@ -161,7 +162,8 @@ public final class Web3Connector
             List<URI> endpoints,
             int maximumRequestBytes,
             int maximumResponseBytes,
-            ExecutionPolicy executionPolicy)
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig)
     {
         return RemoteExecutionRuntime.forRest(
                 httpClient,
@@ -170,7 +172,7 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 executionPolicy,
-                RemoteCacheConfig.disabled());
+                cacheConfig);
     }
 
     private static List<ProviderProfile> providerProfiles(List<URI> endpoints, boolean jsonRpcBatchEnabled)

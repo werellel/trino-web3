@@ -15,6 +15,9 @@ package io.trino.plugin.web3.core;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -41,5 +44,25 @@ public class TestWeb3ChainSplits
         assertThatThrownBy(() -> new Web3DiscreteValueSplit("signature", "x".repeat(4_097)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("split value exceeds maximum length of 4096");
+    }
+
+    @Test
+    public void testKeyedRangeSplitPreservesBoundedNativeKeys()
+    {
+        Map<String, String> keys = new LinkedHashMap<>();
+        keys.put("creation_number", "7");
+        keys.put("account_address", "0x1");
+
+        Web3KeyedRangeSplit split = new Web3KeyedRangeSplit(keys, "sequence_number", 10, 12);
+        keys.clear();
+
+        assertThat(split.keys().keySet()).containsExactly("account_address", "creation_number");
+        assertThat(split).isEqualTo(new Web3KeyedRangeSplit(
+                Map.of("account_address", "0x1", "creation_number", "7"),
+                "sequence_number",
+                10,
+                12));
+        assertThatThrownBy(() -> new Web3KeyedRangeSplit(Map.of(), "sequence_number", 10, 12))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

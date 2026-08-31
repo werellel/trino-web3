@@ -74,4 +74,21 @@ final class TestChainExecutionModels
         assertThatThrownBy(() -> new ChainScan.LongRange(-1, 1))
                 .hasMessage("invalid non-negative long range");
     }
+
+    @Test
+    void testKeyedRangeSplitDefensivelyCopiesAndOrdersKeys()
+    {
+        Map<String, String> keys = new LinkedHashMap<>();
+        keys.put("creation_number", "7");
+        keys.put("account_address", "0x1");
+
+        KeyedRangeChainSplit split = new KeyedRangeChainSplit(keys, "sequence_number", 10, 11);
+        keys.clear();
+
+        assertThat(split.keys()).containsEntry("account_address", "0x1")
+                .containsEntry("creation_number", "7");
+        assertThat(split.keys().keySet()).containsExactly("account_address", "creation_number");
+        assertThatThrownBy(() -> split.keys().put("other", "value"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
 }

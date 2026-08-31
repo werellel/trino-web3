@@ -3,7 +3,7 @@
 The connector targets Trino 475. Coordinator-side metadata and split planning
 remain deterministic and do not perform remote calls. Worker-side PageSources
 own the cancellable `RemoteExecution` used for bounded EVM JSON-RPC and Aptos
-REST reads.
+REST transaction and account-event reads.
 
 ## Predicate pushdown
 
@@ -27,11 +27,13 @@ domain. Extraction stops as soon as the limit is exceeded, before a large table
 handle or split list can be constructed. Split planning repeats the check as a
 defense for deserialized or externally constructed handles.
 
-Unbounded block and transaction scans are rejected during split planning.
-Planning handles contain the selected descriptor method plus immutable maps of
-named ranges and discrete values. Splits preserve the native predicate column.
-Neither contains clients, caches, credentials, endpoints, or cancellation
-resources, and their diagnostic strings expose counts rather than values.
+Unbounded block, transaction, and event scans are rejected during split
+planning. Planning handles contain the selected descriptor method plus immutable
+maps of named ranges and discrete values. A split is either a single native
+range/discrete value or a bounded range scoped by a small immutable key map,
+such as an Aptos account event stream. Neither contains clients, caches,
+credentials, endpoints, or cancellation resources, and their diagnostic strings
+expose counts rather than values.
 
 ## PageSource lifecycle
 

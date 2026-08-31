@@ -43,18 +43,25 @@ serialization.
 
 ## Current Aptos model
 
-M4 exposes `aptos.transactions` without mapping it to an EVM transaction.
-Rows contain `ledger_version`, `hash`, native transaction `type`, `success`,
-`vm_status`, and nullable `sender`. Reads require a bounded BIGINT
-`ledger_version` range. The adapter caps every REST page at 100 transactions,
-validates a complete contiguous response, rejects unsigned 64-bit versions
-that cannot be represented by Trino BIGINT, and produces rows only after the
-whole split is valid.
+M4 exposes `aptos.transactions` and `aptos.events` without mapping either to
+an EVM transaction or log. Transaction rows contain `ledger_version`, `hash`,
+native transaction `type`, `success`, `vm_status`, and nullable `sender`.
+Reads require a bounded BIGINT `ledger_version` range. The adapter caps every
+REST page at 100 transactions, validates a complete contiguous response,
+rejects unsigned 64-bit versions that cannot be represented by Trino BIGINT,
+and produces rows only after the whole split is valid.
 
-The data client submits `GET /v1/transactions` through the shared runtime with
-bounded `start` and `limit` query values. It owns no endpoint, HTTP client,
-retry, rate, failover, or provider-health policy. Aptos events, head-aware
-partial-range behavior, finality, and cache admission remain later M4 work.
+Event reads use `GET /v1/accounts/{account_address}/events/{creation_number}`
+with exactly one account address, one creation number, and a bounded
+`sequence_number` range. Event rows retain the native account address,
+creation number, sequence number, type, and compact JSON payload text. A
+keyed-range split carries the two stream keys plus the sequence range; it is not
+an EVM log abstraction. Event responses must be complete, contiguous, and match
+both the requested GUID and sequence numbers before rows are published.
+
+The data client owns no endpoint, HTTP client, retry, rate, failover, or
+provider-health policy. Head-aware partial-range behavior, finality, and cache
+admission remain later M4 work.
 
 ## Versioned descriptor contract
 
@@ -105,5 +112,5 @@ Solana and Aptos adapters must model their native blocks, transactions,
 instructions, events, and finality semantics. They must not reuse EVM tables or
 Ethereum-specific decoding. Bitcoin, Tron, Sui, and Near follow the same
 registry boundary but keep UTXO, object, receipt, event, and finality semantics
-in their own adapters. Production execution for Aptos transactions is present;
-Aptos events and Solana execution remain later M4 work.
+in their own adapters. Production execution for Aptos transactions and events
+is present; Solana execution remains later M4 work.

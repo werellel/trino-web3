@@ -160,7 +160,7 @@ credential is required.
 2. Route PageSources through executable chain adapters rather than table-name
    conditionals. Implemented.
 3. Add a Solana JSON-RPC vertical slice.
-4. Add an Aptos REST vertical slice. `aptos.transactions` implemented; events remain.
+4. Add an Aptos REST vertical slice. `aptos.transactions` and `aptos.events` implemented.
 5. Add Bitcoin, Tron, Sui, and Near adapters using the same registry.
 6. Permit operator-supplied descriptor packs only after their tables can be
    executed, bounded, cancelled, and tested end to end.

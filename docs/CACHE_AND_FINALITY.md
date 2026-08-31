@@ -83,6 +83,34 @@ For a near-head reorg from hash A to hash B, the old A entry may remain as valid
 immutable historical content, but the next number lookup revalidates and
 returns B. The number is never a permanent alias to A.
 
+### Aptos
+
+Aptos' selected REST endpoints return committed ledger history only: the
+connector does not expose pending transactions. For this connector,
+`ledger_version` identifies one immutable committed transaction record within
+the configured Aptos network. A transaction-range response is cacheable only
+when every response item has the requested contiguous ledger version and all
+projected required fields validate. Its cache identity is the catalog-local
+`aptos` namespace, the REST operation, inclusive `start`/`end` ledger versions,
+the projected REST representation, and a format version.
+
+An Aptos event identity is `(account_address, creation_number,
+sequence_number)`. The address is canonicalized to lower-case shortest Aptos
+hex form, while creation and sequence numbers are canonical unsigned decimal
+values. Event-range entries are cacheable only when every returned `guid`
+matches the requested address and creation number and sequence numbers are
+contiguous. The event cache key contains that canonical stream identity,
+inclusive sequence range, representation, and format version.
+
+Committed Aptos history is treated as `FINALIZED` for cache admission; Aptos
+REST does not provide an EVM-like `head`/`safe`/`finalized` tag distinction for
+these historical range endpoints. The current bounded scans never request a
+moving head alias, so no mutable-head key or TTL correctness mechanism is
+needed. The configured TTL, when present, remains an operational upper bound,
+not a finality mechanism. Each catalog's Aptos primary and fallback origins
+must serve the same network; the worker-local runtime keeps cache entries
+isolated by connector instance and never includes origins or secrets in a key.
+
 ## Admission and failure
 
 Only an adapter-committed, fully validated successful RPC result is admitted.
@@ -91,6 +119,11 @@ HTTP 4xx/5xx,
 JSON-RPC error, partial batch failure, malformed response, oversized response,
 decoder failure, or a missing/null block. M3 does not implement negative
 caching.
+
+The same prohibition applies to Aptos partial ledger/event ranges, wrong ledger
+versions, mismatched event GUIDs, non-contiguous sequences, and malformed
+required fields. A rejected Aptos response is neither cached nor treated as a
+negative result.
 
 If a retained value cannot be decoded, the entry is invalidated and the normal
 bounded remote path is used. Cache failure is never reported as remote absence

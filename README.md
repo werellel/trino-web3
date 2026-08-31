@@ -12,8 +12,9 @@ Ethereum metadata, bounded split planning, and row decoding through the same
 code-based adapter. Descriptor method bindings now also select bounded access
 paths into named range and discrete-value table-handle predicates, without
 Ethereum fields in the generic Trino planning state. The current M4 vertical
-slice also exposes native `aptos.transactions` through a bounded REST path,
-proving that the shared runtime is not JSON-RPC-only. M3 adds an opt-in,
+slice also exposes native `aptos.transactions` and account-scoped
+`aptos.events` through bounded REST paths, proving that the shared runtime is
+not JSON-RPC-only. M3 adds an opt-in,
 worker-local cache with
 EVM finality and reorganization correctness. The repository provides a
 catalog that can be loaded by Trino and queried with:
@@ -34,7 +35,7 @@ This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
 The worker-local runtime bounds concurrency, queue size, batch size, retries,
 and rate admission; it handles generic endpoint failover and `429`
 `Retry-After`. It does not implement receipts, logs, vendor-specific provider
-profiles, Solana, or the remaining Aptos tables.
+profiles, Solana, or additional Aptos tables beyond transactions and events.
 
 ## Chain endpoint configuration
 
@@ -144,6 +145,12 @@ WHERE hash IN ('0x...', '0x...');
 SELECT ledger_version, hash, type, success, vm_status, sender
 FROM web3.aptos.transactions
 WHERE ledger_version BETWEEN 1000 AND 1099;
+
+SELECT account_address, creation_number, sequence_number, event_type, data
+FROM web3.aptos.events
+WHERE account_address = '0x1'
+  AND creation_number = '7'
+  AND sequence_number BETWEEN 0 AND 99;
 ```
 
 ## Compatibility
@@ -174,7 +181,7 @@ trino-web3-chain    Versioned descriptors, registry, evolution checks, and respo
 trino-web3-core     Trino planning handles and bounded range splitting
 trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
 trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
-trino-web3-aptos    Aptos-native transactions planning, REST mapping, and decoding
+trino-web3-aptos    Aptos-native transaction/event planning, REST mapping, and decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
@@ -188,7 +195,7 @@ execution is dispatched by schema through the executable registry; adapter
 splits retain their predicate column when crossing Trino's serialized split
 boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
 REST request values through the same policy state machine. Aptos transactions
-are the first REST vertical slice. Aptos events, Solana, Bitcoin, Tron, Sui,
+and account event streams are REST vertical slices. Solana, Bitcoin, Tron, Sui,
 and Near queries remain M4 follow-up work.
 
 ## Development rules

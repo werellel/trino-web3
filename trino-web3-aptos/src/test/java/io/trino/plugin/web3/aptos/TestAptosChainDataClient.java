@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
+import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
 import io.trino.plugin.web3.runtime.ProviderCapabilities;
 import io.trino.plugin.web3.runtime.ProviderProfile;
@@ -32,6 +33,8 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,7 +135,118 @@ public class TestAptosChainDataClient
                 .hasMessageNotContaining(secret);
     }
 
+    @Test
+    public void testExecutesBoundedEventRestRequest()
+            throws Exception
+    {
+        AtomicReference<String> target = new AtomicReference<>();
+        try (TestingServer server = createServer(exchange -> {
+            target.set(exchange.getRequestURI().toString());
+            respond(exchange, """
+                    [
+                      {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"0x1::coin::WithdrawEvent","data":{"amount":"100"}},
+                      {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"11","type":"0x1::coin::WithdrawEvent","data":{"amount":"200"}}
+                    ]
+                    """);
+        });
+                RemoteExecutionRuntime runtime = runtime(server.endpoint())) {
+            var execution = new AptosChainDataClient(runtime)
+                    .execute("events", new KeyedRangeChainSplit(
+                            java.util.Map.of("account_address", "0x0001", "creation_number", "007"),
+                            "sequence_number",
+                            10,
+                            11));
+            var rows = execution.future().join();
+
+            assertThat(target.get()).isEqualTo("/v1/accounts/0x1/events/7?limit=2&start=10");
+            assertThat(rows).hasSize(2);
+            assertThat(rows.get(0).value("account_address").textValue()).isEqualTo("0x1");
+            assertThat(rows.get(0).value("creation_number").textValue()).isEqualTo("7");
+            assertThat(rows.get(1).value("data").textValue()).isEqualTo("{\"amount\":\"200\"}");
+            assertThat(execution.metrics().requestCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testRejectsPartialOrMalformedEventsWithoutPayloadDisclosure()
+            throws Exception
+    {
+        KeyedRangeChainSplit range = new KeyedRangeChainSplit(
+                java.util.Map.of("account_address", "0x1", "creation_number", "7"),
+                "sequence_number",
+                10,
+                11);
+        JsonNode partial = OBJECT_MAPPER.readTree("""
+                [{"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"event","data":{}}]
+                """);
+        assertThatThrownBy(() -> AptosChainDataClient.decodeEvents(range, partial))
+                .hasMessage("Aptos events response does not contain the requested sequence range");
+
+        JsonNode wrongGuid = OBJECT_MAPPER.readTree("""
+                [{"guid":{"account_address":"0x2","creation_number":"7"},"sequence_number":"10","type":"event","data":{}},
+                 {"guid":{"account_address":"0x2","creation_number":"7"},"sequence_number":"11","type":"event","data":{}}]
+                """);
+        assertThatThrownBy(() -> AptosChainDataClient.decodeEvents(range, wrongGuid))
+                .hasMessage("Aptos event guid does not match its request");
+
+        String secret = "do-not-leak-event-payload";
+        JsonNode malformed = OBJECT_MAPPER.readTree("""
+                [{"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"event","data":{}},
+                 {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"%s","type":"event","data":{}}]
+                """.formatted(secret));
+        assertThatThrownBy(() -> AptosChainDataClient.decodeEvents(range, malformed))
+                .hasMessage("Aptos event has an invalid sequence_number")
+                .hasMessageNotContaining(secret);
+    }
+
+    @Test
+    public void testCachesValidatedCommittedTransactionAndEventRanges()
+            throws Exception
+    {
+        AtomicInteger transactionRequests = new AtomicInteger();
+        AtomicInteger eventRequests = new AtomicInteger();
+        try (TestingServer server = createServer(exchange -> {
+            if (exchange.getRequestURI().getPath().equals("/v1/transactions")) {
+                transactionRequests.incrementAndGet();
+                respond(exchange, """
+                        [{"version":"10","hash":"0xaaa","type":"user_transaction","success":true,"vm_status":"Executed","sender":"0x1"}]
+                        """);
+                return;
+            }
+            eventRequests.incrementAndGet();
+            respond(exchange, """
+                    [{"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"event","data":{}}]
+                    """);
+        });
+                RemoteExecutionRuntime runtime = runtime(server.endpoint(), new RemoteCacheConfig(true, 1_048_576, 64 * 1_024, Optional.empty()))) {
+            AptosChainDataClient client = new AptosChainDataClient(runtime);
+
+            client.execute("transactions", new RangeChainSplit("ledger_version", 10, 10)).future().join();
+            var transactionHit = client.execute("transactions", new RangeChainSplit("ledger_version", 10, 10));
+            transactionHit.future().join();
+
+            KeyedRangeChainSplit eventRange = new KeyedRangeChainSplit(
+                    java.util.Map.of("account_address", "0x0001", "creation_number", "007"),
+                    "sequence_number",
+                    10,
+                    10);
+            client.execute("events", eventRange).future().join();
+            var eventHit = client.execute("events", eventRange);
+            eventHit.future().join();
+
+            assertThat(transactionRequests).hasValue(1);
+            assertThat(eventRequests).hasValue(1);
+            assertThat(transactionHit.metrics().cacheHitCount()).isOne();
+            assertThat(eventHit.metrics().cacheHitCount()).isOne();
+        }
+    }
+
     private static RemoteExecutionRuntime runtime(URI endpoint)
+    {
+        return runtime(endpoint, RemoteCacheConfig.disabled());
+    }
+
+    private static RemoteExecutionRuntime runtime(URI endpoint, RemoteCacheConfig cacheConfig)
     {
         ProviderProfile provider = new ProviderProfile("aptos", endpoint, new ProviderCapabilities(false));
         return RemoteExecutionRuntime.forRest(
@@ -142,7 +256,7 @@ public class TestAptosChainDataClient
                 1_024,
                 1_024 * 1_024,
                 ExecutionPolicy.defaults(),
-                RemoteCacheConfig.disabled());
+                cacheConfig);
     }
 
     private static TestingServer createServer(ExchangeHandler handler)

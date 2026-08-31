@@ -20,9 +20,11 @@ import io.trino.plugin.web3.adapter.ChainRow;
 import io.trino.plugin.web3.adapter.ChainSplit;
 import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3DiscreteValueSplit;
+import io.trino.plugin.web3.core.Web3KeyedRangeSplit;
 import io.trino.plugin.web3.core.Web3RangeSplit;
 import io.trino.plugin.web3.core.Web3Split;
 import io.trino.plugin.web3.core.Web3TableHandle;
@@ -127,6 +129,13 @@ public final class Web3PageSourceProvider
         if (split instanceof Web3RangeSplit rangeSplit) {
             return new RangeChainSplit(
                     rangeSplit.column(),
+                    rangeSplit.startInclusive(),
+                    rangeSplit.endInclusive());
+        }
+        if (split instanceof Web3KeyedRangeSplit rangeSplit) {
+            return new KeyedRangeChainSplit(
+                    rangeSplit.keys(),
+                    rangeSplit.rangeColumn(),
                     rangeSplit.startInclusive(),
                     rangeSplit.endInclusive());
         }

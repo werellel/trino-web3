@@ -1,6 +1,8 @@
 # Plan: M4 Aptos REST vertical slice
 
-Status: implemented; full M4 remains in progress.
+Status: implemented for `aptos.transactions`; `aptos.events` is implemented by
+the follow-on `M4_APTOS_EVENTS_VERTICAL_SLICE.md` plan. Full M4 remains in
+progress.
 
 ## Goal
 
@@ -29,7 +31,8 @@ cancellation, single-flight, and metrics path used by Ethereum.
 
 ## Non-goals
 
-- Aptos events, blocks, resources, modules, or account transactions.
+- Aptos events in this transaction-focused increment; blocks, resources,
+  modules, and account transactions remain out of scope.
 - Aptos writes, transaction submission, authentication headers, or
   provider-specific behavior.
 - Aptos cache admission or a generic finality policy.
