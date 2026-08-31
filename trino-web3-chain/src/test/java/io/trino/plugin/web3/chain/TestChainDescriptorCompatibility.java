@@ -26,13 +26,44 @@ final class TestChainDescriptorCompatibility
     void testAllowsUnchangedAndExplicitlyVersionedChanges()
     {
         ChainDescriptor previous = TestingDescriptors.chain("solana", "solana");
-        ChainTableDescriptor changedTable = withTableVersion(previous.tables().getFirst(), 2);
+        ChainTableDescriptor changedTable = withOptionalColumn(previous.tables().getFirst(), "provider_note");
         ChainDescriptor current = withVersions(previous, 2, changedTable);
 
         assertThatCode(() -> ChainDescriptorCompatibility.verifyEvolution(previous, previous))
                 .doesNotThrowAnyException();
         assertThatCode(() -> ChainDescriptorCompatibility.verifyEvolution(previous, current))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void testRejectsRemovalOfExistingTable()
+    {
+        ChainDescriptor previous = TestingDescriptors.chain("solana", "solana");
+        ChainDescriptor current = new ChainDescriptor(
+                previous.apiVersion(),
+                previous.name(),
+                previous.schemaName(),
+                2,
+                List.of(new ChainTableDescriptor(
+                        "other_items",
+                        1,
+                        previous.tables().getFirst().columns(),
+                        previous.tables().getFirst().methods())));
+
+        assertThatThrownBy(() -> ChainDescriptorCompatibility.verifyEvolution(previous, current))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("existing table cannot be removed from chain descriptor items");
+    }
+
+    @Test
+    void testRejectsChangedChainIdentity()
+    {
+        ChainDescriptor previous = TestingDescriptors.chain("solana", "solana");
+        ChainDescriptor current = TestingDescriptors.chain("solana-next", "solana");
+
+        assertThatThrownBy(() -> ChainDescriptorCompatibility.verifyEvolution(previous, current))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("chain name and schema cannot change across adapter versions");
     }
 
     @Test
@@ -76,5 +107,25 @@ final class TestChainDescriptorCompatibility
     private static ChainTableDescriptor withTableVersion(ChainTableDescriptor table, int version)
     {
         return new ChainTableDescriptor(table.name(), version, table.columns(), table.methods());
+    }
+
+    private static ChainTableDescriptor withOptionalColumn(ChainTableDescriptor table, String columnName)
+    {
+        List<ChainColumnDescriptor> columns = new java.util.ArrayList<>(table.columns());
+        columns.add(new ChainColumnDescriptor(columnName, "varchar", true));
+        RemoteMethodDescriptor method = table.methods().getFirst();
+        List<RemoteMethodDescriptor.ResponseField> fields = new java.util.ArrayList<>(method.response().fields());
+        fields.add(new RemoteMethodDescriptor.ResponseField(columnName, "/" + columnName, false));
+        RemoteMethodDescriptor updatedMethod = new RemoteMethodDescriptor(
+                method.name(),
+                method.protocol(),
+                method.action(),
+                method.path(),
+                method.bindings(),
+                new RemoteMethodDescriptor.ResponseMapping(
+                        method.response().cardinality(),
+                        method.response().rowsPointer(),
+                        fields));
+        return new ChainTableDescriptor(table.name(), table.version() + 1, columns, List.of(updatedMethod));
     }
 }

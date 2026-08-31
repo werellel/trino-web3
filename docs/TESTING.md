@@ -43,7 +43,8 @@ Failsafe results and connector resource cleanup remain authoritative.
 
 M4 descriptor tests cover strict JSON round trips, unknown fields, unsupported
 and trailing format input, registry ordering and duplicate ownership, immutable
-addition/removal, adapter and table evolution versions, protocol-specific
+addition/removal, adapter and table evolution versions (including rejected
+table removal), protocol-specific
 JSON-RPC/REST invariants, duplicate definitions and references, tolerant
 provider response evolution, required-field failure without payload leakage,
 explicit response-row limits, and Ethereum's exact built-in descriptor
@@ -54,7 +55,9 @@ split planning, bounded-query rejection, and descriptor-named block and
 transaction rows. Existing local-RPC connector tests exercise the
 registry-dispatched PageSource path, including metrics, memory, cancellation,
 cache, non-batch execution, and failover. The packaged-plugin integration test
-also loads both chain contract modules from the assembled ZIP.
+also loads all chain contract modules from the assembled ZIP. Metadata-registry
+construction rejects unsupported declared types without exposing descriptor
+values.
 
 Descriptor-driven pushdown tests use non-EVM native names (`ledger_version` and
 `signature`) to prove that required access-path bindings produce named range or

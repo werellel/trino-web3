@@ -66,4 +66,17 @@ final class TestChainDescriptorCodec
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("invalid chain descriptor JSON");
     }
+
+    @Test
+    void testRejectsMalformedTransportDefinitionWithoutLeakingDescriptorValues()
+    {
+        String marker = "do-not-leak-descriptor-value";
+        String json = ChainDescriptorCodec.toJson(TestingDescriptors.chain("test-chain", "test_chain"))
+                .replace("\"path\":\"\"", "\"path\":\"/v1?token=" + marker + "\"");
+
+        assertThatThrownBy(() -> ChainDescriptorCodec.fromJson(json))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("invalid chain descriptor JSON")
+                .hasMessageNotContaining(marker);
+    }
 }

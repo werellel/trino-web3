@@ -43,6 +43,7 @@ import static io.trino.plugin.web3.chain.RemoteMethodDescriptor.RequestLocation.
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestChainMetadataRegistry
 {
@@ -133,6 +134,23 @@ final class TestChainMetadataRegistry
 
         assertThat(metadata.applyFilter(null, table(metadata, "aptos"), new Constraint(TupleDomain.all())))
                 .isEmpty();
+    }
+
+    @Test
+    void testRejectsUnsupportedDescriptorTypeDuringMetadataConstructionWithoutLeakingValue()
+    {
+        String marker = "do-not-leak-response-payload";
+        ChainDescriptor descriptor = descriptorWithBinding(
+                "unsafe",
+                "payload",
+                marker,
+                new RemoteMethodDescriptor.RequestBinding("payload", PREDICATE, "payload", QUERY, true),
+                "/v1/items");
+
+        assertThatThrownBy(() -> metadata(descriptor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("invalid Trino type for descriptor column payload")
+                .hasMessageNotContaining(marker);
     }
 
     private static Web3Metadata metadata(ChainDescriptor descriptor)

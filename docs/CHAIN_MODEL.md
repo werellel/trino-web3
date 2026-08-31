@@ -76,16 +76,17 @@ an EVM log abstraction. Event responses must be complete, contiguous, and match
 both the requested GUID and sequence numbers before rows are published.
 
 The data client owns no endpoint, HTTP client, retry, rate, failover, or
-provider-health policy. Head-aware partial-range behavior, finality, and cache
-admission remain later M4 work.
+provider-health policy. Complete committed transaction and event ranges have
+adapter-defined immutable cache identities; the configured cache TTL is only an
+operational bound, not a finality mechanism.
 
 ## Versioned descriptor contract
 
 Each adapter supplies one immutable descriptor with separate versions for the
 descriptor format, adapter release, and each table. Any changed descriptor
 requires an adapter-version increment, and a changed existing table requires a
-table-version increment. Chain and schema identity cannot change across
-versions.
+table-version increment. Existing tables cannot be removed through descriptor
+evolution. Chain and schema identity cannot change across versions.
 
 The initial declarative surface supports JSON-RPC and read-oriented REST
 methods, split/predicate/projection/literal bindings, response cardinality, and

@@ -40,6 +40,13 @@ public final class ChainDescriptorCompatibility
 
         Map<String, ChainTableDescriptor> previousTables = previous.tables().stream()
                 .collect(toMap(ChainTableDescriptor::name, Function.identity()));
+        Map<String, ChainTableDescriptor> currentTables = current.tables().stream()
+                .collect(toMap(ChainTableDescriptor::name, Function.identity()));
+        for (String tableName : previousTables.keySet()) {
+            if (!currentTables.containsKey(tableName)) {
+                throw new IllegalArgumentException("existing table cannot be removed from chain descriptor " + tableName);
+            }
+        }
         for (ChainTableDescriptor currentTable : current.tables()) {
             ChainTableDescriptor previousTable = previousTables.get(currentTable.name());
             if (previousTable == null) {

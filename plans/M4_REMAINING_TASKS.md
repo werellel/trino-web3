@@ -1,8 +1,8 @@
 # Plan: M4 remaining multi-chain tasks
 
-Status: Aptos `transactions`/`events` and Solana
-`blocks`/`transactions`/`instructions` are implemented. Descriptor compatibility
-coverage and the extension checklist remain before M4 acceptance.
+Status: Aptos `transactions`/`events`, Solana
+`blocks`/`transactions`/`instructions`, and descriptor compatibility coverage
+are implemented. The extension checklist remains before M4 acceptance.
 
 ## Objective
 
@@ -35,10 +35,13 @@ reorganization behavior require a separate adapter contract.
 
 ### 3. Strengthen descriptor compatibility tests
 
-Cover descriptor version evolution, optional fields, unknown response fields,
-unsupported methods, schema/table ownership conflicts, and adapter registry
-composition across multiple protocols. Verify that malformed descriptors fail
-at catalog construction and never expose endpoint values or response payloads.
+Completed. Tests cover adapter/table version evolution, optional additive
+fields, immutable chain identity, rejected existing-table removal, unknown
+provider response fields, unsupported methods, schema ownership conflicts, and
+mixed JSON-RPC/REST executable registry composition. Malformed transport
+definitions fail through the codec without leaking descriptor values, while
+unsupported declared types fail during metadata construction without exposing
+the descriptor value.
 
 ### 4. Prepare the extension boundary for additional chains
 

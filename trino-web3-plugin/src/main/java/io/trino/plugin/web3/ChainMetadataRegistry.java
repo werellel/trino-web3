@@ -107,7 +107,7 @@ final class ChainMetadataRegistry
             return requireNonNull(typeResolver.apply(column.type()), "type resolver returned null");
         }
         catch (RuntimeException e) {
-            throw new IllegalArgumentException("invalid Trino type for descriptor column " + column.name() + ": " + column.type(), e);
+            throw new IllegalArgumentException("invalid Trino type for descriptor column " + column.name(), e);
         }
     }
 
