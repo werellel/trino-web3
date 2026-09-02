@@ -75,6 +75,19 @@ runtime for limits, retries, failover, cancellation, and metrics. Cache
 admission remains disabled until a reorganization-safe block identity policy
 is defined.
 
+## Current Sui model
+
+Sui uses its native JSON-RPC protocol. The `sui.checkpoints` and
+`sui.transactions` tables require a bounded BIGINT
+`checkpoint_sequence_number` range. Checkpoints are read with
+`sui_getCheckpoint`; transaction rows retain each digest and are hydrated with
+`sui_getTransactionBlock`. Every emitted row includes the complete native
+object in `raw_json`, preserving additive fields. The adapter validates
+checkpoint sequence numbers and transaction digests before publishing rows.
+Endpoint identity is established with `sui_getChainIdentifier`. Sui cache
+admission remains disabled until checkpoint finality and reorganization
+identity semantics are explicitly defined.
+
 ## Current Solana model
 
 M4 exposes `solana.blocks`, `solana.transactions`, and

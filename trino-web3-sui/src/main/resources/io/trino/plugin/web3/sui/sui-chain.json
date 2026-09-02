@@ -1,0 +1,76 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "sui",
+  "schemaName": "sui",
+  "adapterVersion": 1,
+  "tables": [
+    {
+      "name": "checkpoints",
+      "version": 1,
+      "columns": [
+        {"name": "checkpoint_sequence_number", "type": "bigint", "nullable": false},
+        {"name": "digest", "type": "varchar", "nullable": false},
+        {"name": "epoch", "type": "bigint", "nullable": false},
+        {"name": "timestamp_ms", "type": "bigint", "nullable": true},
+        {"name": "transaction_count", "type": "bigint", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
+      ],
+      "methods": [
+        {
+          "name": "by-checkpoint-range",
+          "protocol": "JSON_RPC",
+          "action": "sui_getCheckpoint",
+          "path": "",
+          "bindings": [
+            {"target": "0", "kind": "SPLIT", "value": "checkpoint_sequence_number", "location": "PARAMETER", "required": true}
+          ],
+          "response": {
+            "cardinality": "SINGLE",
+            "rowsPointer": "",
+            "fields": [
+              {"column": "checkpoint_sequence_number", "pointer": "/sequenceNumber", "required": true},
+              {"column": "digest", "pointer": "/digest", "required": true},
+              {"column": "epoch", "pointer": "/epoch", "required": true},
+              {"column": "timestamp_ms", "pointer": "/timestampMs", "required": false},
+              {"column": "transaction_count", "pointer": "/transactions", "required": true},
+              {"column": "raw_json", "pointer": "", "required": true}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "version": 1,
+      "columns": [
+        {"name": "checkpoint_sequence_number", "type": "bigint", "nullable": false},
+        {"name": "digest", "type": "varchar", "nullable": false},
+        {"name": "sender", "type": "varchar", "nullable": true},
+        {"name": "status", "type": "varchar", "nullable": true},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
+      ],
+      "methods": [
+        {
+          "name": "by-checkpoint-range",
+          "protocol": "JSON_RPC",
+          "action": "sui_getTransactionBlock",
+          "path": "",
+          "bindings": [
+            {"target": "0", "kind": "SPLIT", "value": "checkpoint_sequence_number", "location": "PARAMETER", "required": true}
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "",
+            "fields": [
+              {"column": "checkpoint_sequence_number", "pointer": "", "required": true},
+              {"column": "digest", "pointer": "/digest", "required": true},
+              {"column": "sender", "pointer": "/transaction/data/sender", "required": false},
+              {"column": "status", "pointer": "/effects/status/status", "required": false},
+              {"column": "raw_json", "pointer": "", "required": true}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

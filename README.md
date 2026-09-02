@@ -39,6 +39,13 @@ Tron is exposed through its native REST API as `web3.tron.blocks` and
 complete native block or transaction object remains available through
 `raw_json`.
 
+Sui is exposed through its native JSON-RPC API as
+`web3.sui.checkpoints` and `web3.sui.transactions`. Both tables require a
+bounded `checkpoint_sequence_number` predicate; checkpoint rows are fetched
+with `sui_getCheckpoint`, and transaction rows use checkpoint digests with
+`sui_getTransactionBlock`. Native response objects remain available through
+`raw_json`.
+
 The M1 vertical slice exposes `web3.ethereum.blocks` and
 `web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
 `block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
@@ -312,6 +319,7 @@ trino-web3-bitcoincash Bitcoin Cash Node/Bitcoin ABC UTXO-native decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-tron     Tron-native REST block and transaction decoding
+trino-web3-sui      Sui-native checkpoint and transaction decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
 ```
@@ -328,8 +336,8 @@ and account event streams are REST vertical slices. Solana uses bounded
 `getBlock` JSON-RPC reads, and Bitcoin-family adapters use bounded Bitcoin Core
 `getblockhash`/`getblock` reads. Litecoin, Dogecoin, and Bitcoin Cash share only
 the transport-neutral UTXO runtime and decoder; each keeps a separate descriptor
-and node identity matcher. Tron, Sui, and Near remain follow-up chain-adapter
-work.
+and node identity matcher. Tron and Sui use native protocol adapters; Near
+remains follow-up chain-adapter work.
 
 ## Development rules
 

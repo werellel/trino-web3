@@ -19,6 +19,7 @@
         <module>trino-web3-solana</module>
         <module>trino-web3-aptos</module>
         <module>trino-web3-tron</module>
+        <module>trino-web3-sui</module>
         <module>trino-web3-utxo</module>
         <module>trino-web3-bitcoin</module>
         <module>trino-web3-litecoin</module>
