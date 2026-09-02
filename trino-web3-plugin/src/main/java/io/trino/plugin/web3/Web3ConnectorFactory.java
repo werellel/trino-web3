@@ -52,6 +52,8 @@ public final class Web3ConnectorFactory
     private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
     private static final String APTOS_REST_FALLBACK_URLS = "web3.aptos.rest-fallback-urls";
+    private static final String TRON_API_URL = "web3.tron.api-url";
+    private static final String TRON_API_FALLBACK_URLS = "web3.tron.api-fallback-urls";
     private static final String BITCOIN_RPC_URL = "web3.bitcoin.rpc-url";
     private static final String BITCOIN_RPC_FALLBACK_URLS = "web3.bitcoin.rpc-fallback-urls";
     private static final String LITECOIN_RPC_URL = "web3.litecoin.rpc-url";
@@ -121,6 +123,10 @@ public final class Web3ConnectorFactory
         List<URI> aptosEndpoints = parseEndpoints(config, APTOS_REST_URL, APTOS_REST_FALLBACK_URLS, true);
         if (aptosEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.aptos.rest-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> tronEndpoints = parseEndpoints(config, TRON_API_URL, TRON_API_FALLBACK_URLS, true);
+        if (tronEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.tron.api-url and fallback URLs must contain at most 8 endpoints");
         }
         List<URI> bitcoinEndpoints = parseEndpoints(config, BITCOIN_RPC_URL, BITCOIN_RPC_FALLBACK_URLS, false);
         if (bitcoinEndpoints.size() > 8) {
@@ -201,6 +207,7 @@ public final class Web3ConnectorFactory
                 avalancheEndpoints,
                 solanaEndpoints,
                 aptosEndpoints,
+                tronEndpoints,
                 bitcoinEndpoints,
                 litecoinEndpoints,
                 dogecoinEndpoints,
@@ -231,6 +238,8 @@ public final class Web3ConnectorFactory
                 key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||
                 key.equals(APTOS_REST_FALLBACK_URLS) ||
+                key.equals(TRON_API_URL) ||
+                key.equals(TRON_API_FALLBACK_URLS) ||
                 key.equals(BITCOIN_RPC_URL) ||
                 key.equals(BITCOIN_RPC_FALLBACK_URLS) ||
                 key.equals(LITECOIN_RPC_URL) ||

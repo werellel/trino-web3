@@ -60,6 +60,21 @@ each remote table includes a `raw_json` `VARCHAR` containing the compact JSON
 source object for the emitted row. It preserves additive fields from JSON-RPC
 and REST providers without requiring an immediate typed-column migration.
 
+## Current Tron model
+
+Tron uses its native HTTP API rather than an EVM JSON-RPC compatibility layer.
+The `tron.blocks` and `tron.transactions` tables require a bounded BIGINT
+`block_number` range. Each split issues `POST /wallet/getblockbynum` with the
+requested number; block rows retain the block ID, timestamp, transaction
+count, and complete native object, while transaction rows retain each native
+`txID`, contract count, and complete transaction object. The adapter validates
+that the returned block number and ID match the request before publishing
+rows. Tron endpoint identity is established from the native
+`GET /wallet/getnowblock` response shape, and REST requests use the shared
+runtime for limits, retries, failover, cancellation, and metrics. Cache
+admission remains disabled until a reorganization-safe block identity policy
+is defined.
+
 ## Current Solana model
 
 M4 exposes `solana.blocks`, `solana.transactions`, and

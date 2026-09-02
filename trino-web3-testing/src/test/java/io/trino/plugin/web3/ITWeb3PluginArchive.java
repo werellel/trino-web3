@@ -66,6 +66,7 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.dogecoin.DogecoinChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.solana.SolanaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.tron.TronChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
@@ -113,6 +114,8 @@ public class ITWeb3PluginArchive
                         .containsExactly("events", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana").getOnlyColumn())
                         .containsExactly("blocks", "instructions", "transactions");
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.tron").getOnlyColumn())
+                        .containsExactly("blocks", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
                         .containsExactly("blocks", "inputs", "outputs", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.litecoin").getOnlyColumn())

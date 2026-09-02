@@ -1,0 +1,56 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "tron",
+  "schemaName": "tron",
+  "adapterVersion": 1,
+  "tables": [
+    {
+      "name": "blocks",
+      "version": 1,
+      "columns": [
+        {"name": "block_number", "type": "bigint", "nullable": false},
+        {"name": "block_hash", "type": "varchar", "nullable": false},
+        {"name": "timestamp", "type": "bigint", "nullable": true},
+        {"name": "transaction_count", "type": "bigint", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
+      ],
+      "methods": [{
+        "name": "by-block-number",
+        "protocol": "REST",
+        "action": "POST",
+        "path": "/wallet/getblockbynum",
+        "bindings": [{"target": "num", "kind": "SPLIT", "value": "block_number", "location": "BODY", "required": true}],
+        "response": {"cardinality": "SINGLE", "rowsPointer": "", "fields": [
+          {"column": "block_number", "pointer": "/block_header/raw_data/number", "required": true},
+          {"column": "block_hash", "pointer": "/blockID", "required": true},
+          {"column": "timestamp", "pointer": "/block_header/raw_data/timestamp", "required": false},
+          {"column": "transaction_count", "pointer": "/transactions", "required": true},
+          {"column": "raw_json", "pointer": "", "required": true}
+        ]}
+      }]
+    },
+    {
+      "name": "transactions",
+      "version": 1,
+      "columns": [
+        {"name": "txid", "type": "varchar", "nullable": false},
+        {"name": "block_number", "type": "bigint", "nullable": false},
+        {"name": "contract_count", "type": "bigint", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
+      ],
+      "methods": [{
+        "name": "by-block-number",
+        "protocol": "REST",
+        "action": "POST",
+        "path": "/wallet/getblockbynum",
+        "bindings": [{"target": "num", "kind": "SPLIT", "value": "block_number", "location": "BODY", "required": true}],
+        "response": {"cardinality": "ARRAY", "rowsPointer": "/transactions", "fields": [
+          {"column": "txid", "pointer": "/txID", "required": true},
+          {"column": "block_number", "pointer": "", "required": true},
+          {"column": "contract_count", "pointer": "/raw_data/contract", "required": true},
+          {"column": "raw_json", "pointer": "", "required": true}
+        ]}
+      }]
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 # New chain adapter checklist
 
-Use this checklist before registering Bitcoin, Tron, Sui, Near, or another
-chain in the connector. It is an entry gate for executable production support,
-not a template for metadata-only tables.
+Use this checklist before registering a new chain such as Sui, Near, or
+another chain in the connector. It is an entry gate for executable production
+support, not a template for metadata-only tables.
 
 ## Native contract
 

@@ -38,6 +38,7 @@ import io.trino.plugin.web3.evm.OptimismChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
+import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
@@ -71,7 +72,7 @@ public final class Web3SplitManager
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
-                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()));
+                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()));
     }
 
     Web3SplitManager(

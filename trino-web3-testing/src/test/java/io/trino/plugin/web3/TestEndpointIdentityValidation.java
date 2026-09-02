@@ -165,6 +165,25 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
+    public void testAcceptsTronNativeApiEndpoint()
+            throws Exception
+    {
+        HttpServer server = tronServer();
+        try {
+            server.start();
+            try (StandaloneQueryRunner queryRunner = queryRunner()) {
+                queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                        "web3.tron.api-url", endpoint(server)));
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM web3.system.chains WHERE schema_name = 'tron'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     public void testRejectsMismatchedAptosEndpoints()
             throws Exception
     {
@@ -231,6 +250,23 @@ public class TestEndpointIdentityValidation
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1", exchange -> {
             byte[] body = OBJECT_MAPPER.writeValueAsBytes(Map.of("chain_id", chainId));
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        return server;
+    }
+
+    private static HttpServer tronServer()
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/wallet/getnowblock", exchange -> {
+            ObjectNode response = OBJECT_MAPPER.createObjectNode()
+                    .put("blockID", "0000000000000000000000000000000000000000000000000000000000000001");
+            response.putObject("block_header").putObject("raw_data").put("number", 1);
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(response);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);

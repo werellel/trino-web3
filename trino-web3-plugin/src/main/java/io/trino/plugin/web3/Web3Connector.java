@@ -26,6 +26,7 @@ import io.trino.plugin.web3.evm.BnbChainAdapter;
 import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.evm.AvalancheChainAdapter;
 import io.trino.plugin.web3.evm.OptimismChainAdapter;
+import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -84,6 +85,7 @@ public final class Web3Connector
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
@@ -119,6 +121,7 @@ public final class Web3Connector
                 List.of(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
@@ -162,6 +165,7 @@ public final class Web3Connector
                 List.of(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
+                List.of(),
                 bitcoinRpcEndpoints,
                 litecoinRpcEndpoints,
                 dogecoinRpcEndpoints,
@@ -189,6 +193,7 @@ public final class Web3Connector
             List<URI> avalancheRpcEndpoints,
             List<URI> solanaRpcEndpoints,
             List<URI> aptosRestEndpoints,
+            List<URI> tronApiEndpoints,
             List<URI> bitcoinRpcEndpoints,
             List<URI> litecoinRpcEndpoints,
             List<URI> dogecoinRpcEndpoints,
@@ -213,6 +218,7 @@ public final class Web3Connector
                 avalancheRpcEndpoints,
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
+                tronApiEndpoints,
                 bitcoinRpcEndpoints,
                 litecoinRpcEndpoints,
                 dogecoinRpcEndpoints,
@@ -240,6 +246,7 @@ public final class Web3Connector
             List<URI> avalancheRpcEndpoints,
             List<URI> solanaRpcEndpoints,
             List<URI> aptosRestEndpoints,
+            List<URI> tronApiEndpoints,
             List<URI> bitcoinRpcEndpoints,
             List<URI> litecoinRpcEndpoints,
             List<URI> dogecoinRpcEndpoints,
@@ -301,6 +308,15 @@ public final class Web3Connector
                 configuredRuntimes.put("aptos", createRestRuntime(
                         httpClient,
                         aptosRestEndpoints,
+                        maximumRequestBytes,
+                        maximumResponseBytes,
+                        executionPolicy,
+                        cacheConfig));
+            }
+            if (!tronApiEndpoints.isEmpty()) {
+                configuredRuntimes.put("tron", createRestRuntime(
+                        httpClient,
+                        tronApiEndpoints,
                         maximumRequestBytes,
                         maximumResponseBytes,
                         executionPolicy,
@@ -426,6 +442,7 @@ public final class Web3Connector
                 new AvalancheChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
+                new TronChainAdapter(),
                 new BitcoinChainAdapter(),
                 new LitecoinChainAdapter(),
                 new DogecoinChainAdapter(),

@@ -33,6 +33,12 @@ for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
 Smart Chain, Polygon, and Avalanche C-Chain. Each network has its own schema and
 chain-identity check, while sharing the provider-independent EVM runtime.
 
+Tron is exposed through its native REST API as `web3.tron.blocks` and
+`web3.tron.transactions`. It is a separate non-EVM adapter: bounded
+`block_number` predicates are translated to `/wallet/getblockbynum`, and the
+complete native block or transaction object remains available through
+`raw_json`.
+
 The M1 vertical slice exposes `web3.ethereum.blocks` and
 `web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
 `block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
@@ -111,6 +117,8 @@ web3.aptos.rest-url=http://127.0.0.1:8080
 web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
 web3.solana.rpc-url=http://127.0.0.1:8899
 web3.solana.rpc-fallback-urls=http://127.0.0.1:8900,http://127.0.0.1:8901
+web3.tron.api-url=http://127.0.0.1:8090
+web3.tron.api-fallback-urls=http://127.0.0.1:8091
 web3.bitcoin.rpc-url=http://127.0.0.1:8332
 web3.bitcoin.rpc-fallback-urls=http://127.0.0.1:18332
 web3.litecoin.rpc-url=http://127.0.0.1:9332
@@ -166,6 +174,11 @@ predicate. A null block result produces no rows. The initial instruction table
 contains compiled top-level instructions only; it intentionally excludes inner
 instructions and parsed instruction variants. Solana cache admission is disabled
 until a stable cache identity and reorganization policy are defined.
+`web3.tron.api-url` follows the REST origin-only rule used by Aptos. Tron
+scans require a bounded `block_number` predicate and use the native
+`GET /wallet/getnowblock` identity probe plus `POST /wallet/getblockbynum`
+block reads. Tron is not sent through a JSON-RPC batch envelope; additive
+native response fields remain available through `raw_json`.
 `web3.bitcoin.rpc-url`, `web3.litecoin.rpc-url`, `web3.dogecoin.rpc-url`, and
 `web3.bitcoincash.rpc-url` follow Ethereum's JSON-RPC endpoint rules. Their
 Bitcoin Core-family identities are validated with `getnetworkinfo.subversion`
@@ -298,6 +311,7 @@ trino-web3-dogecoin  Dogecoin Core UTXO-native block, transaction, input, and ou
 trino-web3-bitcoincash Bitcoin Cash Node/Bitcoin ABC UTXO-native decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
+trino-web3-tron     Tron-native REST block and transaction decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
 ```
