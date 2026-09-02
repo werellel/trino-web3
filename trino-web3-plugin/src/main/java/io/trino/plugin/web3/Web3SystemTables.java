@@ -65,7 +65,16 @@ final class Web3SystemTables
                 column("protocol", VARCHAR),
                 column("json_rpc_batch_enabled", BOOLEAN),
                 column("state", VARCHAR),
-                column("cooldown_remaining_millis", BIGINT)), () -> providerRows(runtimes)));
+                column("cooldown_remaining_millis", BIGINT),
+                column("request_count", BIGINT),
+                column("failure_count", BIGINT),
+                column("retry_count", BIGINT),
+                column("throttled_count", BIGINT),
+                column("in_flight_request_count", BIGINT),
+                column("failover_count", BIGINT),
+                column("request_latency_nanos", BIGINT),
+                column("batch_count", BIGINT),
+                column("batch_item_count", BIGINT)), () -> providerRows(runtimes)));
         tables.add(new SnapshotSystemTable("rpc_metrics", List.of(
                 column("schema_name", VARCHAR),
                 column("request_count", BIGINT),
@@ -127,15 +136,30 @@ final class Web3SystemTables
                 .flatMap(entry -> {
                     RemoteRuntimeSnapshot snapshot = entry.getValue().snapshot();
                     return snapshot.providers().stream()
-                        .map(provider -> List.<Object>of(
-                                entry.getKey(),
-                                provider.name(),
-                                snapshot.protocol().name(),
-                                provider.jsonRpcBatchEnabled(),
-                                provider.state().name(),
-                                provider.cooldownRemainingMillis()));
+                            .map(provider -> providerRow(entry.getKey(), snapshot.protocol().name(), provider));
                 })
                 .toList();
+    }
+
+    private static List<Object> providerRow(String schemaName, String protocol, RemoteRuntimeSnapshot.ProviderSnapshot provider)
+    {
+        RemoteExecutionMetrics metrics = provider.metrics();
+        return List.of(
+                schemaName,
+                provider.name(),
+                protocol,
+                provider.jsonRpcBatchEnabled(),
+                provider.state().name(),
+                provider.cooldownRemainingMillis(),
+                metrics.requestCount(),
+                metrics.failureCount(),
+                metrics.retryCount(),
+                metrics.throttledCount(),
+                metrics.inFlightRequests(),
+                metrics.failoverCount(),
+                metrics.requestLatencyNanos(),
+                metrics.batchCount(),
+                metrics.batchItemCount());
     }
 
     private static List<List<Object>> metricRows(Map<String, RemoteExecutionRuntime> runtimes)

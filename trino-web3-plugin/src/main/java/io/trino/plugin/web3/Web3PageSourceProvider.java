@@ -34,7 +34,6 @@ import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainDataClient;
 import io.trino.plugin.web3.evm.EthereumTransactionClient;
 import io.trino.plugin.web3.runtime.RemoteExecution;
-import io.trino.plugin.web3.runtime.RemoteExecutionMetrics;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.connector.ColumnHandle;
@@ -258,7 +257,7 @@ public final class Web3PageSourceProvider
         @Override
         public Metrics getMetrics()
         {
-            return toMetrics(rows.metrics());
+            return Web3Metrics.forExecution(rows.metrics());
         }
 
         @Override
@@ -300,25 +299,6 @@ public final class Web3PageSourceProvider
             return;
         }
         throw new IllegalStateException("no chain row writer for Trino type " + column.type());
-    }
-
-    private static Metrics toMetrics(RemoteExecutionMetrics metrics)
-    {
-        return new Metrics(Map.ofEntries(
-                Map.entry("web3.rpc.requests", new Web3Count(metrics.requestCount())),
-                Map.entry("web3.rpc.failures", new Web3Count(metrics.failureCount())),
-                Map.entry("web3.rpc.retries", new Web3Count(metrics.retryCount())),
-                Map.entry("web3.rpc.throttled", new Web3Count(metrics.throttledCount())),
-                Map.entry("web3.rpc.in-flight", new Web3Count(metrics.inFlightRequests())),
-                Map.entry("web3.rpc.failovers", new Web3Count(metrics.failoverCount())),
-                Map.entry("web3.rpc.latency-nanos", new Web3Count(metrics.requestLatencyNanos())),
-                Map.entry("web3.rpc.batches", new Web3Count(metrics.batchCount())),
-                Map.entry("web3.rpc.batch-items", new Web3Count(metrics.batchItemCount())),
-                Map.entry("web3.cache.hits", new Web3Count(metrics.cacheHitCount())),
-                Map.entry("web3.cache.misses", new Web3Count(metrics.cacheMissCount())),
-                Map.entry("web3.cache.revalidations", new Web3Count(metrics.cacheRevalidationCount())),
-                Map.entry("web3.cache.bytes-read", new Web3Count(metrics.cacheBytesRead())),
-                Map.entry("web3.cache.bytes-written", new Web3Count(metrics.cacheBytesWritten()))));
     }
 
     private record ProjectedColumn(String name, Type type, boolean nullable)

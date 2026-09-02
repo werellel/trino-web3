@@ -60,6 +60,7 @@ public final class RemoteExecutionRuntime
     private final Map<SharedOperationKey, SharedOperation> sharedOperations = new HashMap<>();
     private final Map<String, Long> unhealthyUntilNanos = new HashMap<>();
     private final MetricScope metrics = new MetricScope();
+    private final Map<String, MetricScope> providerMetrics;
     private long nextPermitNanos;
     private int activeBatches;
     private boolean drainScheduled;
@@ -196,6 +197,7 @@ public final class RemoteExecutionRuntime
         }
         this.maximumCacheReadBytes = maximumCacheReadBytes;
         Set<String> providerNames = new java.util.HashSet<>();
+        Map<String, MetricScope> metricsByProvider = new HashMap<>();
         for (ProviderProfile provider : this.providers) {
             if (!providerNames.add(provider.name())) {
                 throw new IllegalArgumentException("provider names must be unique");
@@ -207,7 +209,9 @@ public final class RemoteExecutionRuntime
             if (!transportPresent) {
                 throw new IllegalArgumentException("provider transport is missing");
             }
+            metricsByProvider.put(provider.name(), new MetricScope());
         }
+        providerMetrics = Map.copyOf(metricsByProvider);
         batchingEnabled = protocol == RemoteRequest.Protocol.JSON_RPC && this.providers.stream()
                 .allMatch(provider -> provider.capabilities().supportsJsonRpcBatch());
     }
@@ -294,7 +298,8 @@ public final class RemoteExecutionRuntime
                 provider.name(),
                 provider.capabilities().supportsJsonRpcBatch(),
                 remainingNanos == 0 ? RemoteRuntimeSnapshot.ProviderSnapshot.State.AVAILABLE : RemoteRuntimeSnapshot.ProviderSnapshot.State.COOLDOWN,
-                remainingMillis);
+                remainingMillis,
+                providerMetrics.get(provider.name()).snapshot());
     }
 
     private RemoteExecution<List<RemoteResult>> executeBatchWithMetrics(List<RemoteOperation> operations, MetricScope scope)
@@ -604,11 +609,12 @@ public final class RemoteExecutionRuntime
             requests = batch.operations.stream()
                     .map(operation -> operation.operation)
                     .toList();
-            attemptMetrics = new AttemptMetrics();
+            attemptMetrics = new AttemptMetrics(providerMetrics.get(provider.name()));
             batch.operations.forEach(operation -> operation.subscribers.forEach(subscriber -> attemptMetrics.addScope(subscriber.scope, operation)));
             batch.attemptMetrics = attemptMetrics;
             batch.requestStartNanos = scheduler.nanoTime();
             metrics.requestStarted(requests.size());
+            attemptMetrics.providerMetrics().requestStarted(requests.size());
         }
 
         CompletableFuture<List<JsonNode>> response;
@@ -986,8 +992,19 @@ public final class RemoteExecutionRuntime
 
     private static final class AttemptMetrics
     {
+        private final MetricScope providerMetrics;
         private final Map<MetricScope, Set<SharedOperation>> operationsByScope = new IdentityHashMap<>();
         private boolean finished;
+
+        private AttemptMetrics(MetricScope providerMetrics)
+        {
+            this.providerMetrics = requireNonNull(providerMetrics, "providerMetrics is null");
+        }
+
+        public MetricScope providerMetrics()
+        {
+            return providerMetrics;
+        }
 
         public void addScope(MetricScope scope, SharedOperation operation)
         {
@@ -1006,26 +1023,31 @@ public final class RemoteExecutionRuntime
         public void requestFinished(long latencyNanos)
         {
             finished = true;
+            providerMetrics.requestFinished(latencyNanos);
             operationsByScope.keySet().forEach(scope -> scope.requestFinished(latencyNanos));
         }
 
         public void failure()
         {
+            providerMetrics.failure();
             operationsByScope.keySet().forEach(MetricScope::failure);
         }
 
         public void retry()
         {
+            providerMetrics.retry();
             operationsByScope.keySet().forEach(MetricScope::retry);
         }
 
         public void throttled()
         {
+            providerMetrics.throttled();
             operationsByScope.keySet().forEach(MetricScope::throttled);
         }
 
         public void failover()
         {
+            providerMetrics.failover();
             operationsByScope.keySet().forEach(MetricScope::failover);
         }
     }

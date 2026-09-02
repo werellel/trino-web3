@@ -71,6 +71,15 @@ provider state is intentionally narrow: `AVAILABLE` means not in the generic
 runtime cooldown, while `COOLDOWN` means temporarily avoided after a retryable
 failure. Neither state proves reachability or expected chain identity.
 
+Each physical attempt also updates exactly one generated provider-role counter.
+These counters appear in `system.providers`; their schema-wide aggregate appears
+in `system.rpc_metrics`. Page-source metric entries retain their isolated
+execution scope and use stable names documented in [METRICS.md](METRICS.md).
+No metric label is derived from an endpoint, vendor, method, request, identity,
+or query.
+Catalog-time endpoint identity probes are included in runtime snapshots because
+they use this same bounded execution path; they are not query page-source work.
+
 ## Cancellation and lifecycle
 
 Each configured chain schema owns one runtime and the catalog connector closes all of them in

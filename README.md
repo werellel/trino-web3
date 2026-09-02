@@ -50,6 +50,9 @@ performing remote calls: `web3.system.chains`, `web3.system.providers`,
 data, hashes, or addresses. See [system table snapshots](docs/SYSTEM_TABLES.md)
 for the complete contract.
 
+Runtime and page-source metric names, units, aggregation, and privacy guarantees
+are documented in [metrics](docs/METRICS.md).
+
 ## Chain endpoint configuration
 
 Configure an Ethereum-compatible JSON-RPC endpoint for a catalog that will

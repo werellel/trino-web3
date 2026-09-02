@@ -223,10 +223,25 @@ public class TestEthereumBlocks
             assertThat(pageSource.getMemoryUsage()).isPositive();
             assertThat(pageSource.getNextSourcePage()).isNotNull();
             assertThat(pageSource.getMemoryUsage()).isZero();
-            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.requests")).getTotal()).isEqualTo(1);
-            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batches")).getTotal()).isEqualTo(1);
-            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.batch-items")).getTotal()).isEqualTo(1);
-            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get("web3.rpc.in-flight")).getTotal()).isZero();
+            assertThat(pageSource.getMetrics().getMetrics()).containsOnlyKeys(
+                    Web3Metrics.RPC_REQUESTS,
+                    Web3Metrics.RPC_FAILURES,
+                    Web3Metrics.RPC_RETRIES,
+                    Web3Metrics.RPC_THROTTLED,
+                    Web3Metrics.RPC_IN_FLIGHT,
+                    Web3Metrics.RPC_FAILOVERS,
+                    Web3Metrics.RPC_LATENCY_NANOS,
+                    Web3Metrics.RPC_BATCHES,
+                    Web3Metrics.RPC_BATCH_ITEMS,
+                    Web3Metrics.CACHE_HITS,
+                    Web3Metrics.CACHE_MISSES,
+                    Web3Metrics.CACHE_REVALIDATIONS,
+                    Web3Metrics.CACHE_BYTES_READ,
+                    Web3Metrics.CACHE_BYTES_WRITTEN);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get(Web3Metrics.RPC_REQUESTS)).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get(Web3Metrics.RPC_BATCHES)).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get(Web3Metrics.RPC_BATCH_ITEMS)).getTotal()).isEqualTo(1);
+            assertThat(((io.trino.spi.metrics.Count<?>) pageSource.getMetrics().getMetrics().get(Web3Metrics.RPC_IN_FLIGHT)).getTotal()).isZero();
         }
     }
 

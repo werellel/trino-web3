@@ -99,9 +99,23 @@ public class TestWeb3Catalog
                     "web3.cache.maximum-size", "1MB",
                     "web3.cache.maximum-entry-size", "64kB"));
 
-            assertThat(queryRunner.execute("SELECT provider_name, protocol, json_rpc_batch_enabled, state, cooldown_remaining_millis FROM web3.system.providers WHERE schema_name = 'ethereum'").getMaterializedRows())
-                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
-                    .containsExactly(org.assertj.core.groups.Tuple.tuple("primary", "JSON_RPC", true, "AVAILABLE", 0L));
+            assertThat(queryRunner.execute("SELECT provider_name, protocol, json_rpc_batch_enabled, state, cooldown_remaining_millis, request_count, failure_count, retry_count, throttled_count, in_flight_request_count, failover_count, request_latency_nanos, batch_count, batch_item_count FROM web3.system.providers WHERE schema_name = 'ethereum'").getMaterializedRows())
+                    .extracting(
+                            row -> row.getField(0),
+                            row -> row.getField(1),
+                            row -> row.getField(2),
+                            row -> row.getField(3),
+                            row -> row.getField(4),
+                            row -> row.getField(5),
+                            row -> row.getField(6),
+                            row -> row.getField(7),
+                            row -> row.getField(8),
+                            row -> row.getField(9),
+                            row -> row.getField(10),
+                            row -> row.getField(11),
+                            row -> row.getField(12),
+                            row -> row.getField(13))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple("primary", "JSON_RPC", true, "AVAILABLE", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L));
             assertThat(queryRunner.execute("SELECT maximum_concurrency, maximum_queue_size, maximum_batch_size, maximum_attempts, requests_per_second FROM web3.system.rate_limits WHERE schema_name = 'ethereum'").getMaterializedRows())
                     .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
                     .containsExactly(org.assertj.core.groups.Tuple.tuple(3L, 7L, 5L, 2L, 11L));

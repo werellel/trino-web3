@@ -77,6 +77,11 @@ public class TestDeterministicRemoteExecutionRuntime
             assertThat(result.join().providerName()).isEqualTo("fallback");
             assertThat(primary.batchRequests).hasValue(1);
             assertThat(fallback.singleRequests).hasValue(1);
+            assertThat(runtime.snapshot().providers())
+                    .extracting(provider -> provider.name(), provider -> provider.metrics().requestCount(), provider -> provider.metrics().failureCount(), provider -> provider.metrics().retryCount(), provider -> provider.metrics().failoverCount())
+                    .containsExactly(
+                            org.assertj.core.groups.Tuple.tuple("primary", 1L, 1L, 1L, 1L),
+                            org.assertj.core.groups.Tuple.tuple("fallback", 1L, 0L, 0L, 0L));
         }
     }
 
@@ -168,11 +173,15 @@ public class TestDeterministicRemoteExecutionRuntime
 
             RemoteRuntimeSnapshot snapshot = runtime.snapshot();
             assertThat(snapshot.protocol()).isEqualTo(RemoteRequest.Protocol.JSON_RPC);
-            assertThat(snapshot.providers()).containsExactly(new RemoteRuntimeSnapshot.ProviderSnapshot(
-                    "primary",
-                    true,
-                    RemoteRuntimeSnapshot.ProviderSnapshot.State.COOLDOWN,
-                    50));
+            assertThat(snapshot.providers()).singleElement().satisfies(providerSnapshot -> {
+                assertThat(providerSnapshot.name()).isEqualTo("primary");
+                assertThat(providerSnapshot.jsonRpcBatchEnabled()).isTrue();
+                assertThat(providerSnapshot.state()).isEqualTo(RemoteRuntimeSnapshot.ProviderSnapshot.State.COOLDOWN);
+                assertThat(providerSnapshot.cooldownRemainingMillis()).isEqualTo(50);
+                assertThat(providerSnapshot.metrics().requestCount()).isEqualTo(1);
+                assertThat(providerSnapshot.metrics().failureCount()).isEqualTo(1);
+                assertThat(providerSnapshot.metrics().retryCount()).isEqualTo(1);
+            });
             assertThat(snapshot.executionPolicy()).isEqualTo(policy);
         }
     }
@@ -438,6 +447,10 @@ public class TestDeterministicRemoteExecutionRuntime
             assertThat(result.join().value().asText()).isEqualTo("ok");
             assertThat(runtime.metrics().throttledCount()).isEqualTo(1);
             assertThat(runtime.metrics().retryCount()).isEqualTo(1);
+            RemoteExecutionMetrics providerMetrics = runtime.snapshot().providers().getFirst().metrics();
+            assertThat(providerMetrics.requestCount()).isEqualTo(2);
+            assertThat(providerMetrics.throttledCount()).isEqualTo(1);
+            assertThat(providerMetrics.retryCount()).isEqualTo(1);
         }
     }
 

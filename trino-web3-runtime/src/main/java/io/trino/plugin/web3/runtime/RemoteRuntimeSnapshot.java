@@ -36,12 +36,13 @@ public record RemoteRuntimeSnapshot(
     }
 
     /** Provider availability derived only from this runtime's retry cooldown. */
-    public record ProviderSnapshot(String name, boolean jsonRpcBatchEnabled, State state, long cooldownRemainingMillis)
+    public record ProviderSnapshot(String name, boolean jsonRpcBatchEnabled, State state, long cooldownRemainingMillis, RemoteExecutionMetrics metrics)
     {
         public ProviderSnapshot
         {
             requireNonNull(name, "name is null");
             requireNonNull(state, "state is null");
+            requireNonNull(metrics, "metrics is null");
             if (name.isBlank()) {
                 throw new IllegalArgumentException("name is blank");
             }
