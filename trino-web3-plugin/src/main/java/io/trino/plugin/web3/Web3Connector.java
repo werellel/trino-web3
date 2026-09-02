@@ -41,6 +41,27 @@ import io.trino.plugin.web3.evm.InkChainAdapter;
 import io.trino.plugin.web3.evm.JovayChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiChainAdapter;
 import io.trino.plugin.web3.evm.LineaChainAdapter;
+import io.trino.plugin.web3.evm.EthereumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.BaseSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.OptimismSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.ArbitrumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.BnbTestnetChainAdapter;
+import io.trino.plugin.web3.evm.PolygonAmoyChainAdapter;
+import io.trino.plugin.web3.evm.AvalancheFujiChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChiadoChainAdapter;
+import io.trino.plugin.web3.evm.KaiaKairosChainAdapter;
+import io.trino.plugin.web3.evm.ArcTestnetChainAdapter;
+import io.trino.plugin.web3.evm.StoryAeneidChainAdapter;
+import io.trino.plugin.web3.evm.BobaSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CeloSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmTestnetChainAdapter;
+import io.trino.plugin.web3.evm.AbstractSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.AnimeTestnetChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainCurtisChainAdapter;
+import io.trino.plugin.web3.evm.InkSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.JovaySepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter;
+import io.trino.plugin.web3.evm.LineaSepoliaChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
@@ -595,6 +616,27 @@ public final class Web3Connector
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
                 new LineaChainAdapter(),
+                new EthereumSepoliaChainAdapter(),
+                new BaseSepoliaChainAdapter(),
+                new OptimismSepoliaChainAdapter(),
+                new ArbitrumSepoliaChainAdapter(),
+                new BnbTestnetChainAdapter(),
+                new PolygonAmoyChainAdapter(),
+                new AvalancheFujiChainAdapter(),
+                new GnosisChiadoChainAdapter(),
+                new KaiaKairosChainAdapter(),
+                new ArcTestnetChainAdapter(),
+                new StoryAeneidChainAdapter(),
+                new BobaSepoliaChainAdapter(),
+                new CeloSepoliaChainAdapter(),
+                new HyperEvmTestnetChainAdapter(),
+                new AbstractSepoliaChainAdapter(),
+                new AnimeTestnetChainAdapter(),
+                new ApeChainCurtisChainAdapter(),
+                new InkSepoliaChainAdapter(),
+                new JovaySepoliaChainAdapter(),
+                new CrossFiTestnetChainAdapter(),
+                new LineaSepoliaChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
                 new TronChainAdapter(),

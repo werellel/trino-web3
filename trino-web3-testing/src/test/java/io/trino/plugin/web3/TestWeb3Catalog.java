@@ -13,6 +13,11 @@
  */
 package io.trino.plugin.web3;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import io.airlift.slice.Slices;
 import io.trino.Session;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
@@ -24,6 +29,8 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.StandaloneQueryRunner;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestWeb3Catalog
 {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String FIRST_HASH = "0x" + "a".repeat(64);
     private static final String SECOND_HASH = "0x" + "b".repeat(64);
 
@@ -53,7 +61,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("abstract", "anime", "apechain", "aptos", "arbitrum", "arc", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "boba", "celo", "cosmos", "crossfi", "degen", "dogecoin", "ethereum", "gnosis", "hyperevm", "information_schema", "injective", "ink", "jovay", "kaia", "linea", "litecoin", "optimism", "osmosis", "polygon", "solana", "story", "sui", "system", "tron");
+            assertThat(result.getOnlyColumn()).containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoincash", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "crossfi", "crossfi_testnet", "degen", "dogecoin", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "optimism", "optimism_sepolia", "osmosis", "polygon", "polygon_amoy", "solana", "story", "story_aeneid", "sui", "system", "tron");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
                     .containsExactly("blocks", "inputs", "outputs", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.litecoin").getOnlyColumn())
@@ -71,6 +79,10 @@ public class TestWeb3Catalog
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.optimism").getOnlyColumn())
                     .containsExactly("blocks", "transactions");
             for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea")) {
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
+                        .containsExactly("blocks", "transactions");
+            }
+            for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
                         .containsExactly("blocks", "transactions");
             }
@@ -104,36 +116,57 @@ public class TestWeb3Catalog
                     .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
                     .containsExactly(
                             org.assertj.core.groups.Tuple.tuple("abstract", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("abstract_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("anime", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("anime_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("apechain", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("apechain_curtis", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("aptos", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("arbitrum", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("arbitrum_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("arc", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("arc_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("avalanche", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("avalanche_fuji", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("base", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("base_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("bitcoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("bitcoincash", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("bnb", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("bnb_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("boba", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("boba_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("celo", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("celo_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("cosmos", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("crossfi", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("crossfi_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("degen", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("dogecoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("ethereum", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("ethereum_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("gnosis", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("gnosis_chiado", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("hyperevm", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("hyperevm_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("injective", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("ink", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("ink_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("jovay", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("jovay_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("kaia", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("kaia_kairos", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("linea", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("linea_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("litecoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("optimism", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("optimism_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("osmosis", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("polygon", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("polygon_amoy", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("solana", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("story", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("story_aeneid", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("sui", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("tron", false, 0L, false));
         }
@@ -144,11 +177,13 @@ public class TestWeb3Catalog
             throws Exception
     {
         String secret = "do-not-leak-system-table-secret";
+        HttpServer rpcServer = jsonRpcServer("0x1");
         Session session = testSessionBuilder().setCatalog("web3").build();
+        rpcServer.start();
         try (StandaloneQueryRunner queryRunner = new StandaloneQueryRunner(session)) {
             queryRunner.installPlugin(new Web3Plugin());
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
-                    "web3.ethereum.rpc-url", "http://" + secret + "@127.0.0.1:1",
+                    "web3.ethereum.rpc-url", endpoint(rpcServer),
                     "web3.rpc.maximum-concurrency", "3",
                     "web3.rpc.maximum-queue-size", "7",
                     "web3.rpc.maximum-batch-size", "5",
@@ -158,7 +193,7 @@ public class TestWeb3Catalog
                     "web3.cache.maximum-size", "1MB",
                     "web3.cache.maximum-entry-size", "64kB"));
 
-            assertThat(queryRunner.execute("SELECT provider_name, protocol, json_rpc_batch_enabled, state, cooldown_remaining_millis, request_count, failure_count, retry_count, throttled_count, in_flight_request_count, failover_count, request_latency_nanos, batch_count, batch_item_count FROM web3.system.providers WHERE schema_name = 'ethereum'").getMaterializedRows())
+            assertThat(queryRunner.execute("SELECT provider_name, protocol, json_rpc_batch_enabled, state, cooldown_remaining_millis, request_count, failure_count, retry_count, throttled_count, in_flight_request_count, failover_count, batch_count, batch_item_count FROM web3.system.providers WHERE schema_name = 'ethereum'").getMaterializedRows())
                     .extracting(
                             row -> row.getField(0),
                             row -> row.getField(1),
@@ -172,9 +207,8 @@ public class TestWeb3Catalog
                             row -> row.getField(9),
                             row -> row.getField(10),
                             row -> row.getField(11),
-                            row -> row.getField(12),
-                            row -> row.getField(13))
-                    .containsExactly(org.assertj.core.groups.Tuple.tuple("primary", "JSON_RPC", true, "AVAILABLE", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L));
+                            row -> row.getField(12))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple("primary", "JSON_RPC", true, "AVAILABLE", 0L, 1L, 0L, 0L, 0L, 0L, 0L, 1L, 1L));
             assertThat(queryRunner.execute("SELECT maximum_concurrency, maximum_queue_size, maximum_batch_size, maximum_attempts, requests_per_second FROM web3.system.rate_limits WHERE schema_name = 'ethereum'").getMaterializedRows())
                     .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
                     .containsExactly(org.assertj.core.groups.Tuple.tuple(3L, 7L, 5L, 2L, 11L));
@@ -183,7 +217,7 @@ public class TestWeb3Catalog
                     .containsExactly(org.assertj.core.groups.Tuple.tuple(true, 0L, 0L, 0L));
             assertThat(queryRunner.execute("SELECT request_count, failure_count, retry_count, throttled_count, in_flight_request_count FROM web3.system.rpc_metrics WHERE schema_name = 'ethereum'").getMaterializedRows())
                     .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
-                    .containsExactly(org.assertj.core.groups.Tuple.tuple(0L, 0L, 0L, 0L, 0L));
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple(1L, 0L, 0L, 0L, 0L));
 
             List<String> values = List.of("chains", "providers", "rpc_metrics", "rate_limits", "cache_stats").stream()
                     .flatMap(table -> queryRunner.execute("SELECT * FROM web3.system." + table).getMaterializedRows().stream())
@@ -191,6 +225,9 @@ public class TestWeb3Catalog
                     .map(String::valueOf)
                     .toList();
             assertThat(values).noneMatch(value -> value.contains(secret));
+        }
+        finally {
+            rpcServer.stop(0);
         }
     }
 
@@ -234,7 +271,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("abstract", "anime", "apechain", "aptos", "arbitrum", "arc", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "boba", "celo", "cosmos", "crossfi", "degen", "dogecoin", "ethereum", "gnosis", "hyperevm", "information_schema", "injective", "ink", "jovay", "kaia", "linea", "litecoin", "optimism", "osmosis", "polygon", "solana", "story", "sui", "system", "tron");
+                    .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoincash", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "crossfi", "crossfi_testnet", "degen", "dogecoin", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "optimism", "optimism_sepolia", "osmosis", "polygon", "polygon_amoy", "solana", "story", "story_aeneid", "sui", "system", "tron");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))
@@ -351,5 +388,41 @@ public class TestWeb3Catalog
         assertThat(pushed.ranges()).isEmpty();
         assertThat(result.getRemainingFilter().getDomains().orElseThrow())
                 .containsKey(new Web3ColumnHandle("hash", 0));
+    }
+
+    private static HttpServer jsonRpcServer(String identity)
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> writeJsonRpcIdentity(exchange, identity));
+        return server;
+    }
+
+    private static void writeJsonRpcIdentity(HttpExchange exchange, String identity)
+            throws IOException
+    {
+        JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+        JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
+        ObjectNode response = OBJECT_MAPPER.createObjectNode();
+        response.put("jsonrpc", "2.0");
+        response.put("id", request.path("id").asLong());
+        response.put("result", identity);
+        JsonNode responseDocument;
+        if (requestDocument.isArray()) {
+            responseDocument = OBJECT_MAPPER.createArrayNode().add(response);
+        }
+        else {
+            responseDocument = response;
+        }
+        byte[] body = OBJECT_MAPPER.writeValueAsBytes(responseDocument);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+        exchange.close();
+    }
+
+    private static String endpoint(HttpServer server)
+    {
+        return "http://127.0.0.1:" + server.getAddress().getPort();
     }
 }

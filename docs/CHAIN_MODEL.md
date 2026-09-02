@@ -36,6 +36,19 @@ The Arc descriptor targets the requested Arc mainnet identifier (`5042`);
 Arc's publicly documented testnet (`5042002`) is intentionally not aliased to
 the mainnet schema.
 
+Canonical EVM testnets are also independent schemas: Ethereum Sepolia
+(`11155111`), Base Sepolia (`84532`), OP Sepolia (`11155420`), Arbitrum Sepolia
+(`421614`), BNB Testnet (`97`), Polygon Amoy (`80002`), Avalanche Fuji
+(`43113`), Gnosis Chiado (`10200`), Kaia Kairos (`1001`), Arc Testnet
+(`5042002`), Story Aeneid (`1315`), Boba Sepolia (`28882`), Celo Sepolia
+(`11142220`), HyperEVM Testnet (`998`), Abstract Sepolia (`11124`), Anime
+Testnet (`2162`), ApeChain Curtis (`33111`), Ink Sepolia (`763373`), Jovay
+Sepolia (`2019775`), CrossFi Testnet (`4157`), and Linea Sepolia (`59141`).
+Their schemas use the `<network>_<testnet>` naming shown by these identifiers
+and cannot be configured through a mainnet property. Degen has no stable,
+officially published testnet chain-ID contract, so no Degen testnet schema is
+registered until one is available.
+
 Both EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
 the complete block or transaction object returned by the node. This preserves
 additive provider fields without destabilizing the typed columns; callers can

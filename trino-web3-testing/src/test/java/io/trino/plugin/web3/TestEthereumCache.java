@@ -129,10 +129,14 @@ public class TestEthereumCache
     private ObjectNode response(JsonNode request)
     {
         String method = request.path("method").asText();
-        String identifier = request.path("params").get(0).asText();
         ObjectNode response = OBJECT_MAPPER.createObjectNode()
                 .put("jsonrpc", "2.0")
                 .put("id", request.path("id").asLong());
+        if (method.equals("eth_chainId")) {
+            response.put("result", "0x1");
+            return response;
+        }
+        String identifier = request.path("params").get(0).asText();
         if (method.equals("eth_getBlockByNumber") && (identifier.equals("safe") || identifier.equals("finalized"))) {
             response.set("result", block(20, false));
             return response;

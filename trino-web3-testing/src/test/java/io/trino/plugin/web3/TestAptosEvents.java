@@ -53,6 +53,13 @@ public class TestAptosEvents
         requestCount = new AtomicInteger();
         requestTarget = new AtomicReference<>();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1", exchange -> {
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(Map.of("chain_id", 1));
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
         server.createContext("/v1/accounts/0x1/events/7", this::handleEvents);
         server.start();
     }

@@ -40,6 +40,27 @@ import io.trino.plugin.web3.evm.InkChainAdapter;
 import io.trino.plugin.web3.evm.JovayChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiChainAdapter;
 import io.trino.plugin.web3.evm.LineaChainAdapter;
+import io.trino.plugin.web3.evm.AbstractSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.AnimeTestnetChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainCurtisChainAdapter;
+import io.trino.plugin.web3.evm.ArbitrumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.ArcTestnetChainAdapter;
+import io.trino.plugin.web3.evm.AvalancheFujiChainAdapter;
+import io.trino.plugin.web3.evm.BaseSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.BnbTestnetChainAdapter;
+import io.trino.plugin.web3.evm.BobaSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CeloSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter;
+import io.trino.plugin.web3.evm.EthereumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChiadoChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmTestnetChainAdapter;
+import io.trino.plugin.web3.evm.InkSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.JovaySepoliaChainAdapter;
+import io.trino.plugin.web3.evm.KaiaKairosChainAdapter;
+import io.trino.plugin.web3.evm.LineaSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.OptimismSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.PolygonAmoyChainAdapter;
+import io.trino.plugin.web3.evm.StoryAeneidChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
@@ -79,6 +100,27 @@ final class TestExecutableChainRegistry
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
                 new LineaChainAdapter(),
+                new EthereumSepoliaChainAdapter(),
+                new BaseSepoliaChainAdapter(),
+                new OptimismSepoliaChainAdapter(),
+                new ArbitrumSepoliaChainAdapter(),
+                new BnbTestnetChainAdapter(),
+                new PolygonAmoyChainAdapter(),
+                new AvalancheFujiChainAdapter(),
+                new GnosisChiadoChainAdapter(),
+                new KaiaKairosChainAdapter(),
+                new ArcTestnetChainAdapter(),
+                new StoryAeneidChainAdapter(),
+                new BobaSepoliaChainAdapter(),
+                new CeloSepoliaChainAdapter(),
+                new HyperEvmTestnetChainAdapter(),
+                new AbstractSepoliaChainAdapter(),
+                new AnimeTestnetChainAdapter(),
+                new ApeChainCurtisChainAdapter(),
+                new InkSepoliaChainAdapter(),
+                new JovaySepoliaChainAdapter(),
+                new CrossFiTestnetChainAdapter(),
+                new LineaSepoliaChainAdapter(),
                 new TronChainAdapter(),
                 new SuiChainAdapter(),
                 new CosmosChainAdapter(),
@@ -93,7 +135,7 @@ final class TestExecutableChainRegistry
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("abstract", "anime", "apechain", "aptos", "arbitrum", "arc", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "boba", "celo", "cosmos", "crossfi", "degen", "dogecoin", "ethereum", "gnosis", "hyperevm", "injective", "ink", "jovay", "kaia", "linea", "litecoin", "optimism", "osmosis", "polygon", "solana", "story", "sui", "tron");
+                .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoincash", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "crossfi", "crossfi_testnet", "degen", "dogecoin", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "injective", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "optimism", "optimism_sepolia", "osmosis", "polygon", "polygon_amoy", "solana", "story", "story_aeneid", "sui", "tron");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("base")).isInstanceOf(BaseChainAdapter.class);
         assertThat(registry.adapterForSchema("optimism")).isInstanceOf(OptimismChainAdapter.class);

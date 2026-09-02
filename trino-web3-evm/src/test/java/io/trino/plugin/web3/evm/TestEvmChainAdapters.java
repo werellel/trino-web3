@@ -48,10 +48,31 @@ final class TestEvmChainAdapters
                 new InkChainAdapter(),
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
-                new LineaChainAdapter());
+                new LineaChainAdapter(),
+                new EthereumSepoliaChainAdapter(),
+                new BaseSepoliaChainAdapter(),
+                new OptimismSepoliaChainAdapter(),
+                new ArbitrumSepoliaChainAdapter(),
+                new BnbTestnetChainAdapter(),
+                new PolygonAmoyChainAdapter(),
+                new AvalancheFujiChainAdapter(),
+                new GnosisChiadoChainAdapter(),
+                new KaiaKairosChainAdapter(),
+                new ArcTestnetChainAdapter(),
+                new StoryAeneidChainAdapter(),
+                new BobaSepoliaChainAdapter(),
+                new CeloSepoliaChainAdapter(),
+                new HyperEvmTestnetChainAdapter(),
+                new AbstractSepoliaChainAdapter(),
+                new AnimeTestnetChainAdapter(),
+                new ApeChainCurtisChainAdapter(),
+                new InkSepoliaChainAdapter(),
+                new JovaySepoliaChainAdapter(),
+                new CrossFiTestnetChainAdapter(),
+                new LineaSepoliaChainAdapter());
 
         assertThat(adapters).extracting(adapter -> adapter.descriptor().schemaName())
-                .containsExactly("ethereum", "base", "optimism", "arbitrum", "bnb", "polygon", "avalanche", "gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea");
+                .containsExactly("ethereum", "base", "optimism", "arbitrum", "bnb", "polygon", "avalanche", "gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia");
         assertThat(adapters).allSatisfy(adapter -> {
             assertThat(adapter.descriptor().table("blocks")).isPresent();
             assertThat(adapter.descriptor().table("transactions")).isPresent();
@@ -79,6 +100,27 @@ final class TestEvmChainAdapters
         assertThat(new JovayChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x578227"))).isEqualTo("0x578227");
         assertThat(new CrossFiChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x103E"))).isEqualTo("0x103e");
         assertThat(new LineaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xE708"))).isEqualTo("0xe708");
+        assertThat(new EthereumSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xAA36A7"))).isEqualTo("0xaa36a7");
+        assertThat(new BaseSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x14A34"))).isEqualTo("0x14a34");
+        assertThat(new OptimismSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xAA37DC"))).isEqualTo("0xaa37dc");
+        assertThat(new ArbitrumSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x66EEE"))).isEqualTo("0x66eee");
+        assertThat(new BnbTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x61"))).isEqualTo("0x61");
+        assertThat(new PolygonAmoyChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x13882"))).isEqualTo("0x13882");
+        assertThat(new AvalancheFujiChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xA869"))).isEqualTo("0xa869");
+        assertThat(new GnosisChiadoChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x27D8"))).isEqualTo("0x27d8");
+        assertThat(new KaiaKairosChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x3E9"))).isEqualTo("0x3e9");
+        assertThat(new ArcTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x4CEF52"))).isEqualTo("0x4cef52");
+        assertThat(new StoryAeneidChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x523"))).isEqualTo("0x523");
+        assertThat(new BobaSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x70D2"))).isEqualTo("0x70d2");
+        assertThat(new CeloSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xAA044C"))).isEqualTo("0xaa044c");
+        assertThat(new HyperEvmTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x3E6"))).isEqualTo("0x3e6");
+        assertThat(new AbstractSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x2B74"))).isEqualTo("0x2b74");
+        assertThat(new AnimeTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x872"))).isEqualTo("0x872");
+        assertThat(new ApeChainCurtisChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x8157"))).isEqualTo("0x8157");
+        assertThat(new InkSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xBA5ED"))).isEqualTo("0xba5ed");
+        assertThat(new JovaySepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x1ED1BF"))).isEqualTo("0x1ed1bf");
+        assertThat(new CrossFiTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x103D"))).isEqualTo("0x103d");
+        assertThat(new LineaSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xE705"))).isEqualTo("0xe705");
     }
 
     @Test

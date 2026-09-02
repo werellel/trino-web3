@@ -50,6 +50,27 @@ import io.trino.plugin.web3.evm.InkChainAdapter;
 import io.trino.plugin.web3.evm.JovayChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiChainAdapter;
 import io.trino.plugin.web3.evm.LineaChainAdapter;
+import io.trino.plugin.web3.evm.EthereumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.BaseSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.OptimismSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.ArbitrumSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.BnbTestnetChainAdapter;
+import io.trino.plugin.web3.evm.PolygonAmoyChainAdapter;
+import io.trino.plugin.web3.evm.AvalancheFujiChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChiadoChainAdapter;
+import io.trino.plugin.web3.evm.KaiaKairosChainAdapter;
+import io.trino.plugin.web3.evm.ArcTestnetChainAdapter;
+import io.trino.plugin.web3.evm.StoryAeneidChainAdapter;
+import io.trino.plugin.web3.evm.BobaSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CeloSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmTestnetChainAdapter;
+import io.trino.plugin.web3.evm.AbstractSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.AnimeTestnetChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainCurtisChainAdapter;
+import io.trino.plugin.web3.evm.InkSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.JovaySepoliaChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter;
+import io.trino.plugin.web3.evm.LineaSepoliaChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
@@ -91,7 +112,7 @@ public final class Web3SplitManager
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
-                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new GnosisChainAdapter(), new KaiaChainAdapter(), new ArcChainAdapter(), new StoryChainAdapter(), new BobaChainAdapter(), new CeloChainAdapter(), new HyperEvmChainAdapter(), new AbstractChainAdapter(), new AnimeChainAdapter(), new ApeChainChainAdapter(), new DegenChainAdapter(), new InkChainAdapter(), new JovayChainAdapter(), new CrossFiChainAdapter(), new LineaChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new SuiChainAdapter(), new CosmosChainAdapter(), new OsmosisChainAdapter(), new InjectiveChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()));
+                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new GnosisChainAdapter(), new KaiaChainAdapter(), new ArcChainAdapter(), new StoryChainAdapter(), new BobaChainAdapter(), new CeloChainAdapter(), new HyperEvmChainAdapter(), new AbstractChainAdapter(), new AnimeChainAdapter(), new ApeChainChainAdapter(), new DegenChainAdapter(), new InkChainAdapter(), new JovayChainAdapter(), new CrossFiChainAdapter(), new LineaChainAdapter(), new EthereumSepoliaChainAdapter(), new BaseSepoliaChainAdapter(), new OptimismSepoliaChainAdapter(), new ArbitrumSepoliaChainAdapter(), new BnbTestnetChainAdapter(), new PolygonAmoyChainAdapter(), new AvalancheFujiChainAdapter(), new GnosisChiadoChainAdapter(), new KaiaKairosChainAdapter(), new ArcTestnetChainAdapter(), new StoryAeneidChainAdapter(), new BobaSepoliaChainAdapter(), new CeloSepoliaChainAdapter(), new HyperEvmTestnetChainAdapter(), new AbstractSepoliaChainAdapter(), new AnimeTestnetChainAdapter(), new ApeChainCurtisChainAdapter(), new InkSepoliaChainAdapter(), new JovaySepoliaChainAdapter(), new CrossFiTestnetChainAdapter(), new LineaSepoliaChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new SuiChainAdapter(), new CosmosChainAdapter(), new OsmosisChainAdapter(), new InjectiveChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()));
     }
 
     Web3SplitManager(

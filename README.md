@@ -36,6 +36,15 @@ Each network has its own schema and chain-identity check, while sharing the
 provider-independent EVM runtime. Optimism is registered once even when it is
 listed more than once in external chain catalogs.
 
+The same model is used for canonical testnets, each with an independent schema:
+`ethereum_sepolia`, `base_sepolia`, `optimism_sepolia`, `arbitrum_sepolia`,
+`bnb_testnet`, `polygon_amoy`, `avalanche_fuji`, `gnosis_chiado`, `kaia_kairos`,
+`arc_testnet`, `story_aeneid`, `boba_sepolia`, `celo_sepolia`,
+`hyperevm_testnet`, `abstract_sepolia`, `anime_testnet`, `apechain_curtis`,
+`ink_sepolia`, `jovay_sepolia`, `crossfi_testnet`, and `linea_sepolia`.
+Degen testnet is intentionally not registered until its canonical chain ID and
+endpoint contract are published.
+
 Tron is exposed through its native REST API as `web3.tron.blocks` and
 `web3.tron.transactions`. It is a separate non-EVM adapter: bounded
 `block_number` predicates are translated to `/wallet/getblockbynum`, and the
@@ -126,8 +135,9 @@ connector.name=web3
 web3.ethereum.rpc-url=http://127.0.0.1:8545
 web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
 web3.base.rpc-url=http://127.0.0.1:8545
-# web3.optimism.rpc-url, web3.arbitrum.rpc-url, web3.bnb.rpc-url, web3.polygon.rpc-url,
-# and web3.avalanche.rpc-url use the same JSON-RPC contract.
+# All EVM schemas, including *_sepolia, *_testnet, *_amoy, *_fuji, *_chiado,
+# *_kairos, *_aeneid, *_curtis, and *_testnet variants, use the same JSON-RPC
+# contract with a schema-specific rpc-url and chain-identity check.
 web3.aptos.rest-url=http://127.0.0.1:8080
 web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
 web3.solana.rpc-url=http://127.0.0.1:8899

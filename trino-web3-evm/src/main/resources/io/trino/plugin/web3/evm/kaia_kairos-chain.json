@@ -1,0 +1,206 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "kaia_kairos",
+  "schemaName": "kaia_kairos",
+  "adapterVersion": 2,
+  "tables": [
+    {
+      "name": "blocks",
+      "version": 2,
+      "columns": [
+        {
+          "name": "block_number",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "block_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-block-number",
+          "protocol": "JSON_RPC",
+          "action": "eth_getBlockByNumber",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "block_number",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "false",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "SINGLE",
+            "rowsPointer": "",
+            "fields": [
+              {
+                "column": "block_number",
+                "pointer": "/number",
+                "required": true
+              },
+              {
+                "column": "block_hash",
+                "pointer": "/hash",
+                "required": true
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "version": 2,
+      "columns": [
+        {
+          "name": "hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_number",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "from_address",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "to_address",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-block-number",
+          "protocol": "JSON_RPC",
+          "action": "eth_getBlockByNumber",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "block_number",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "true",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/transactions",
+            "fields": [
+              {
+                "column": "hash",
+                "pointer": "/hash",
+                "required": true
+              },
+              {
+                "column": "block_number",
+                "pointer": "/blockNumber",
+                "required": false
+              },
+              {
+                "column": "from_address",
+                "pointer": "/from",
+                "required": true
+              },
+              {
+                "column": "to_address",
+                "pointer": "/to",
+                "required": false
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "by-hash",
+          "protocol": "JSON_RPC",
+          "action": "eth_getTransactionByHash",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "PREDICATE",
+              "value": "hash",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "SINGLE",
+            "rowsPointer": "",
+            "fields": [
+              {
+                "column": "hash",
+                "pointer": "/hash",
+                "required": true
+              },
+              {
+                "column": "block_number",
+                "pointer": "/blockNumber",
+                "required": false
+              },
+              {
+                "column": "from_address",
+                "pointer": "/from",
+                "required": true
+              },
+              {
+                "column": "to_address",
+                "pointer": "/to",
+                "required": false
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

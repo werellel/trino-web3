@@ -276,7 +276,6 @@ public class TestEthereumBlocks
     private void handleRequest(HttpExchange exchange)
             throws IOException
     {
-        rpcRequestCount.incrementAndGet();
         if (responseDelay != null) {
             try {
                 Thread.sleep(responseDelay);
@@ -297,6 +296,7 @@ public class TestEthereumBlocks
                 responses.insert(0, response);
                 continue;
             }
+            rpcRequestCount.incrementAndGet();
             String quantity = request.path("params").get(0).asText();
             long blockNumber = Long.parseUnsignedLong(quantity.substring(2), 16);
             ObjectNode block = response.putObject("result");

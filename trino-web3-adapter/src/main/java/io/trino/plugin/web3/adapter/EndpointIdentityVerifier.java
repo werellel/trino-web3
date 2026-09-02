@@ -30,10 +30,6 @@ public final class EndpointIdentityVerifier
         requireNonNull(adapter, "adapter is null");
         requireNonNull(runtime, "runtime is null");
         List<String> providerNames = runtime.providerNames();
-        if (providerNames.size() < 2) {
-            return;
-        }
-
         EndpointIdentityProbe probe = adapter.endpointIdentityProbe();
         String expectedIdentity = null;
         for (String providerName : providerNames) {

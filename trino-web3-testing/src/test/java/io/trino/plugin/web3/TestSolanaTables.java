@@ -122,11 +122,23 @@ public class TestSolanaTables
     private void handleRequest(HttpExchange exchange)
             throws IOException
     {
-        requestCount.incrementAndGet();
         JsonNode request = OBJECT_MAPPER.readTree(exchange.getRequestBody());
         List<JsonNode> requests = request.isArray() ?
                 java.util.stream.StreamSupport.stream(request.spliterator(), false).toList() :
                 List.of(request);
+        if (requests.get(0).path("method").asText().equals("getGenesisHash")) {
+            ObjectNode response = OBJECT_MAPPER.createObjectNode();
+            response.put("jsonrpc", "2.0");
+            response.set("id", requests.get(0).get("id"));
+            response.put("result", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY");
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(request.isArray() ? OBJECT_MAPPER.createArrayNode().add(response) : response);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+            return;
+        }
+        requestCount.incrementAndGet();
         ArrayNode responses = OBJECT_MAPPER.createArrayNode();
         for (JsonNode item : requests) {
             assertThat(item.path("method").asText()).isEqualTo("getBlock");

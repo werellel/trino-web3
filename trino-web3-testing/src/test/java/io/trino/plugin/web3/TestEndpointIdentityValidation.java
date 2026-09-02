@@ -135,6 +135,66 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
+    public void testAcceptsEvmTestnetEndpointIdentities()
+            throws Exception
+    {
+        List<String[]> networks = List.of(
+                new String[] {"ethereum_sepolia", "web3.ethereum-sepolia.rpc-url", "0xaa36a7"},
+                new String[] {"base_sepolia", "web3.base-sepolia.rpc-url", "0x14a34"},
+                new String[] {"optimism_sepolia", "web3.optimism-sepolia.rpc-url", "0xaa37dc"},
+                new String[] {"arbitrum_sepolia", "web3.arbitrum-sepolia.rpc-url", "0x66eee"},
+                new String[] {"bnb_testnet", "web3.bnb-testnet.rpc-url", "0x61"},
+                new String[] {"polygon_amoy", "web3.polygon-amoy.rpc-url", "0x13882"},
+                new String[] {"avalanche_fuji", "web3.avalanche-fuji.rpc-url", "0xa869"},
+                new String[] {"gnosis_chiado", "web3.gnosis-chiado.rpc-url", "0x27d8"},
+                new String[] {"kaia_kairos", "web3.kaia-kairos.rpc-url", "0x3e9"},
+                new String[] {"arc_testnet", "web3.arc-testnet.rpc-url", "0x4cef52"},
+                new String[] {"story_aeneid", "web3.story-aeneid.rpc-url", "0x523"},
+                new String[] {"boba_sepolia", "web3.boba-sepolia.rpc-url", "0x70d2"},
+                new String[] {"celo_sepolia", "web3.celo-sepolia.rpc-url", "0xaa044c"},
+                new String[] {"hyperevm_testnet", "web3.hyperevm-testnet.rpc-url", "0x3e6"},
+                new String[] {"abstract_sepolia", "web3.abstract-sepolia.rpc-url", "0x2b74"},
+                new String[] {"anime_testnet", "web3.anime-testnet.rpc-url", "0x872"},
+                new String[] {"apechain_curtis", "web3.apechain-curtis.rpc-url", "0x8157"},
+                new String[] {"ink_sepolia", "web3.ink-sepolia.rpc-url", "0xba5ed"},
+                new String[] {"jovay_sepolia", "web3.jovay-sepolia.rpc-url", "0x1ed1bf"},
+                new String[] {"crossfi_testnet", "web3.crossfi-testnet.rpc-url", "0x103d"},
+                new String[] {"linea_sepolia", "web3.linea-sepolia.rpc-url", "0xe705"});
+        List<HttpServer> servers = new ArrayList<>();
+        try (StandaloneQueryRunner queryRunner = queryRunner()) {
+            for (String[] network : networks) {
+                HttpServer server = jsonRpcServer(network[2]);
+                servers.add(server);
+                server.start();
+                queryRunner.createCatalog(network[0], Web3ConnectorFactory.CONNECTOR_NAME, Map.of(network[1], endpoint(server)));
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM " + network[0] + ".system.chains WHERE schema_name = '" + network[0] + "'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            servers.forEach(server -> server.stop(0));
+        }
+    }
+
+    @Test
+    public void testRejectsSingleMismatchedBaseEndpoint()
+            throws Exception
+    {
+        HttpServer server = jsonRpcServer("0x1");
+        try {
+            server.start();
+            try (StandaloneQueryRunner queryRunner = queryRunner()) {
+                assertThatThrownBy(() -> queryRunner.createCatalog("base", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                        "web3.base.rpc-url", endpoint(server))))
+                        .hasMessageContaining("endpoint returned an invalid chain identity for schema base");
+            }
+        }
+        finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     public void testRejectsMismatchedEthereumEndpointsWithoutLeakingCredential()
             throws Exception
     {
