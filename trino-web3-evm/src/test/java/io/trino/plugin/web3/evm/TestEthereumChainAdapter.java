@@ -20,6 +20,7 @@ import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
 import io.trino.plugin.web3.chain.ChainTableDescriptor;
+import io.trino.plugin.web3.runtime.RemoteOperation;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -60,6 +61,17 @@ final class TestEthereumChainAdapter
         assertThat(transactions.method("by-block-number").orElseThrow().action()).isEqualTo("eth_getBlockByNumber");
         assertThat(transactions.method("by-block-number").orElseThrow().response().cardinality()).isEqualTo(ARRAY);
         assertThat(transactions.method("by-hash").orElseThrow().action()).isEqualTo("eth_getTransactionByHash");
+    }
+
+    @Test
+    void testEndpointIdentityProbeCanonicalizesChainId()
+    {
+        var probe = new EthereumChainAdapter().endpointIdentityProbe();
+
+        assertThat(probe.request()).isEqualTo(new RemoteOperation("eth_chainId", List.of()));
+        assertThat(probe.extractIdentity(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.textNode("0x01"))).isEqualTo("0x1");
+        assertThatThrownBy(() -> probe.extractIdentity(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.textNode("not-a-chain-id")))
+                .hasMessage("invalid EVM chain identity");
     }
 
     @Test

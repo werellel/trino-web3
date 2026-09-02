@@ -19,10 +19,12 @@ import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplit;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.ExecutableChainAdapter;
+import io.trino.plugin.web3.adapter.EndpointIdentityProbe;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
 import io.trino.plugin.web3.chain.ChainDescriptorCodec;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
+import io.trino.plugin.web3.runtime.RemoteOperation;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -41,6 +43,12 @@ public final class SolanaChainAdapter
     public ChainDescriptor descriptor()
     {
         return DESCRIPTOR;
+    }
+
+    @Override
+    public EndpointIdentityProbe endpointIdentityProbe()
+    {
+        return new EndpointIdentityProbe(new RemoteOperation("getGenesisHash", List.of()), SolanaChainAdapter::genesisHash);
     }
 
     @Override
@@ -93,5 +101,13 @@ public final class SolanaChainAdapter
         catch (java.io.IOException e) {
             throw new IllegalStateException("failed to load Solana chain descriptor", e);
         }
+    }
+
+    private static String genesisHash(com.fasterxml.jackson.databind.JsonNode response)
+    {
+        if (!response.isTextual() || !response.textValue().matches("[1-9A-HJ-NP-Za-km-z]{32,44}")) {
+            throw new IllegalArgumentException("invalid Solana chain identity");
+        }
+        return response.textValue();
     }
 }

@@ -242,11 +242,10 @@ add the `system.cache_stats` table reserved for M5. Metrics have fixed names and
 no hash, address, endpoint, provider, or query labels.
 
 M3 requires all endpoints configured in one catalog to address the same EVM
-chain. Validating every endpoint requires a provider-targeted runtime operation;
-implementing direct EVM HTTP probes would violate the transport boundary. M5
-therefore owns endpoint-specific `eth_chainId` verification together with the
-operator-facing `system.cache_stats` surface. These are explicit configuration
-and observability boundaries, not silent M3 claims.
+chain. M5.2 implements this through a provider-targeted runtime operation, so
+endpoint identity verification does not bypass the transport boundary. It also
+extends the same native-identity contract to Solana and Aptos. These remain
+explicit configuration and observability boundaries, not silent M3 claims.
 
 ## Affected modules
 

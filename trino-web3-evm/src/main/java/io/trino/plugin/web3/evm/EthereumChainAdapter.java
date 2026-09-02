@@ -19,11 +19,13 @@ import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplit;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.DiscreteValueChainSplit;
+import io.trino.plugin.web3.adapter.EndpointIdentityProbe;
 import io.trino.plugin.web3.adapter.ExecutableChainAdapter;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
 import io.trino.plugin.web3.chain.ChainDescriptorCodec;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
+import io.trino.plugin.web3.runtime.RemoteOperation;
 
 import java.io.InputStream;
 import java.util.List;
@@ -43,6 +45,12 @@ public final class EthereumChainAdapter
     public ChainDescriptor descriptor()
     {
         return DESCRIPTOR;
+    }
+
+    @Override
+    public EndpointIdentityProbe endpointIdentityProbe()
+    {
+        return new EndpointIdentityProbe(new RemoteOperation("eth_chainId", List.of()), EthereumChainAdapter::chainId);
     }
 
     @Override
@@ -111,6 +119,23 @@ public final class EthereumChainAdapter
         }
         catch (IllegalStateException e) {
             throw new ChainPlanningException("ethereum.transactions hash predicate contains an invalid transaction hash");
+        }
+    }
+
+    private static String chainId(com.fasterxml.jackson.databind.JsonNode response)
+    {
+        if (!response.isTextual() || !response.textValue().matches("0x[0-9a-fA-F]+")) {
+            throw new IllegalArgumentException("invalid EVM chain identity");
+        }
+        try {
+            java.math.BigInteger value = new java.math.BigInteger(response.textValue().substring(2), 16);
+            if (value.signum() <= 0) {
+                throw new IllegalArgumentException("invalid EVM chain identity");
+            }
+            return "0x" + value.toString(16);
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalArgumentException("invalid EVM chain identity");
         }
     }
 

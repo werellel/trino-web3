@@ -15,6 +15,7 @@ package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
+import io.trino.plugin.web3.adapter.EndpointIdentityVerifier;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -152,9 +153,16 @@ public final class Web3Connector
                     executionPolicy,
                     cacheConfig));
         }
-        runtimes = Map.copyOf(configuredRuntimes);
-        pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
-        systemTables = Web3SystemTables.create(components.adapters(), runtimes);
+        try {
+            verifyEndpointIdentities(components.adapters(), configuredRuntimes);
+            runtimes = Map.copyOf(configuredRuntimes);
+            pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
+            systemTables = Web3SystemTables.create(components.adapters(), runtimes);
+        }
+        catch (RuntimeException e) {
+            configuredRuntimes.values().forEach(RemoteExecutionRuntime::close);
+            throw e;
+        }
     }
 
     private static RemoteExecutionRuntime createJsonRpcRuntime(
@@ -202,6 +210,16 @@ public final class Web3Connector
                         endpoints.get(index),
                         new ProviderCapabilities(jsonRpcBatchEnabled)))
                 .toList();
+    }
+
+    private static void verifyEndpointIdentities(ExecutableChainRegistry adapters, Map<String, RemoteExecutionRuntime> runtimes)
+    {
+        adapters.adapters().forEach(adapter -> {
+            RemoteExecutionRuntime runtime = runtimes.get(adapter.descriptor().schemaName());
+            if (runtime != null) {
+                EndpointIdentityVerifier.verify(adapter, runtime);
+            }
+        });
     }
 
     private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, io.trino.spi.type.Type> typeResolver)

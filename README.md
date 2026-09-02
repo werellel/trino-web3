@@ -106,9 +106,12 @@ blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
 Fallback URLs are optional and are used in declaration order after a retryable
 primary-provider failure. They are generic JSON-RPC endpoints: no provider
 credentials, vendor headers, or provider-specific behavior are configured.
-All endpoints in one catalog must address the same EVM chain. M3 preserves this
-as an explicit configuration precondition; endpoint-by-endpoint `eth_chainId`
-verification is part of the M5 configuration-hardening scope.
+When a schema has a primary endpoint and one or more fallbacks, catalog creation
+verifies that every configured endpoint identifies the same native network:
+`eth_chainId` for Ethereum, `getGenesisHash` for Solana, and Aptos REST
+`GET /v1` `chain_id` for Aptos. A mismatch, malformed identity, or unavailable
+configured endpoint rejects catalog creation without exposing endpoint or
+credential details. A lone endpoint has no peer to compare and is not probed.
 Set `web3.rpc.json-rpc-batch-enabled=false` when an endpoint does not support
 JSON-RPC batch arrays. The runtime then plans one operation per wire request;
 queue, concurrency, rate, retry, health, and failover limits remain unchanged.

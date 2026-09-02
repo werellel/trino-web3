@@ -109,7 +109,14 @@ Adapter admission is execution-cancellation aware. Serialization may finish
 after cancellation begins, but the final cache insertion is serialized with
 the execution cancellation state and is skipped once cancellation wins.
 
-Provider network identity is not inferred by the generic runtime. M3 requires
-all endpoints in a catalog to address the same chain. M5 will add a
-chain-adapter operation executed through a provider-targeted runtime path so
-endpoint-by-endpoint identity verification does not bypass transport ownership.
+Provider network identity is not inferred by the generic runtime. When a schema
+has two or more configured endpoints, connector construction asks its chain
+adapter for a native identity probe and executes it once against each generated
+provider role through the provider-targeted runtime path. Ethereum uses
+`eth_chainId`, Solana uses `getGenesisHash`, and Aptos uses `GET /v1` and its
+`chain_id`. The adapter validates and canonicalizes the identity; the connector
+requires all results to match. A mismatch, malformed result, or unavailable
+endpoint rejects catalog creation with a sanitized error. Targeted probes use
+the existing request limits and bounded retry policy, but never fail over or
+publish a provider cooldown; failed construction closes the temporary runtime.
+A single configured endpoint has no peer to compare and is not probed.

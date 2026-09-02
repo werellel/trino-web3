@@ -22,6 +22,8 @@ import java.util.List;
 public interface ExecutableChainAdapter
         extends ChainAdapter
 {
+    EndpointIdentityProbe endpointIdentityProbe();
+
     List<ChainSplit> planSplits(ChainScan scan, ChainSplitLimits limits);
 
     ChainDataClient createDataClient(RemoteExecutionRuntime runtime);

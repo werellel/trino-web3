@@ -81,6 +81,60 @@ public class TestDeterministicRemoteExecutionRuntime
     }
 
     @Test
+    public void testTargetedExecutionDoesNotFailOver()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport primary = new RecordingTransport();
+        primary.batchHandler = requests -> CompletableFuture.failedFuture(httpFailure(503));
+        RecordingTransport fallback = new RecordingTransport();
+        fallback.batchHandler = requests -> CompletableFuture.completedFuture(List.of(text("fallback")));
+        ProviderProfile primaryProvider = provider("primary", true);
+        ProviderProfile fallbackProvider = provider("fallback", true);
+        try (RemoteExecutionRuntime runtime = runtime(
+                List.of(primaryProvider, fallbackProvider),
+                Map.of(primaryProvider.name(), primary, fallbackProvider.name(), fallback),
+                policy(1, 10, 10, 1, 100),
+                scheduler)) {
+            CompletableFuture<RemoteResult> result = runtime.executeOnProvider("primary", operation("eth_chainId"));
+            scheduler.runUntil(result::isDone);
+
+            assertThatThrownBy(result::join).hasRootCauseInstanceOf(JsonRpcClient.JsonRpcHttpException.class);
+            assertThat(primary.batchRequests).hasValue(1);
+            assertThat(fallback.batchRequests).hasValue(0);
+            assertThat(runtime.metrics().failoverCount()).isZero();
+        }
+    }
+
+    @Test
+    public void testTargetedExecutionRetriesWithoutCooldownOrFailover()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport primary = new RecordingTransport();
+        primary.batchHandler = requests -> primary.batchRequests.get() == 1 ?
+                CompletableFuture.failedFuture(httpFailure(503)) :
+                CompletableFuture.completedFuture(List.of(text("primary")));
+        RecordingTransport fallback = new RecordingTransport();
+        fallback.batchHandler = requests -> CompletableFuture.completedFuture(List.of(text("fallback")));
+        ProviderProfile primaryProvider = provider("primary", true);
+        ProviderProfile fallbackProvider = provider("fallback", true);
+        ExecutionPolicy policy = new ExecutionPolicy(1, 10, 10, 2, 100, Duration.ofMillis(1), Duration.ofMillis(10), Duration.ofMillis(50));
+        try (RemoteExecutionRuntime runtime = runtime(
+                List.of(primaryProvider, fallbackProvider),
+                Map.of(primaryProvider.name(), primary, fallbackProvider.name(), fallback),
+                policy,
+                scheduler)) {
+            CompletableFuture<RemoteResult> result = runtime.executeOnProvider("primary", operation("eth_chainId"));
+            scheduler.runUntil(result::isDone);
+
+            assertThat(result.join().providerName()).isEqualTo("primary");
+            assertThat(primary.batchRequests).hasValue(2);
+            assertThat(fallback.batchRequests).hasValue(0);
+            assertThat(runtime.metrics().failoverCount()).isZero();
+            assertThat(scheduler.nanoTime()).isLessThan(Duration.ofMillis(50).toNanos());
+        }
+    }
+
+    @Test
     public void testCooldownUsesControllableScheduler()
     {
         ManualScheduler scheduler = new ManualScheduler();

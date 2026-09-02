@@ -5,9 +5,10 @@ schema. They are ordinary connector system tables, so a catalog named `web3`
 is queried as `web3.system.<table>`.
 
 These reads do not send an RPC request, do not validate endpoint identity, and
-do not create a runtime, HTTP client, cache, or executor. They take a bounded
-copy of already configured in-process state. Their data is observational and
-may change between rows or queries.
+do not create a runtime, HTTP client, cache, or executor. Endpoint identity, if
+needed for a multi-endpoint schema, is validated during catalog construction.
+System tables take a bounded copy of already configured in-process state. Their
+data is observational and may change between rows or queries.
 
 ## Tables
 

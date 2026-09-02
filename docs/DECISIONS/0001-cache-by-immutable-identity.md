@@ -41,10 +41,9 @@ are not cached.
 
 The chain namespace represents one configured catalog network, not a value
 derived from every response. All primary and fallback endpoints in an M3
-catalog must therefore address the same EVM chain. Endpoint-specific
-`eth_chainId` verification requires a provider-targeted runtime operation and
-is assigned to M5 configuration hardening; the EVM adapter must not open a
-parallel HTTP path to implement it.
+catalog must therefore address the same EVM chain. M5.2 implements
+endpoint-specific `eth_chainId` verification through a provider-targeted runtime
+operation; the EVM adapter does not open a parallel HTTP path to implement it.
 
 Cache lookup precedes the existing M2 shared-operation registry. A miss uses
 that registry for asynchronous single-flight and preserves its subscriber-aware

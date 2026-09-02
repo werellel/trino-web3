@@ -19,16 +19,19 @@ import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplit;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.ExecutableChainAdapter;
+import io.trino.plugin.web3.adapter.EndpointIdentityProbe;
 import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
 import io.trino.plugin.web3.chain.ChainDescriptorCodec;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
+import io.trino.plugin.web3.runtime.RestRemoteRequest;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public final class AptosChainAdapter
@@ -50,6 +53,14 @@ public final class AptosChainAdapter
     public ChainDescriptor descriptor()
     {
         return DESCRIPTOR;
+    }
+
+    @Override
+    public EndpointIdentityProbe endpointIdentityProbe()
+    {
+        return new EndpointIdentityProbe(
+                new RestRemoteRequest("GET", "/v1", Map.of(), Optional.empty()),
+                AptosChainAdapter::chainId);
     }
 
     @Override
@@ -142,6 +153,25 @@ public final class AptosChainAdapter
         }
         catch (NumberFormatException e) {
             throw new ChainPlanningException("aptos.events has an invalid " + field);
+        }
+    }
+
+    private static String chainId(com.fasterxml.jackson.databind.JsonNode response)
+    {
+        com.fasterxml.jackson.databind.JsonNode chainId = response.path("chain_id");
+        String value = chainId.isTextual() ? chainId.textValue() : chainId.isIntegralNumber() && chainId.canConvertToInt() ? Integer.toString(chainId.intValue()) : "";
+        if (!value.matches("[1-9][0-9]{0,2}")) {
+            throw new IllegalArgumentException("invalid Aptos chain identity");
+        }
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed > 255) {
+                throw new IllegalArgumentException("invalid Aptos chain identity");
+            }
+            return Integer.toString(parsed);
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalArgumentException("invalid Aptos chain identity");
         }
     }
 

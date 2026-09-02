@@ -107,9 +107,10 @@ REST does not provide an EVM-like `head`/`safe`/`finalized` tag distinction for
 these historical range endpoints. The current bounded scans never request a
 moving head alias, so no mutable-head key or TTL correctness mechanism is
 needed. The configured TTL, when present, remains an operational upper bound,
-not a finality mechanism. Each catalog's Aptos primary and fallback origins
-must serve the same network; the worker-local runtime keeps cache entries
-isolated by connector instance and never includes origins or secrets in a key.
+not a finality mechanism. When Aptos has primary and fallback origins, catalog
+creation verifies their `GET /v1` `chain_id` values match before any runtime is
+published. The worker-local runtime keeps cache entries isolated by connector
+instance and never includes origins or secrets in a key.
 
 ### Solana
 

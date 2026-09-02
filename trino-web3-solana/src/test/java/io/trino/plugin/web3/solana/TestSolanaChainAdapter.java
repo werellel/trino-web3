@@ -18,8 +18,10 @@ import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainTableDescriptor;
+import io.trino.plugin.web3.runtime.RemoteOperation;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +61,18 @@ final class TestSolanaChainAdapter
                         new RangeChainSplit("slot", 10, 11),
                         new RangeChainSplit("slot", 12, 13),
                         new RangeChainSplit("slot", 14, 14));
+    }
+
+    @Test
+    void testEndpointIdentityProbeRequiresGenesisHash()
+    {
+        var probe = new SolanaChainAdapter().endpointIdentityProbe();
+        String genesisHash = "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY";
+
+        assertThat(probe.request()).isEqualTo(new RemoteOperation("getGenesisHash", List.of()));
+        assertThat(probe.extractIdentity(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.textNode(genesisHash))).isEqualTo(genesisHash);
+        assertThatThrownBy(() -> probe.extractIdentity(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.textNode("invalid")))
+                .hasMessage("invalid Solana chain identity");
     }
 
     @Test

@@ -169,6 +169,12 @@ public class TestEthereumBlocks
     {
         HttpServer unavailablePrimary = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         unavailablePrimary.createContext("/", exchange -> {
+            JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+            JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
+            if (request.path("method").asText().equals("eth_chainId")) {
+                writeChainId(exchange, requestDocument);
+                return;
+            }
             exchange.sendResponseHeaders(503, -1);
             exchange.close();
         });
@@ -257,11 +263,16 @@ public class TestEthereumBlocks
         Iterable<JsonNode> requests = requestDocument.isArray() ? requestDocument : java.util.List.of(requestDocument);
         ArrayNode responses = OBJECT_MAPPER.createArrayNode();
         for (JsonNode request : requests) {
-            String quantity = request.path("params").get(0).asText();
-            long blockNumber = Long.parseUnsignedLong(quantity.substring(2), 16);
             ObjectNode response = OBJECT_MAPPER.createObjectNode();
             response.put("jsonrpc", "2.0");
             response.put("id", request.path("id").asLong());
+            if (request.path("method").asText().equals("eth_chainId")) {
+                response.put("result", "0x1");
+                responses.insert(0, response);
+                continue;
+            }
+            String quantity = request.path("params").get(0).asText();
+            long blockNumber = Long.parseUnsignedLong(quantity.substring(2), 16);
             ObjectNode block = response.putObject("result");
             block.put("number", quantity);
             block.put("hash", "0x" + Long.toHexString(blockNumber));
@@ -276,6 +287,22 @@ public class TestEthereumBlocks
             responses.insert(0, response);
         }
         byte[] body = OBJECT_MAPPER.writeValueAsBytes(requestDocument.isArray() ? responses : responses.get(0));
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+        exchange.close();
+    }
+
+    private static void writeChainId(HttpExchange exchange, JsonNode requestDocument)
+            throws IOException
+    {
+        JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
+        ObjectNode response = OBJECT_MAPPER.createObjectNode();
+        response.put("jsonrpc", "2.0");
+        response.put("id", request.path("id").asLong());
+        response.put("result", "0x1");
+        JsonNode responseDocument = requestDocument.isArray() ? OBJECT_MAPPER.createArrayNode().add(response) : response;
+        byte[] body = OBJECT_MAPPER.writeValueAsBytes(responseDocument);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);

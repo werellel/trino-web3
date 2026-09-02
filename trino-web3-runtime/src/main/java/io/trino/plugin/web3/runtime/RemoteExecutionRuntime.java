@@ -57,7 +57,7 @@ public final class RemoteExecutionRuntime
     private final int maximumCacheReadBytes;
     private final boolean batchingEnabled;
     private final ArrayDeque<SharedOperation> pending = new ArrayDeque<>();
-    private final Map<RemoteRequest, SharedOperation> sharedOperations = new HashMap<>();
+    private final Map<SharedOperationKey, SharedOperation> sharedOperations = new HashMap<>();
     private final Map<String, Long> unhealthyUntilNanos = new HashMap<>();
     private final MetricScope metrics = new MetricScope();
     private long nextPermitNanos;
@@ -219,7 +219,22 @@ public final class RemoteExecutionRuntime
 
     public CompletableFuture<RemoteResult> execute(RemoteRequest request)
     {
-        return execute(request, new MetricScope());
+        return execute(request, new MetricScope(), Optional.empty());
+    }
+
+    /** Executes a bounded request on one configured provider without failover. */
+    public CompletableFuture<RemoteResult> executeOnProvider(String providerName, RemoteRequest request)
+    {
+        requireNonNull(providerName, "providerName is null");
+        return execute(request, new MetricScope(), Optional.of(providerName));
+    }
+
+    /** Returns generated provider roles without exposing endpoints. */
+    public List<String> providerNames()
+    {
+        return providers.stream()
+                .map(ProviderProfile::name)
+                .toList();
     }
 
     public CompletableFuture<List<RemoteResult>> executeBatch(List<RemoteOperation> operations)
@@ -288,7 +303,7 @@ public final class RemoteExecutionRuntime
             return new RemoteExecution<>(CompletableFuture.failedFuture(new IllegalArgumentException("logical batch exceeds maximumBatchSize")), scope::snapshot);
         }
         List<CompletableFuture<RemoteResult>> futures = operations.stream()
-                .map(operation -> execute(operation, scope))
+                .map(operation -> execute(operation, scope, Optional.empty()))
                 .toList();
         CompletableFuture<List<RemoteResult>> result = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                 .thenApply(ignored -> futures.stream().map(CompletableFuture::join).toList());
@@ -322,7 +337,7 @@ public final class RemoteExecutionRuntime
 
         public RemoteExecution<RemoteResult> execute(RemoteRequest request)
         {
-            CompletableFuture<RemoteResult> future = RemoteExecutionRuntime.this.execute(request, scope);
+            CompletableFuture<RemoteResult> future = RemoteExecutionRuntime.this.execute(request, scope, Optional.empty());
             trackCancellation(future);
             return new RemoteExecution<>(future, scope::snapshot);
         }
@@ -453,9 +468,10 @@ public final class RemoteExecutionRuntime
         return metrics.snapshot();
     }
 
-    private CompletableFuture<RemoteResult> execute(RemoteRequest operation, MetricScope scope)
+    private CompletableFuture<RemoteResult> execute(RemoteRequest operation, MetricScope scope, Optional<String> targetProvider)
     {
         requireNonNull(operation, "operation is null");
+        requireNonNull(targetProvider, "targetProvider is null");
         if (operation.protocol() != protocol) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("remote request protocol does not match runtime protocol"));
         }
@@ -464,13 +480,17 @@ public final class RemoteExecutionRuntime
             if (closed) {
                 return CompletableFuture.failedFuture(new IllegalStateException("RPC runtime is closed"));
             }
-            SharedOperation shared = sharedOperations.get(operation);
+            if (targetProvider.isPresent() && providers.stream().noneMatch(provider -> provider.name().equals(targetProvider.orElseThrow()))) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("unknown provider"));
+            }
+            SharedOperationKey key = new SharedOperationKey(operation, targetProvider);
+            SharedOperation shared = sharedOperations.get(key);
             if (shared == null) {
                 if (pending.size() >= policy.maximumQueueSize()) {
                     return CompletableFuture.failedFuture(new IllegalStateException("RPC execution queue is full"));
                 }
-                shared = new SharedOperation(operation);
-                sharedOperations.put(operation, shared);
+                shared = new SharedOperation(key);
+                sharedOperations.put(key, shared);
                 pending.addLast(shared);
             }
             shared.subscribers.add(subscriber);
@@ -502,7 +522,7 @@ public final class RemoteExecutionRuntime
             if (shared.queued) {
                 pending.remove(shared);
             }
-            sharedOperations.remove(shared.operation, shared);
+            sharedOperations.remove(shared.key, shared);
             shared.queued = false;
             if (batch != null && batch.operations.stream().allMatch(operation -> operation.subscribers.isEmpty())) {
                 if (batch.response.isPresent()) {
@@ -532,19 +552,12 @@ public final class RemoteExecutionRuntime
                 return;
             }
             int wireBatchSize = batchingEnabled ? policy.maximumBatchSize() : 1;
-            List<SharedOperation> operations = new ArrayList<>();
-            while (operations.size() < wireBatchSize && !pending.isEmpty()) {
-                SharedOperation operation = pending.removeFirst();
-                operation.queued = false;
-                if (!operation.subscribers.isEmpty()) {
-                    operations.add(operation);
-                }
-            }
+            List<SharedOperation> operations = collectBatchOperations(wireBatchSize);
             if (operations.isEmpty()) {
                 scheduleDrainLocked();
                 return;
             }
-            batch = new Batch(List.copyOf(operations));
+            batch = new Batch(List.copyOf(operations), operations.getFirst().targetProvider);
             operations.forEach(operation -> operation.batch = batch);
             activeBatches++;
             scheduleDrainLocked();
@@ -582,7 +595,7 @@ public final class RemoteExecutionRuntime
                     return;
                 }
             }
-            ProviderSelection selection = selectProviderLocked(batch.providerOffset);
+            ProviderSelection selection = selectProviderLocked(batch.providerOffset, batch.targetProvider);
             if (selection.provider().isEmpty()) {
                 scheduler.schedule(() -> startBatch(batch), selection.waitNanos(), TimeUnit.NANOSECONDS);
                 return;
@@ -694,13 +707,20 @@ public final class RemoteExecutionRuntime
                 attemptMetrics.throttled();
             }
             if (isRetryable(failure) && batch.attempt < policy.retryPolicy().maximumAttempts()) {
-                unhealthyUntilNanos.put(provider.name(), scheduler.nanoTime() + policy.providerCooldown().toNanos());
+                // A provider-targeted operation is used for catalog-time identity
+                // validation. It must retry the same endpoint without waiting for a
+                // health cooldown that would only be useful to normal failover.
+                if (batch.targetProvider.isEmpty()) {
+                    unhealthyUntilNanos.put(provider.name(), scheduler.nanoTime() + policy.providerCooldown().toNanos());
+                }
                 batch.attempt++;
-                batch.providerOffset++;
+                if (batch.targetProvider.isEmpty()) {
+                    batch.providerOffset++;
+                }
                 batch.permitAcquired = false;
                 metrics.retry();
                 attemptMetrics.retry();
-                if (providers.size() > 1) {
+                if (batch.targetProvider.isEmpty() && providers.size() > 1) {
                     metrics.failover();
                     attemptMetrics.failover();
                 }
@@ -727,9 +747,45 @@ public final class RemoteExecutionRuntime
         return attemptMetrics;
     }
 
-    private ProviderSelection selectProviderLocked(int offset)
+    private List<SharedOperation> collectBatchOperations(int wireBatchSize)
+    {
+        List<SharedOperation> operations = new ArrayList<>();
+        while (!pending.isEmpty() && operations.isEmpty()) {
+            SharedOperation operation = pending.removeFirst();
+            operation.queued = false;
+            if (!operation.subscribers.isEmpty()) {
+                operations.add(operation);
+            }
+        }
+        if (operations.isEmpty()) {
+            return operations;
+        }
+        Optional<String> targetProvider = operations.getFirst().targetProvider;
+        java.util.Iterator<SharedOperation> iterator = pending.iterator();
+        while (iterator.hasNext() && operations.size() < wireBatchSize) {
+            SharedOperation operation = iterator.next();
+            if (operation.targetProvider.equals(targetProvider)) {
+                iterator.remove();
+                operation.queued = false;
+                if (!operation.subscribers.isEmpty()) {
+                    operations.add(operation);
+                }
+            }
+        }
+        return operations;
+    }
+
+    private ProviderSelection selectProviderLocked(int offset, Optional<String> targetProvider)
     {
         long now = scheduler.nanoTime();
+        if (targetProvider.isPresent()) {
+            ProviderProfile provider = providers.stream()
+                    .filter(candidate -> candidate.name().equals(targetProvider.orElseThrow()))
+                    .findFirst()
+                    .orElseThrow();
+            long unhealthyUntil = unhealthyUntilNanos.getOrDefault(provider.name(), 0L);
+            return unhealthyUntil <= now ? new ProviderSelection(Optional.of(provider), 0) : new ProviderSelection(Optional.empty(), unhealthyUntil - now);
+        }
         long earliest = Long.MAX_VALUE;
         for (int index = 0; index < providers.size(); index++) {
             ProviderProfile provider = providers.get((offset + index) % providers.size());
@@ -753,7 +809,7 @@ public final class RemoteExecutionRuntime
 
     private void removeSharedLocked(SharedOperation operation)
     {
-        sharedOperations.remove(operation.operation, operation);
+        sharedOperations.remove(operation.key, operation);
         operation.batch = null;
         operation.queued = false;
     }
@@ -894,14 +950,18 @@ public final class RemoteExecutionRuntime
 
     private static final class SharedOperation
     {
+        private final SharedOperationKey key;
         private final RemoteRequest operation;
+        private final Optional<String> targetProvider;
         private final List<Subscriber> subscribers = new ArrayList<>();
         private boolean queued = true;
         private Batch batch;
 
-        private SharedOperation(RemoteRequest operation)
+        private SharedOperation(SharedOperationKey key)
         {
-            this.operation = operation;
+            this.key = key;
+            operation = key.operation();
+            targetProvider = key.targetProvider();
         }
     }
 
@@ -913,12 +973,14 @@ public final class RemoteExecutionRuntime
         private long requestStartNanos;
         private int attempt = 1;
         private int providerOffset;
+        private final Optional<String> targetProvider;
         private boolean permitAcquired;
         private boolean finished;
 
-        private Batch(List<SharedOperation> operations)
+        private Batch(List<SharedOperation> operations, Optional<String> targetProvider)
         {
             this.operations = operations;
+            this.targetProvider = targetProvider;
         }
     }
 
@@ -1062,6 +1124,15 @@ public final class RemoteExecutionRuntime
                     cacheRevalidationCount.get(),
                     cacheBytesRead.get(),
                     cacheBytesWritten.get());
+        }
+    }
+
+    private record SharedOperationKey(RemoteRequest operation, Optional<String> targetProvider)
+    {
+        private SharedOperationKey
+        {
+            requireNonNull(operation, "operation is null");
+            requireNonNull(targetProvider, "targetProvider is null");
         }
     }
 

@@ -623,8 +623,10 @@ with native tables for each chain.
 ## Implementation status
 
 M5.1 delivers safe local runtime snapshots through the five target system
-tables. Endpoint identity validation, broader structured metrics, release
-engineering, and the remaining production-hardening work remain in M5.
+tables. M5.2 validates native network identity across every configured primary
+and fallback endpoint without bypassing the runtime. Broader structured
+metrics, release engineering, and the remaining production-hardening work
+remain in M5.
 
 ## Goal
 

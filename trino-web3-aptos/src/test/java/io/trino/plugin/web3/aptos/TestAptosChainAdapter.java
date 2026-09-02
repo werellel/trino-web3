@@ -18,6 +18,7 @@ import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplitLimits;
 import io.trino.plugin.web3.adapter.KeyedRangeChainSplit;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
+import io.trino.plugin.web3.runtime.RestRemoteRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -63,6 +64,18 @@ public class TestAptosChainAdapter
                         new RangeChainSplit("ledger_version", 10, 11),
                         new RangeChainSplit("ledger_version", 12, 13),
                         new RangeChainSplit("ledger_version", 14, 14));
+    }
+
+    @Test
+    public void testEndpointIdentityProbeRequiresAptosChainId()
+    {
+        var probe = adapter.endpointIdentityProbe();
+        var response = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("chain_id", 1);
+
+        assertThat(probe.request()).isEqualTo(new RestRemoteRequest("GET", "/v1", Map.of(), Optional.empty()));
+        assertThat(probe.extractIdentity(response)).isEqualTo("1");
+        assertThatThrownBy(() -> probe.extractIdentity(com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("chain_id", 0)))
+                .hasMessage("invalid Aptos chain identity");
     }
 
     @Test
