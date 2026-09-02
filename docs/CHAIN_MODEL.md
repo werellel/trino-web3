@@ -132,4 +132,8 @@ instructions, events, and finality semantics. They must not reuse EVM tables or
 Ethereum-specific decoding. Bitcoin, Tron, Sui, and Near follow the same
 registry boundary but keep UTXO, object, receipt, event, and finality semantics
 in their own adapters. Production execution for Aptos transactions/events and
-Solana blocks/transactions/instructions is present.
+Solana blocks/transactions/instructions is present. The initial Bitcoin slice
+adds native UTXO-oriented `bitcoin.blocks`, `bitcoin.transactions`,
+`bitcoin.inputs`, and `bitcoin.outputs` tables through Bitcoin Core JSON-RPC;
+all require bounded height predicates, and Bitcoin cache admission remains
+disabled until a reorganization-safe identity contract is defined.

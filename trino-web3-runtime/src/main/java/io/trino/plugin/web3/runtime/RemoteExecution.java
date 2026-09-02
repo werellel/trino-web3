@@ -14,6 +14,7 @@
 package io.trino.plugin.web3.runtime;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -64,5 +65,57 @@ public final class RemoteExecution<T>
             }
         });
         return new RemoteExecution<>(mapped, metrics, memoryUsage);
+    }
+
+    /**
+     * Continues a remote execution with another cancellable execution without
+     * blocking an execution worker. This is useful for chain-native composed
+     * operations such as hash lookup followed by payload lookup.
+     */
+    public <R> RemoteExecution<R> flatMap(Function<T, RemoteExecution<R>> mapper)
+    {
+        requireNonNull(mapper, "mapper is null");
+        AtomicReference<RemoteExecution<R>> child = new AtomicReference<>();
+        CompletableFuture<R> chained = future.thenCompose(value -> {
+            RemoteExecution<R> execution = requireNonNull(mapper.apply(value), "mapper returned null");
+            child.set(execution);
+            return execution.future();
+        });
+        chained.whenComplete((value, failure) -> {
+            if (chained.isCancelled()) {
+                future.cancel(true);
+                RemoteExecution<R> execution = child.get();
+                if (execution != null) {
+                    execution.future().cancel(true);
+                }
+            }
+        });
+        return new RemoteExecution<>(
+                chained,
+                () -> addMetrics(metrics.get(), child.get()),
+                () -> memoryUsage.getAsLong() + (child.get() == null ? 0 : child.get().memoryUsage()));
+    }
+
+    private static RemoteExecutionMetrics addMetrics(RemoteExecutionMetrics first, RemoteExecution<?> child)
+    {
+        if (child == null) {
+            return first;
+        }
+        RemoteExecutionMetrics second = child.metrics();
+        return new RemoteExecutionMetrics(
+                first.requestCount() + second.requestCount(),
+                first.failureCount() + second.failureCount(),
+                first.retryCount() + second.retryCount(),
+                first.throttledCount() + second.throttledCount(),
+                first.inFlightRequests() + second.inFlightRequests(),
+                first.failoverCount() + second.failoverCount(),
+                first.requestLatencyNanos() + second.requestLatencyNanos(),
+                first.batchCount() + second.batchCount(),
+                first.batchItemCount() + second.batchItemCount(),
+                first.cacheHitCount() + second.cacheHitCount(),
+                first.cacheMissCount() + second.cacheMissCount(),
+                first.cacheRevalidationCount() + second.cacheRevalidationCount(),
+                first.cacheBytesRead() + second.cacheBytesRead(),
+                first.cacheBytesWritten() + second.cacheBytesWritten());
     }
 }

@@ -40,6 +40,8 @@ public final class Web3ConnectorFactory
     private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
     private static final String APTOS_REST_FALLBACK_URLS = "web3.aptos.rest-fallback-urls";
+    private static final String BITCOIN_RPC_URL = "web3.bitcoin.rpc-url";
+    private static final String BITCOIN_RPC_FALLBACK_URLS = "web3.bitcoin.rpc-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
     private static final String MAXIMUM_TRANSACTION_HASHES_PER_QUERY = "web3.maximum-transaction-hashes-per-query";
@@ -92,6 +94,10 @@ public final class Web3ConnectorFactory
         List<URI> aptosEndpoints = parseEndpoints(config, APTOS_REST_URL, APTOS_REST_FALLBACK_URLS, true);
         if (aptosEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.aptos.rest-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> bitcoinEndpoints = parseEndpoints(config, BITCOIN_RPC_URL, BITCOIN_RPC_FALLBACK_URLS, false);
+        if (bitcoinEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.bitcoin.rpc-url and fallback URLs must contain at most 8 endpoints");
         }
         long maximumBlocksPerSplit = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_SPLIT))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_SPLIT, 1_000))
@@ -150,6 +156,7 @@ public final class Web3ConnectorFactory
                 ethereumEndpoints,
                 solanaEndpoints,
                 aptosEndpoints,
+                bitcoinEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -164,6 +171,8 @@ public final class Web3ConnectorFactory
                 key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||
                 key.equals(APTOS_REST_FALLBACK_URLS) ||
+                key.equals(BITCOIN_RPC_URL) ||
+                key.equals(BITCOIN_RPC_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
                 key.equals(MAXIMUM_TRANSACTION_HASHES_PER_QUERY) ||

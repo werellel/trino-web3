@@ -36,6 +36,12 @@ range predicate on `block_number`. `ethereum.transactions` also accepts
 bounded equality or `IN` predicates on `hash`. Unbounded scans are rejected
 before remote work is scheduled.
 
+The Bitcoin vertical slice exposes native UTXO-oriented `web3.bitcoin.blocks`,
+`web3.bitcoin.transactions`, `web3.bitcoin.inputs`, and `web3.bitcoin.outputs`.
+All four tables require a bounded `height` or `block_height` predicate. Bitcoin
+Core reads use bounded `getblockhash` plus `getblock` operations; satoshi values
+are represented as integer `BIGINT` values.
+
 This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
 The worker-local runtime bounds concurrency, queue size, batch size, retries,
 and rate admission; it handles generic endpoint failover and `429`
@@ -61,6 +67,8 @@ release and upgrade steps are in [releasing](docs/RELEASING.md), with changes
 tracked in [CHANGELOG.md](CHANGELOG.md).
 Reproducible local performance measurements are described in
 [benchmarks](docs/BENCHMARKS.md).
+The repository-local release acceptance gate is documented in
+[acceptance](docs/ACCEPTANCE.md).
 
 ## Chain endpoint configuration
 
@@ -75,6 +83,8 @@ web3.aptos.rest-url=http://127.0.0.1:8080
 web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
 web3.solana.rpc-url=http://127.0.0.1:8899
 web3.solana.rpc-fallback-urls=http://127.0.0.1:8900,http://127.0.0.1:8901
+web3.bitcoin.rpc-url=http://127.0.0.1:8332
+web3.bitcoin.rpc-fallback-urls=http://127.0.0.1:18332
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
 web3.maximum-transaction-hashes-per-query=1000
@@ -120,6 +130,11 @@ predicate. A null block result produces no rows. The initial instruction table
 contains compiled top-level instructions only; it intentionally excludes inner
 instructions and parsed instruction variants. Solana cache admission is disabled
 until a stable cache identity and reorganization policy are defined.
+`web3.bitcoin.rpc-url` follows Ethereum's JSON-RPC endpoint rules. Bitcoin
+Core identity is validated with `getblockchaininfo.chain`; all Bitcoin tables
+require bounded height predicates and use native UTXO-oriented rows. Satoshi
+amounts are returned as integer `BIGINT` values, and Bitcoin cache admission is
+disabled until reorganization-safe identity semantics are defined.
 The connector enforces hard upper bounds of 1,000 blocks per split, 10,000
 blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
 Fallback URLs are optional and are used in declaration order after a retryable
@@ -175,7 +190,7 @@ runtime scheduler; it is safe when called more than once.
 Build `trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip`
 with `mvn package`, then extract it as one Trino plugin directory. The ZIP
 contains the plugin, chain descriptor API, adapter execution API, core, EVM,
-Solana, Aptos, runtime, and runtime library JARs.
+Solana, Aptos, Bitcoin, runtime, and runtime library JARs.
 
 ```sql
 SELECT block_number, block_hash
@@ -238,6 +253,7 @@ trino-web3-core     Trino planning handles and bounded range splitting
 trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
 trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
 trino-web3-aptos    Aptos-native transaction/event planning, REST mapping, and decoding
+trino-web3-bitcoin  Bitcoin Core UTXO-native block, transaction, input, and output decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
@@ -253,8 +269,9 @@ splits retain their predicate column when crossing Trino's serialized split
 boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
 REST request values through the same policy state machine. Aptos transactions
 and account event streams are REST vertical slices. Solana uses bounded
-`getBlock` JSON-RPC reads. Bitcoin, Tron, Sui, and Near queries remain M4
-follow-up work.
+`getBlock` JSON-RPC reads, and Bitcoin uses bounded Bitcoin Core
+`getblockhash`/`getblock` reads. Tron, Sui, and Near remain follow-up
+chain-adapter work.
 
 ## Development rules
 

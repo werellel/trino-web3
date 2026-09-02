@@ -60,6 +60,7 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.chain.ChainDescriptor")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.adapter.ExecutableChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.aptos.AptosChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoin.BitcoinChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.solana.SolanaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
@@ -108,6 +109,8 @@ public class ITWeb3PluginArchive
                         .containsExactly("events", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana").getOnlyColumn())
                         .containsExactly("blocks", "instructions", "transactions");
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
+                        .containsExactly("blocks", "inputs", "outputs", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.system").getOnlyColumn())
                         .containsExactly("cache_stats", "chains", "providers", "rate_limits", "rpc_metrics");
 

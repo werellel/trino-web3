@@ -14,6 +14,7 @@
 package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
+import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.adapter.ChainPlanningException;
 import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplit;
@@ -60,7 +61,7 @@ public final class Web3SplitManager
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
-                ExecutableChainRegistry.of(new EthereumChainAdapter(), new AptosChainAdapter()));
+                ExecutableChainRegistry.of(new EthereumChainAdapter(), new AptosChainAdapter(), new BitcoinChainAdapter()));
     }
 
     Web3SplitManager(

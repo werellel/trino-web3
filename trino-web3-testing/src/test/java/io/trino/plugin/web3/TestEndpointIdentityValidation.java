@@ -148,6 +148,28 @@ public class TestEndpointIdentityValidation
         }
     }
 
+    @Test
+    public void testRejectsMismatchedBitcoinEndpoints()
+            throws Exception
+    {
+        HttpServer primary = bitcoinServer("main");
+        HttpServer fallback = bitcoinServer("test");
+        try {
+            primary.start();
+            fallback.start();
+            try (StandaloneQueryRunner queryRunner = queryRunner()) {
+                assertThatThrownBy(() -> queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                        "web3.bitcoin.rpc-url", endpoint(primary),
+                        "web3.bitcoin.rpc-fallback-urls", endpoint(fallback))))
+                        .hasMessageContaining("configured endpoints do not have the same chain identity for schema bitcoin");
+            }
+        }
+        finally {
+            primary.stop(0);
+            fallback.stop(0);
+        }
+    }
+
     private static StandaloneQueryRunner queryRunner()
             throws Exception
     {
@@ -171,6 +193,28 @@ public class TestEndpointIdentityValidation
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1", exchange -> {
             byte[] body = OBJECT_MAPPER.writeValueAsBytes(Map.of("chain_id", chainId));
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        return server;
+    }
+
+    private static HttpServer bitcoinServer(String chain)
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+            JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
+            ObjectNode result = OBJECT_MAPPER.createObjectNode().put("chain", chain);
+            ObjectNode response = OBJECT_MAPPER.createObjectNode();
+            response.put("jsonrpc", "2.0");
+            response.put("id", request.path("id").asLong());
+            response.set("result", result);
+            JsonNode responseDocument = requestDocument.isArray() ? OBJECT_MAPPER.createArrayNode().add(response) : response;
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(responseDocument);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);

@@ -600,9 +600,11 @@ and should not require rewriting:
 * provider failover
 * Trino page execution
 
-Bitcoin, Tron, Sui, Near, and additional chains should subsequently use this
-same extension boundary. Their support does not change the M4 acceptance floor
-of meaningful Solana and Aptos vertical slices.
+Bitcoin now uses this extension boundary through an initial native UTXO
+vertical slice (`blocks`, `transactions`, `inputs`, and `outputs`) with bounded
+Bitcoin Core reads. Tron, Sui, Near, and additional chains should subsequently
+use the same adapter boundary. Their support does not change the M4 acceptance
+floor of meaningful Solana and Aptos vertical slices.
 
 ## Acceptance criteria
 
@@ -612,9 +614,10 @@ The following should work from one Trino deployment:
 SHOW TABLES FROM web3.ethereum;
 SHOW TABLES FROM web3.solana;
 SHOW TABLES FROM web3.aptos;
+SHOW TABLES FROM web3.bitcoin;
 ```
 
-with native tables for each chain.
+with native tables for each configured chain.
 
 ---
 
@@ -629,7 +632,9 @@ Trino page-source metrics and safe provider-role runtime counters. M5.4 closes
 configuration, endpoint secrecy, and connector/runtime lifecycle hardening.
 Release engineering is documented and automated for the Trino 475 line; the
 reproducible benchmark suite covers remote execution and cache paths. The
-remaining M5 work is final external-user acceptance review.
+repository-local external-user acceptance gate is complete. Executing a real
+tag release and deciding on Maven Central publication remain maintainer-owned
+deployment operations, not unimplemented connector behavior.
 
 ## Goal
 

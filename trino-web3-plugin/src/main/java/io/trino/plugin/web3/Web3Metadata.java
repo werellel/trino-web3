@@ -14,6 +14,7 @@
 package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
+import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.chain.ChainRegistry;
 import io.trino.plugin.web3.core.Web3ColumnHandle;
 import io.trino.plugin.web3.core.Web3TableHandle;
@@ -50,7 +51,7 @@ public final class Web3Metadata
     {
         this(
                 maximumTransactionHashesPerQuery,
-                ChainRegistry.of(new EthereumChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter()),
+                ChainRegistry.of(new EthereumChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new BitcoinChainAdapter()),
                 Web3Metadata::resolveBuiltInType);
     }
 

@@ -53,7 +53,9 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("aptos", "ethereum", "information_schema", "solana", "system");
+            assertThat(result.getOnlyColumn()).containsExactly("aptos", "bitcoin", "ethereum", "information_schema", "solana", "system");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
+                    .containsExactly("blocks", "inputs", "outputs", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                     .containsExactly("events", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
@@ -75,6 +77,7 @@ public class TestWeb3Catalog
                     .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
                     .containsExactly(
                             org.assertj.core.groups.Tuple.tuple("aptos", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("bitcoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("ethereum", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("solana", false, 0L, false));
         }
@@ -175,7 +178,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("aptos", "ethereum", "information_schema", "solana", "system");
+                    .containsExactly("aptos", "bitcoin", "ethereum", "information_schema", "solana", "system");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))

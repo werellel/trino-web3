@@ -15,6 +15,7 @@ package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
+import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import org.junit.jupiter.api.Test;
@@ -29,14 +30,16 @@ final class TestExecutableChainRegistry
         ExecutableChainRegistry registry = ExecutableChainRegistry.of(
                 new EthereumChainAdapter(),
                 new SolanaChainAdapter(),
-                new AptosChainAdapter());
+                new AptosChainAdapter(),
+                new BitcoinChainAdapter());
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("aptos", "ethereum", "solana");
+                .containsExactly("aptos", "bitcoin", "ethereum", "solana");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("solana")).isInstanceOf(SolanaChainAdapter.class);
         assertThat(registry.adapterForSchema("aptos")).isInstanceOf(AptosChainAdapter.class);
+        assertThat(registry.adapterForSchema("bitcoin")).isInstanceOf(BitcoinChainAdapter.class);
         assertThat(new Web3Metadata(10).listSchemaNames(null))
                 .containsExactlyElementsOf(registry.descriptors().descriptors().stream()
                         .map(descriptor -> descriptor.schemaName())

@@ -16,6 +16,7 @@ package io.trino.plugin.web3;
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
 import io.trino.plugin.web3.adapter.EndpointIdentityVerifier;
+import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -64,6 +65,7 @@ public final class Web3Connector
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
@@ -93,6 +95,38 @@ public final class Web3Connector
                 ethereumRpcEndpoints,
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
+                List.of(),
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                typeManager);
+    }
+
+    public Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            List<URI> ethereumRpcEndpoints,
+            List<URI> solanaRpcEndpoints,
+            List<URI> aptosRestEndpoints,
+            List<URI> bitcoinRpcEndpoints,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            TypeManager typeManager)
+    {
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                ethereumRpcEndpoints,
+                solanaRpcEndpoints,
+                aptosRestEndpoints,
+                bitcoinRpcEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -110,6 +144,7 @@ public final class Web3Connector
             List<URI> ethereumRpcEndpoints,
             List<URI> solanaRpcEndpoints,
             List<URI> aptosRestEndpoints,
+            List<URI> bitcoinRpcEndpoints,
             boolean jsonRpcBatchEnabled,
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
@@ -151,6 +186,16 @@ public final class Web3Connector
                         aptosRestEndpoints,
                         maximumRequestBytes,
                         maximumResponseBytes,
+                        executionPolicy,
+                        cacheConfig));
+            }
+            if (!bitcoinRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("bitcoin", createJsonRpcRuntime(
+                        httpClient,
+                        bitcoinRpcEndpoints,
+                        maximumRequestBytes,
+                        maximumResponseBytes,
+                        jsonRpcBatchEnabled,
                         executionPolicy,
                         cacheConfig));
             }
@@ -224,7 +269,7 @@ public final class Web3Connector
 
     private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, io.trino.spi.type.Type> typeResolver)
     {
-        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(new EthereumChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter());
+        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(new EthereumChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new BitcoinChainAdapter());
         return new ConnectorComponents(
                 adapters,
                 new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),
