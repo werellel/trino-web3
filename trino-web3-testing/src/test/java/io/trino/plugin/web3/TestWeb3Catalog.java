@@ -53,7 +53,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "dogecoin", "ethereum", "information_schema", "litecoin", "polygon", "solana", "system");
+            assertThat(result.getOnlyColumn()).containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "dogecoin", "ethereum", "information_schema", "litecoin", "optimism", "polygon", "solana", "system");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
                     .containsExactly("blocks", "inputs", "outputs", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.litecoin").getOnlyColumn())
@@ -67,6 +67,8 @@ public class TestWeb3Catalog
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
                     .containsExactly("blocks", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.base").getOnlyColumn())
+                    .containsExactly("blocks", "transactions");
+            assertThat(queryRunner.execute("SHOW TABLES FROM web3.optimism").getOnlyColumn())
                     .containsExactly("blocks", "transactions");
             assertThat(queryRunner.execute("DESCRIBE web3.polygon.blocks").getMaterializedRows())
                     .extracting(row -> row.getField(0))
@@ -97,6 +99,7 @@ public class TestWeb3Catalog
                             org.assertj.core.groups.Tuple.tuple("dogecoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("ethereum", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("litecoin", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("optimism", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("polygon", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("solana", false, 0L, false));
         }
@@ -197,7 +200,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "dogecoin", "ethereum", "information_schema", "litecoin", "polygon", "solana", "system");
+                    .containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "dogecoin", "ethereum", "information_schema", "litecoin", "optimism", "polygon", "solana", "system");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))

@@ -25,6 +25,7 @@ import io.trino.plugin.web3.evm.ArbitrumChainAdapter;
 import io.trino.plugin.web3.evm.BnbChainAdapter;
 import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.evm.AvalancheChainAdapter;
+import io.trino.plugin.web3.evm.OptimismChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -82,6 +83,7 @@ public final class Web3Connector
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
@@ -109,6 +111,7 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
@@ -156,6 +159,7 @@ public final class Web3Connector
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
                 bitcoinRpcEndpoints,
@@ -178,6 +182,7 @@ public final class Web3Connector
             int maximumResponseBytes,
             List<URI> ethereumRpcEndpoints,
             List<URI> baseRpcEndpoints,
+            List<URI> optimismRpcEndpoints,
             List<URI> arbitrumRpcEndpoints,
             List<URI> bnbRpcEndpoints,
             List<URI> polygonRpcEndpoints,
@@ -201,6 +206,7 @@ public final class Web3Connector
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
                 baseRpcEndpoints,
+                optimismRpcEndpoints,
                 arbitrumRpcEndpoints,
                 bnbRpcEndpoints,
                 polygonRpcEndpoints,
@@ -227,6 +233,7 @@ public final class Web3Connector
             int maximumResponseBytes,
             List<URI> ethereumRpcEndpoints,
             List<URI> baseRpcEndpoints,
+            List<URI> optimismRpcEndpoints,
             List<URI> arbitrumRpcEndpoints,
             List<URI> bnbRpcEndpoints,
             List<URI> polygonRpcEndpoints,
@@ -264,6 +271,9 @@ public final class Web3Connector
             }
             if (!baseRpcEndpoints.isEmpty()) {
                 configuredRuntimes.put("base", createJsonRpcRuntime(httpClient, baseRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+            }
+            if (!optimismRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("optimism", createJsonRpcRuntime(httpClient, optimismRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
             }
             if (!arbitrumRpcEndpoints.isEmpty()) {
                 configuredRuntimes.put("arbitrum", createJsonRpcRuntime(httpClient, arbitrumRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
@@ -409,6 +419,7 @@ public final class Web3Connector
         ExecutableChainRegistry adapters = ExecutableChainRegistry.of(
                 new EthereumChainAdapter(),
                 new BaseChainAdapter(),
+                new OptimismChainAdapter(),
                 new ArbitrumChainAdapter(),
                 new BnbChainAdapter(),
                 new PolygonChainAdapter(),

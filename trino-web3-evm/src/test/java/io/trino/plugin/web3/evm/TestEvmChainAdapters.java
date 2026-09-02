@@ -29,13 +29,14 @@ final class TestEvmChainAdapters
         List<EvmChainAdapter> adapters = List.of(
                 new EthereumChainAdapter(),
                 new BaseChainAdapter(),
+                new OptimismChainAdapter(),
                 new ArbitrumChainAdapter(),
                 new BnbChainAdapter(),
                 new PolygonChainAdapter(),
                 new AvalancheChainAdapter());
 
         assertThat(adapters).extracting(adapter -> adapter.descriptor().schemaName())
-                .containsExactly("ethereum", "base", "arbitrum", "bnb", "polygon", "avalanche");
+                .containsExactly("ethereum", "base", "optimism", "arbitrum", "bnb", "polygon", "avalanche");
         assertThat(adapters).allSatisfy(adapter -> {
             assertThat(adapter.descriptor().table("blocks")).isPresent();
             assertThat(adapter.descriptor().table("transactions")).isPresent();
@@ -43,6 +44,7 @@ final class TestEvmChainAdapters
         });
 
         assertThat(new BaseChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x2105"))).isEqualTo("0x2105");
+        assertThat(new OptimismChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xA"))).isEqualTo("0xa");
         assertThat(new ArbitrumChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xA4B1"))).isEqualTo("0xa4b1");
         assertThat(new BnbChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x38"))).isEqualTo("0x38");
         assertThat(new PolygonChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x89"))).isEqualTo("0x89");

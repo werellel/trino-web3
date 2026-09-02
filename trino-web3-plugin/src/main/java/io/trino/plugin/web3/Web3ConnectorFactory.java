@@ -38,6 +38,8 @@ public final class Web3ConnectorFactory
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
     private static final String BASE_RPC_URL = "web3.base.rpc-url";
     private static final String BASE_RPC_FALLBACK_URLS = "web3.base.rpc-fallback-urls";
+    private static final String OPTIMISM_RPC_URL = "web3.optimism.rpc-url";
+    private static final String OPTIMISM_RPC_FALLBACK_URLS = "web3.optimism.rpc-fallback-urls";
     private static final String ARBITRUM_RPC_URL = "web3.arbitrum.rpc-url";
     private static final String ARBITRUM_RPC_FALLBACK_URLS = "web3.arbitrum.rpc-fallback-urls";
     private static final String BNB_RPC_URL = "web3.bnb.rpc-url";
@@ -104,11 +106,12 @@ public final class Web3ConnectorFactory
             throw new IllegalArgumentException("web3.ethereum.rpc-url and fallback URLs must contain at most 8 endpoints");
         }
         List<URI> baseEndpoints = parseEndpoints(config, BASE_RPC_URL, BASE_RPC_FALLBACK_URLS, false);
+        List<URI> optimismEndpoints = parseEndpoints(config, OPTIMISM_RPC_URL, OPTIMISM_RPC_FALLBACK_URLS, false);
         List<URI> arbitrumEndpoints = parseEndpoints(config, ARBITRUM_RPC_URL, ARBITRUM_RPC_FALLBACK_URLS, false);
         List<URI> bnbEndpoints = parseEndpoints(config, BNB_RPC_URL, BNB_RPC_FALLBACK_URLS, false);
         List<URI> polygonEndpoints = parseEndpoints(config, POLYGON_RPC_URL, POLYGON_RPC_FALLBACK_URLS, false);
         List<URI> avalancheEndpoints = parseEndpoints(config, AVALANCHE_RPC_URL, AVALANCHE_RPC_FALLBACK_URLS, false);
-        if (baseEndpoints.size() > 8 || arbitrumEndpoints.size() > 8 || bnbEndpoints.size() > 8 || polygonEndpoints.size() > 8 || avalancheEndpoints.size() > 8) {
+        if (baseEndpoints.size() > 8 || optimismEndpoints.size() > 8 || arbitrumEndpoints.size() > 8 || bnbEndpoints.size() > 8 || polygonEndpoints.size() > 8 || avalancheEndpoints.size() > 8) {
             throw new IllegalArgumentException("EVM RPC URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
         List<URI> solanaEndpoints = parseEndpoints(config, SOLANA_RPC_URL, SOLANA_RPC_FALLBACK_URLS, false);
@@ -191,6 +194,7 @@ public final class Web3ConnectorFactory
                 maximumResponseBytes,
                 ethereumEndpoints,
                 baseEndpoints,
+                optimismEndpoints,
                 arbitrumEndpoints,
                 bnbEndpoints,
                 polygonEndpoints,
@@ -213,6 +217,8 @@ public final class Web3ConnectorFactory
                 key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
                 key.equals(BASE_RPC_URL) ||
                 key.equals(BASE_RPC_FALLBACK_URLS) ||
+                key.equals(OPTIMISM_RPC_URL) ||
+                key.equals(OPTIMISM_RPC_FALLBACK_URLS) ||
                 key.equals(ARBITRUM_RPC_URL) ||
                 key.equals(ARBITRUM_RPC_FALLBACK_URLS) ||
                 key.equals(BNB_RPC_URL) ||
