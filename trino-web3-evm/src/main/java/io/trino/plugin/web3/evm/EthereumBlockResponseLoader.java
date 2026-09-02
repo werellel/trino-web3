@@ -42,6 +42,17 @@ final class EthereumBlockResponseLoader
             EthereumFinalityBoundaries boundaries,
             boolean fullTransactions)
     {
+        return load(context, range, boundaries, fullTransactions, "ethereum");
+    }
+
+    public static CompletableFuture<List<JsonNode>> load(
+            ExecutionContext context,
+            BlockRange range,
+            EthereumFinalityBoundaries boundaries,
+            boolean fullTransactions,
+            String chainName)
+    {
+        requireNonNull(chainName, "chainName is null");
         int count = Math.toIntExact(range.size());
         List<JsonNode> values = new ArrayList<>(Collections.nCopies(count, null));
         List<CacheMiss> misses = new ArrayList<>();
@@ -55,7 +66,7 @@ final class EthereumBlockResponseLoader
                 continue;
             }
 
-            RemoteCacheKey referenceKey = blockReferenceKey(blockNumber);
+            RemoteCacheKey referenceKey = blockReferenceKey(chainName, blockNumber);
             Optional<JsonNode> reference = context.getCached(referenceKey);
             if (reference.isEmpty() || !reference.orElseThrow().isTextual()) {
                 reference.ifPresent(ignored -> context.invalidate(referenceKey));
@@ -75,7 +86,7 @@ final class EthereumBlockResponseLoader
                 continue;
             }
 
-            RemoteCacheKey payloadKey = blockPayloadKey(hash, fullTransactions);
+            RemoteCacheKey payloadKey = blockPayloadKey(chainName, hash, fullTransactions);
             Optional<JsonNode> cached = context.getCached(payloadKey);
             if (cached.isPresent()) {
                 try {
@@ -106,9 +117,9 @@ final class EthereumBlockResponseLoader
             }
             for (DecodedMiss item : decoded) {
                 CacheMiss miss = item.miss();
-                context.admit(blockPayloadKey(item.hash(), fullTransactions), item.value());
+                context.admit(blockPayloadKey(chainName, item.hash(), fullTransactions), item.value());
                 if (miss.finality() == EthereumFinality.FINALIZED) {
-                    context.admit(blockReferenceKey(miss.blockNumber()), TextNode.valueOf(item.hash()));
+                    context.admit(blockReferenceKey(chainName, miss.blockNumber()), TextNode.valueOf(item.hash()));
                 }
                 values.set(miss.index(), item.value());
             }
@@ -132,9 +143,9 @@ final class EthereumBlockResponseLoader
         return actualHash;
     }
 
-    private static RemoteCacheKey blockReferenceKey(long blockNumber)
+    private static RemoteCacheKey blockReferenceKey(String chainName, long blockNumber)
     {
-        return new RemoteCacheKey("ethereum", "canonical-block-reference", toQuantity(blockNumber), "hash", 1);
+        return new RemoteCacheKey(chainName, "canonical-block-reference", toQuantity(blockNumber), "hash", 1);
     }
 
     private static void validateRepresentation(JsonNode block, long expectedBlockNumber, boolean fullTransactions)
@@ -144,10 +155,10 @@ final class EthereumBlockResponseLoader
         }
     }
 
-    private static RemoteCacheKey blockPayloadKey(String blockHash, boolean fullTransactions)
+    private static RemoteCacheKey blockPayloadKey(String chainName, String blockHash, boolean fullTransactions)
     {
         return new RemoteCacheKey(
-                "ethereum",
+                chainName,
                 "eth_getBlockByHash",
                 normalizeHash(blockHash, "block hash"),
                 "fullTransactions=" + fullTransactions,

@@ -28,6 +28,11 @@ catalog that can be loaded by Trino and queried with:
 SHOW SCHEMAS FROM web3;
 ```
 
+The EVM adapters expose the same native tables (`blocks` and `transactions`)
+for Ethereum and the supported EVM networks: Base, Arbitrum One, BNB Smart
+Chain, Polygon, and Avalanche C-Chain. Each network has its own schema and
+chain-identity check, while sharing the provider-independent EVM runtime.
+
 The M1 vertical slice exposes `web3.ethereum.blocks` and
 `web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
 `block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
@@ -99,6 +104,9 @@ query blocks:
 connector.name=web3
 web3.ethereum.rpc-url=http://127.0.0.1:8545
 web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
+web3.base.rpc-url=http://127.0.0.1:8545
+# web3.arbitrum.rpc-url, web3.bnb.rpc-url, web3.polygon.rpc-url,
+# and web3.avalanche.rpc-url use the same JSON-RPC contract.
 web3.aptos.rest-url=http://127.0.0.1:8080
 web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
 web3.solana.rpc-url=http://127.0.0.1:8899
@@ -137,6 +145,8 @@ catalog from loading.
 
 `web3.ethereum.rpc-url` is optional when only loading the catalog or reading
 metadata. A query of `ethereum.blocks` without it fails explicitly.
+The Base, Arbitrum, BNB, Polygon, and Avalanche endpoint properties follow
+the same rule and validate `eth_chainId` against their canonical network ID.
 Fallback URLs require their chain's primary URL, must not contain blank or
 duplicate entries, and are limited to eight endpoints including the primary.
 Ethereum and Solana provider URLs may use a provider-specific path or query;

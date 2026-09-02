@@ -59,6 +59,25 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
+    public void testAcceptsBaseEndpointWithCanonicalChainId()
+            throws Exception
+    {
+        HttpServer server = jsonRpcServer("0x2105");
+        try {
+            server.start();
+            try (StandaloneQueryRunner queryRunner = queryRunner()) {
+                queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                        "web3.base.rpc-url", endpoint(server)));
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM web3.system.chains WHERE schema_name = 'base'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     public void testRejectsMismatchedEthereumEndpointsWithoutLeakingCredential()
             throws Exception
     {

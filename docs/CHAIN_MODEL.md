@@ -24,6 +24,11 @@ for transactions, a bounded equality or `IN` predicate on transaction hash.
 The adapter converts those constraints into Ethereum JSON-RPC operations and
 validates response identity before producing rows.
 
+The EVM adapter is reused for Base (`0x2105`), Arbitrum One (`0xa4b1`), BNB
+Smart Chain (`0x38`), Polygon (`0x89`), and Avalanche C-Chain (`0xa86a`). Each
+network is registered as an independent schema (`base`, `arbitrum`, `bnb`,
+`polygon`, or `avalanche`) and uses a separate runtime/cache namespace.
+
 Both EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
 the complete block or transaction object returned by the node. This preserves
 additive provider fields without destabilizing the typed columns; callers can

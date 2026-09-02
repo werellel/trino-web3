@@ -19,6 +19,11 @@ import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
+import io.trino.plugin.web3.evm.ArbitrumChainAdapter;
+import io.trino.plugin.web3.evm.AvalancheChainAdapter;
+import io.trino.plugin.web3.evm.BaseChainAdapter;
+import io.trino.plugin.web3.evm.BnbChainAdapter;
+import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import org.junit.jupiter.api.Test;
@@ -32,6 +37,11 @@ final class TestExecutableChainRegistry
     {
         ExecutableChainRegistry registry = ExecutableChainRegistry.of(
                 new EthereumChainAdapter(),
+                new BaseChainAdapter(),
+                new ArbitrumChainAdapter(),
+                new BnbChainAdapter(),
+                new PolygonChainAdapter(),
+                new AvalancheChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
                 new BitcoinChainAdapter(),
@@ -41,8 +51,13 @@ final class TestExecutableChainRegistry
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("aptos", "bitcoin", "bitcoincash", "dogecoin", "ethereum", "litecoin", "solana");
+                .containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "dogecoin", "ethereum", "litecoin", "polygon", "solana");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
+        assertThat(registry.adapterForSchema("base")).isInstanceOf(BaseChainAdapter.class);
+        assertThat(registry.adapterForSchema("arbitrum")).isInstanceOf(ArbitrumChainAdapter.class);
+        assertThat(registry.adapterForSchema("bnb")).isInstanceOf(BnbChainAdapter.class);
+        assertThat(registry.adapterForSchema("polygon")).isInstanceOf(PolygonChainAdapter.class);
+        assertThat(registry.adapterForSchema("avalanche")).isInstanceOf(AvalancheChainAdapter.class);
         assertThat(registry.adapterForSchema("solana")).isInstanceOf(SolanaChainAdapter.class);
         assertThat(registry.adapterForSchema("aptos")).isInstanceOf(AptosChainAdapter.class);
         assertThat(registry.adapterForSchema("bitcoin")).isInstanceOf(BitcoinChainAdapter.class);

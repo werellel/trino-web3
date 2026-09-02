@@ -20,6 +20,11 @@ import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
 import io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
+import io.trino.plugin.web3.evm.BaseChainAdapter;
+import io.trino.plugin.web3.evm.ArbitrumChainAdapter;
+import io.trino.plugin.web3.evm.BnbChainAdapter;
+import io.trino.plugin.web3.evm.PolygonChainAdapter;
+import io.trino.plugin.web3.evm.AvalancheChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -72,6 +77,11 @@ public final class Web3Connector
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
@@ -99,6 +109,11 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
                 List.of(),
@@ -136,6 +151,60 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                solanaRpcEndpoints,
+                aptosRestEndpoints,
+                bitcoinRpcEndpoints,
+                litecoinRpcEndpoints,
+                dogecoinRpcEndpoints,
+                bitcoinCashRpcEndpoints,
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                createComponents(
+                        maximumTransactionHashesPerQuery,
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+    }
+
+    public Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            List<URI> ethereumRpcEndpoints,
+            List<URI> baseRpcEndpoints,
+            List<URI> arbitrumRpcEndpoints,
+            List<URI> bnbRpcEndpoints,
+            List<URI> polygonRpcEndpoints,
+            List<URI> avalancheRpcEndpoints,
+            List<URI> solanaRpcEndpoints,
+            List<URI> aptosRestEndpoints,
+            List<URI> bitcoinRpcEndpoints,
+            List<URI> litecoinRpcEndpoints,
+            List<URI> dogecoinRpcEndpoints,
+            List<URI> bitcoinCashRpcEndpoints,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            TypeManager typeManager)
+    {
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                ethereumRpcEndpoints,
+                baseRpcEndpoints,
+                arbitrumRpcEndpoints,
+                bnbRpcEndpoints,
+                polygonRpcEndpoints,
+                avalancheRpcEndpoints,
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
                 bitcoinRpcEndpoints,
@@ -157,6 +226,11 @@ public final class Web3Connector
             int maximumRequestBytes,
             int maximumResponseBytes,
             List<URI> ethereumRpcEndpoints,
+            List<URI> baseRpcEndpoints,
+            List<URI> arbitrumRpcEndpoints,
+            List<URI> bnbRpcEndpoints,
+            List<URI> polygonRpcEndpoints,
+            List<URI> avalancheRpcEndpoints,
             List<URI> solanaRpcEndpoints,
             List<URI> aptosRestEndpoints,
             List<URI> bitcoinRpcEndpoints,
@@ -187,6 +261,21 @@ public final class Web3Connector
                         jsonRpcBatchEnabled,
                         executionPolicy,
                         cacheConfig));
+            }
+            if (!baseRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("base", createJsonRpcRuntime(httpClient, baseRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+            }
+            if (!arbitrumRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("arbitrum", createJsonRpcRuntime(httpClient, arbitrumRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+            }
+            if (!bnbRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("bnb", createJsonRpcRuntime(httpClient, bnbRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+            }
+            if (!polygonRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("polygon", createJsonRpcRuntime(httpClient, polygonRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+            }
+            if (!avalancheRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("avalanche", createJsonRpcRuntime(httpClient, avalancheRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
             }
             if (!solanaRpcEndpoints.isEmpty()) {
                 configuredRuntimes.put("solana", createJsonRpcRuntime(
@@ -319,6 +408,11 @@ public final class Web3Connector
     {
         ExecutableChainRegistry adapters = ExecutableChainRegistry.of(
                 new EthereumChainAdapter(),
+                new BaseChainAdapter(),
+                new ArbitrumChainAdapter(),
+                new BnbChainAdapter(),
+                new PolygonChainAdapter(),
+                new AvalancheChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
                 new BitcoinChainAdapter(),

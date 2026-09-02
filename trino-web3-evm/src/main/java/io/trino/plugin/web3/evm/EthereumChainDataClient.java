@@ -33,18 +33,31 @@ import static java.util.Objects.requireNonNull;
 public final class EthereumChainDataClient
         implements ChainDataClient
 {
+    private final String chainName;
     private final EthereumBlockClient blockClient;
     private final EthereumTransactionClient transactionClient;
 
     public EthereumChainDataClient(RemoteExecutionRuntime runtime)
     {
+        this(runtime, "ethereum");
+    }
+
+    public EthereumChainDataClient(RemoteExecutionRuntime runtime, String chainName)
+    {
         requireNonNull(runtime, "runtime is null");
-        blockClient = new EthereumBlockClient(runtime);
-        transactionClient = new EthereumTransactionClient(runtime);
+        this.chainName = requireNonNull(chainName, "chainName is null");
+        blockClient = new EthereumBlockClient(runtime, chainName);
+        transactionClient = new EthereumTransactionClient(runtime, chainName);
     }
 
     public EthereumChainDataClient(EthereumBlockClient blockClient, EthereumTransactionClient transactionClient)
     {
+        this(blockClient, transactionClient, "ethereum");
+    }
+
+    EthereumChainDataClient(EthereumBlockClient blockClient, EthereumTransactionClient transactionClient, String chainName)
+    {
+        this.chainName = requireNonNull(chainName, "chainName is null");
         this.blockClient = requireNonNull(blockClient, "blockClient is null");
         this.transactionClient = requireNonNull(transactionClient, "transactionClient is null");
     }
@@ -56,7 +69,7 @@ public final class EthereumChainDataClient
         requireNonNull(split, "split is null");
         if (tableName.equals("blocks")) {
             if (!(split instanceof RangeChainSplit rangeSplit) || !rangeSplit.column().equals("block_number")) {
-                throw new IllegalArgumentException("ethereum.blocks requires a block range split");
+                throw new IllegalArgumentException(chainName + ".blocks requires a block range split");
             }
             return blockClient.getBlocks(blockRange(rangeSplit))
                     .map(blocks -> blocks.stream().map(EthereumChainDataClient::blockRow).toList());
@@ -70,9 +83,9 @@ public final class EthereumChainDataClient
                 return transactionClient.getTransaction(valueSplit.value())
                         .map(transactions -> transactions.stream().map(EthereumChainDataClient::transactionRow).toList());
             }
-            throw new IllegalArgumentException("ethereum.transactions requires a block range or transaction hash split");
+            throw new IllegalArgumentException(chainName + ".transactions requires a block range or transaction hash split");
         }
-        throw new IllegalArgumentException("unknown executable Ethereum table " + tableName);
+        throw new IllegalArgumentException("unknown executable " + chainName + " table " + tableName);
     }
 
     private static BlockRange blockRange(RangeChainSplit split)

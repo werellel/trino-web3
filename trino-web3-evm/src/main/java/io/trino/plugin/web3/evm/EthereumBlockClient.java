@@ -32,16 +32,28 @@ import static java.util.Objects.requireNonNull;
 public final class EthereumBlockClient
 {
     private final RemoteExecutionRuntime runtime;
+    private final String chainName;
     private final EthereumFinalityResolver finalityResolver;
 
     public EthereumBlockClient(RemoteExecutionRuntime runtime)
     {
-        this(runtime, new EthereumFinalityResolver());
+        this(runtime, "ethereum");
+    }
+
+    public EthereumBlockClient(RemoteExecutionRuntime runtime, String chainName)
+    {
+        this(runtime, chainName, new EthereumFinalityResolver());
     }
 
     EthereumBlockClient(RemoteExecutionRuntime runtime, EthereumFinalityResolver finalityResolver)
     {
+        this(runtime, "ethereum", finalityResolver);
+    }
+
+    EthereumBlockClient(RemoteExecutionRuntime runtime, String chainName, EthereumFinalityResolver finalityResolver)
+    {
         this.runtime = requireNonNull(runtime, "runtime is null");
+        this.chainName = requireNonNull(chainName, "chainName is null");
         this.finalityResolver = requireNonNull(finalityResolver, "finalityResolver is null");
     }
 
@@ -57,7 +69,7 @@ public final class EthereumBlockClient
         CompletableFuture<EthereumFinalityBoundaries> boundaries = finalityResolver.resolve(context);
         active.set(boundaries);
         CompletableFuture<List<EthereumBlock>> result = boundaries.thenCompose(finality -> {
-            CompletableFuture<List<EthereumBlock>> blocks = EthereumBlockResponseLoader.load(context, range, finality, false)
+            CompletableFuture<List<EthereumBlock>> blocks = EthereumBlockResponseLoader.load(context, range, finality, false, chainName)
                     .thenApply(results -> decodeCached(range, results));
             active.set(blocks);
             return blocks;

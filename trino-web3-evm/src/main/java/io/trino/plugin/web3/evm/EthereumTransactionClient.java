@@ -37,16 +37,28 @@ import static java.util.Objects.requireNonNull;
 public final class EthereumTransactionClient
 {
     private final RemoteExecutionRuntime runtime;
+    private final String chainName;
     private final EthereumFinalityResolver finalityResolver;
 
     public EthereumTransactionClient(RemoteExecutionRuntime runtime)
     {
-        this(runtime, new EthereumFinalityResolver());
+        this(runtime, "ethereum");
+    }
+
+    public EthereumTransactionClient(RemoteExecutionRuntime runtime, String chainName)
+    {
+        this(runtime, chainName, new EthereumFinalityResolver());
     }
 
     EthereumTransactionClient(RemoteExecutionRuntime runtime, EthereumFinalityResolver finalityResolver)
     {
+        this(runtime, "ethereum", finalityResolver);
+    }
+
+    EthereumTransactionClient(RemoteExecutionRuntime runtime, String chainName, EthereumFinalityResolver finalityResolver)
+    {
         this.runtime = requireNonNull(runtime, "runtime is null");
+        this.chainName = requireNonNull(chainName, "chainName is null");
         this.finalityResolver = requireNonNull(finalityResolver, "finalityResolver is null");
     }
 
@@ -62,7 +74,7 @@ public final class EthereumTransactionClient
         CompletableFuture<EthereumFinalityBoundaries> boundaries = finalityResolver.resolve(context);
         active.set(boundaries);
         CompletableFuture<List<EthereumTransaction>> result = boundaries.thenCompose(finality -> {
-            CompletableFuture<List<EthereumTransaction>> transactions = EthereumBlockResponseLoader.load(context, range, finality, true)
+            CompletableFuture<List<EthereumTransaction>> transactions = EthereumBlockResponseLoader.load(context, range, finality, true, chainName)
                     .thenApply(results -> decode(range, results));
             active.set(transactions);
             return transactions;
@@ -91,7 +103,7 @@ public final class EthereumTransactionClient
     {
         String hash = normalizeHash(transactionHash, "transaction hash");
         ExecutionContext context = runtime.newExecutionContext();
-        RemoteCacheKey key = transactionKey(hash);
+        RemoteCacheKey key = transactionKey(chainName, hash);
         Optional<JsonNode> cached = context.getCached(key);
         if (cached.isPresent()) {
             try {
@@ -228,10 +240,10 @@ public final class EthereumTransactionClient
         return requiredQuantity(node, fieldName);
     }
 
-    private static RemoteCacheKey transactionKey(String transactionHash)
+    private static RemoteCacheKey transactionKey(String chainName, String transactionHash)
     {
         return new RemoteCacheKey(
-                "ethereum",
+                chainName,
                 "eth_getTransactionByHash",
                 transactionHash.toLowerCase(Locale.ENGLISH),
                 "transaction-with-inclusion",

@@ -15,11 +15,10 @@ package io.trino.plugin.web3.evm;
 
 import java.util.Optional;
 
-public final class EthereumChainAdapter
-        extends EvmChainAdapter
+public final class AvalancheChainAdapter extends EvmChainAdapter
 {
-    public EthereumChainAdapter()
+    public AvalancheChainAdapter()
     {
-        super("ethereum", "ethereum-chain.json", Optional.empty());
+        super("avalanche", "avalanche-chain.json", Optional.of("0xa86a"));
     }
 }

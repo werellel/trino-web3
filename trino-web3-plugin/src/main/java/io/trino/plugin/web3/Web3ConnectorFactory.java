@@ -36,6 +36,16 @@ public final class Web3ConnectorFactory
     public static final String CONNECTOR_NAME = "web3";
     private static final String ETHEREUM_RPC_URL = "web3.ethereum.rpc-url";
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
+    private static final String BASE_RPC_URL = "web3.base.rpc-url";
+    private static final String BASE_RPC_FALLBACK_URLS = "web3.base.rpc-fallback-urls";
+    private static final String ARBITRUM_RPC_URL = "web3.arbitrum.rpc-url";
+    private static final String ARBITRUM_RPC_FALLBACK_URLS = "web3.arbitrum.rpc-fallback-urls";
+    private static final String BNB_RPC_URL = "web3.bnb.rpc-url";
+    private static final String BNB_RPC_FALLBACK_URLS = "web3.bnb.rpc-fallback-urls";
+    private static final String POLYGON_RPC_URL = "web3.polygon.rpc-url";
+    private static final String POLYGON_RPC_FALLBACK_URLS = "web3.polygon.rpc-fallback-urls";
+    private static final String AVALANCHE_RPC_URL = "web3.avalanche.rpc-url";
+    private static final String AVALANCHE_RPC_FALLBACK_URLS = "web3.avalanche.rpc-fallback-urls";
     private static final String SOLANA_RPC_URL = "web3.solana.rpc-url";
     private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
@@ -92,6 +102,14 @@ public final class Web3ConnectorFactory
         List<URI> ethereumEndpoints = parseEndpoints(config, ETHEREUM_RPC_URL, ETHEREUM_RPC_FALLBACK_URLS, false);
         if (ethereumEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.ethereum.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> baseEndpoints = parseEndpoints(config, BASE_RPC_URL, BASE_RPC_FALLBACK_URLS, false);
+        List<URI> arbitrumEndpoints = parseEndpoints(config, ARBITRUM_RPC_URL, ARBITRUM_RPC_FALLBACK_URLS, false);
+        List<URI> bnbEndpoints = parseEndpoints(config, BNB_RPC_URL, BNB_RPC_FALLBACK_URLS, false);
+        List<URI> polygonEndpoints = parseEndpoints(config, POLYGON_RPC_URL, POLYGON_RPC_FALLBACK_URLS, false);
+        List<URI> avalancheEndpoints = parseEndpoints(config, AVALANCHE_RPC_URL, AVALANCHE_RPC_FALLBACK_URLS, false);
+        if (baseEndpoints.size() > 8 || arbitrumEndpoints.size() > 8 || bnbEndpoints.size() > 8 || polygonEndpoints.size() > 8 || avalancheEndpoints.size() > 8) {
+            throw new IllegalArgumentException("EVM RPC URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
         List<URI> solanaEndpoints = parseEndpoints(config, SOLANA_RPC_URL, SOLANA_RPC_FALLBACK_URLS, false);
         if (solanaEndpoints.size() > 8) {
@@ -172,6 +190,11 @@ public final class Web3ConnectorFactory
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumEndpoints,
+                baseEndpoints,
+                arbitrumEndpoints,
+                bnbEndpoints,
+                polygonEndpoints,
+                avalancheEndpoints,
                 solanaEndpoints,
                 aptosEndpoints,
                 bitcoinEndpoints,
@@ -188,6 +211,16 @@ public final class Web3ConnectorFactory
     {
         return key.equals(ETHEREUM_RPC_URL) ||
                 key.equals(ETHEREUM_RPC_FALLBACK_URLS) ||
+                key.equals(BASE_RPC_URL) ||
+                key.equals(BASE_RPC_FALLBACK_URLS) ||
+                key.equals(ARBITRUM_RPC_URL) ||
+                key.equals(ARBITRUM_RPC_FALLBACK_URLS) ||
+                key.equals(BNB_RPC_URL) ||
+                key.equals(BNB_RPC_FALLBACK_URLS) ||
+                key.equals(POLYGON_RPC_URL) ||
+                key.equals(POLYGON_RPC_FALLBACK_URLS) ||
+                key.equals(AVALANCHE_RPC_URL) ||
+                key.equals(AVALANCHE_RPC_FALLBACK_URLS) ||
                 key.equals(SOLANA_RPC_URL) ||
                 key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||
