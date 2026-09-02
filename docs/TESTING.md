@@ -14,6 +14,13 @@ integration test extracts the distribution ZIP, loads it with a Trino plugin
 classloader, proves that Trino's cache library is packaged, and executes a
 cache-enabled non-batch fallback query against local mock RPC servers.
 
+M5.4 regression tests reject fallback-only, blank, and duplicate endpoint
+configuration without exposing values. They also prove that malformed numeric
+and size values do not echo secrets, and that credential-bearing JSON-RPC
+connection failures surface an endpoint-free transport error. Runtime-close
+tests cover queued work, retry backoff, in-flight transport cancellation, and
+late cache admission.
+
 M3 tests cover weight eviction, maximum-entry bypass, caller-value isolation,
 cache lifecycle cleanup, scoped metric isolation, finalized block and
 transaction reuse, hash normalization, pending and missing transactions,

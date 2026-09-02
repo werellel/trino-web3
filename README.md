@@ -7,7 +7,9 @@ model rather than forcing non-EVM chains into an EVM schema.
 ## Status
 
 Milestones M0 through M4 are complete. M5.1 adds safe coordinator-local runtime
-snapshots through `web3.system`. M4 established a versioned declarative contract,
+snapshots through `web3.system`, M5.2 validates endpoint-native network identity,
+M5.3 publishes safe runtime metrics, and M5.4 hardens configuration, endpoint
+secrecy, and shutdown behavior. M4 established a versioned declarative contract,
 an executable adapter registry, and routes Ethereum metadata, bounded split
 planning, and row decoding through the same
 code-based adapter. Descriptor method bindings now also select bounded access
@@ -52,6 +54,8 @@ for the complete contract.
 
 Runtime and page-source metric names, units, aggregation, and privacy guarantees
 are documented in [metrics](docs/METRICS.md).
+Endpoint handling, secret-safety, and lifecycle guarantees are documented in
+[security guidance](docs/SECURITY.md).
 
 ## Chain endpoint configuration
 
@@ -92,6 +96,13 @@ catalog from loading.
 
 `web3.ethereum.rpc-url` is optional when only loading the catalog or reading
 metadata. A query of `ethereum.blocks` without it fails explicitly.
+Fallback URLs require their chain's primary URL, must not contain blank or
+duplicate entries, and are limited to eight endpoints including the primary.
+Ethereum and Solana provider URLs may use a provider-specific path or query;
+those values can carry credentials and are therefore never rendered in
+connector errors, logs, metrics, or system tables. Keep catalog property files
+and their filesystem permissions secret-safe. Aptos intentionally accepts only
+credential-free HTTP(S) origins because the adapter owns its fixed REST paths.
 `web3.aptos.rest-url` follows the same metadata-only rule and must be an
 HTTP(S) origin without credentials, a path, query, or fragment. Aptos REST
 requests share the configured concurrency, queue, rate, retry, cooldown,
@@ -147,9 +158,14 @@ Decoded cache reads are bounded per execution by the configured maximum RPC
 response size, and PageSources report memory retained by decoded rows while
 they own those rows.
 Worker-global entry count, retained bytes, and eviction count are available to
-the runtime lifecycle owner. Their operator-facing `system.cache_stats`
-surface remains an M5 deliverable because those values cannot be attributed to
-one PageSource truthfully.
+the runtime lifecycle owner through `web3.system.cache_stats`; they cannot be
+attributed truthfully to one PageSource.
+
+Each configured schema has one worker-local runtime. The connector creates one
+shared JDK HTTP client for those runtimes, reusing its connection pool rather
+than creating clients per query or split. `Connector.shutdown()` cancels queued
+and in-flight runtime work, clears retained cache entries, and stops each
+runtime scheduler; it is safe when called more than once.
 
 Build `trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip`
 with `mvn package`, then extract it as one Trino plugin directory. The ZIP

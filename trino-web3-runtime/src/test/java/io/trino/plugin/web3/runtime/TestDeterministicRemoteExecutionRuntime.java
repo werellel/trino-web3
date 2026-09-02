@@ -278,6 +278,20 @@ public class TestDeterministicRemoteExecutionRuntime
     }
 
     @Test
+    public void testRuntimeCloseIsIdempotent()
+    {
+        ManualScheduler scheduler = new ManualScheduler();
+        RecordingTransport transport = new RecordingTransport();
+        ProviderProfile provider = provider("primary", true);
+        RemoteExecutionRuntime runtime = runtime(List.of(provider), Map.of(provider.name(), transport), policy(1, 10, 10, 1, 100), scheduler);
+
+        runtime.close();
+        runtime.close();
+
+        assertThat(scheduler.closeCalls()).isOne();
+    }
+
+    @Test
     public void testCancelledExecutionContextPreventsCacheAdmission()
     {
         ManualScheduler scheduler = new ManualScheduler();
@@ -698,6 +712,7 @@ public class TestDeterministicRemoteExecutionRuntime
         private long nanoTime;
         private long sequence;
         private boolean closed;
+        private int closeCalls;
 
         @Override
         public long nanoTime()
@@ -736,9 +751,15 @@ public class TestDeterministicRemoteExecutionRuntime
             return closed;
         }
 
+        public int closeCalls()
+        {
+            return closeCalls;
+        }
+
         @Override
         public void close()
         {
+            closeCalls++;
             closed = true;
             tasks.clear();
         }

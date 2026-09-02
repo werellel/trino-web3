@@ -87,6 +87,12 @@ Each configured chain schema owns one runtime and the catalog connector closes a
 in-flight HTTP request when no longer needed. The runtime does not create an
 executor or HTTP client per query or split.
 
+One connector-owned JDK `HttpClient` is shared by all configured runtimes so
+connection reuse remains catalog-scoped. Connector construction closes every
+runtime already created if a later runtime or endpoint identity check fails.
+Shutdown is idempotent: it cancels work, clears the runtime cache, and stops
+the scheduler without relying on garbage collection.
+
 Each single-flight subscriber is independently cancellable. A queued operation
 is removed as soon as its last subscriber cancels. A wire batch is cancelled
 only after every operation in that batch has no remaining subscribers.

@@ -22,10 +22,11 @@ import io.trino.plugin.web3.runtime.RemoteCacheConfig;
 
 import java.time.Duration;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -189,17 +190,28 @@ public final class Web3ConnectorFactory
             String fallbackProperty,
             boolean requireOrigin)
     {
-        return Stream.concat(
-                        Optional.ofNullable(config.get(primaryProperty))
-                                .map(value -> parseEndpoint(value, primaryProperty, requireOrigin))
-                                .stream(),
-                        Optional.ofNullable(config.get(fallbackProperty))
-                                .stream()
-                                .flatMap(value -> Stream.of(value.split(",")))
-                                .map(String::trim)
-                                .filter(value -> !value.isEmpty())
-                                .map(value -> parseEndpoint(value, fallbackProperty, requireOrigin)))
-                .toList();
+        List<URI> endpoints = new ArrayList<>();
+        Optional.ofNullable(config.get(primaryProperty))
+                .map(value -> parseEndpoint(value, primaryProperty, requireOrigin))
+                .ifPresent(endpoints::add);
+
+        String fallbackValues = config.get(fallbackProperty);
+        if (fallbackValues != null) {
+            if (endpoints.isEmpty()) {
+                throw new IllegalArgumentException(fallbackProperty + " requires " + primaryProperty);
+            }
+            for (String value : fallbackValues.split(",", -1)) {
+                String endpoint = value.trim();
+                if (endpoint.isEmpty()) {
+                    throw new IllegalArgumentException(fallbackProperty + " must not contain empty endpoints");
+                }
+                endpoints.add(parseEndpoint(endpoint, fallbackProperty, requireOrigin));
+            }
+        }
+        if (new HashSet<>(endpoints).size() != endpoints.size()) {
+            throw new IllegalArgumentException(primaryProperty + " and " + fallbackProperty + " must not contain duplicate endpoints");
+        }
+        return List.copyOf(endpoints);
     }
 
     private static URI parseEndpoint(String value, String propertyName, boolean requireOrigin)
@@ -219,7 +231,7 @@ public final class Web3ConnectorFactory
             uri = URI.create(value);
         }
         catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(propertyName + " contains an invalid URL", e.getCause());
+            throw new IllegalArgumentException(propertyName + " contains an invalid URL");
         }
         if (!uri.isAbsolute() || !(uri.getScheme().equals("http") || uri.getScheme().equals("https")) || uri.getHost() == null || uri.getFragment() != null) {
             throw new IllegalArgumentException(propertyName + " must contain absolute HTTP(S) URLs without fragments");
@@ -236,7 +248,13 @@ public final class Web3ConnectorFactory
 
     private static long parseBoundedPositiveLong(String value, String propertyName, long maximum)
     {
-        long parsed = Long.parseLong(value);
+        long parsed;
+        try {
+            parsed = Long.parseLong(value);
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalArgumentException(propertyName + " must contain an integer");
+        }
         if (parsed < 1 || parsed > maximum) {
             throw new IllegalArgumentException(propertyName + " must be between 1 and " + maximum);
         }
@@ -261,7 +279,7 @@ public final class Web3ConnectorFactory
             bytes = DataSize.valueOf(value).toBytes();
         }
         catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(propertyName + " must contain a valid data size", e);
+            throw new IllegalArgumentException(propertyName + " must contain a valid data size");
         }
         if (bytes < minimumBytes || bytes > maximumBytes) {
             throw new IllegalArgumentException(propertyName + " must be between " + DataSize.ofBytes(minimumBytes) + " and " + DataSize.ofBytes(maximumBytes));
@@ -276,7 +294,7 @@ public final class Web3ConnectorFactory
             duration = io.airlift.units.Duration.valueOf(value).toJavaTime();
         }
         catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(propertyName + " must contain a valid duration", e);
+            throw new IllegalArgumentException(propertyName + " must contain a valid duration");
         }
         if (duration.isZero() || duration.isNegative()) {
             throw new IllegalArgumentException(propertyName + " must be positive");

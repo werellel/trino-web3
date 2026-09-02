@@ -916,6 +916,9 @@ public final class RemoteExecutionRuntime
         List<Subscriber> subscribers;
         List<CompletableFuture<List<JsonNode>>> responses;
         synchronized (lock) {
+            if (closed) {
+                return;
+            }
             closed = true;
             subscribers = sharedOperations.values().stream()
                     .flatMap(operation -> operation.subscribers.stream())

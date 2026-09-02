@@ -93,7 +93,13 @@ public final class RestClient
         CompletableFuture<HttpResponse<InputStream>> response = httpClient.sendAsync(
                 builder.build(),
                 HttpResponse.BodyHandlers.ofInputStream());
-        CompletableFuture<JsonNode> result = response.thenApply(this::readResponse);
+        CompletableFuture<HttpResponse<InputStream>> sanitizedResponse = response.handle((value, failure) -> {
+            if (failure != null) {
+                throw RemoteTransportException.sanitize(failure);
+            }
+            return value;
+        });
+        CompletableFuture<JsonNode> result = sanitizedResponse.thenApply(this::readResponse);
         result.whenComplete((value, failure) -> {
             if (result.isCancelled()) {
                 response.cancel(true);
@@ -108,7 +114,7 @@ public final class RestClient
             return objectMapper.writeValueAsBytes(body);
         }
         catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("REST request body cannot be serialized", e);
+            throw new IllegalArgumentException("REST request body cannot be serialized");
         }
     }
 
@@ -140,7 +146,7 @@ public final class RestClient
             return value;
         }
         catch (IOException e) {
-            throw new IllegalStateException("REST endpoint returned malformed JSON", e);
+            throw new IllegalStateException("REST endpoint returned malformed JSON");
         }
     }
 

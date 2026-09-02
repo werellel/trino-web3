@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 public class TestJsonRpcClient
 {
@@ -71,6 +72,24 @@ public class TestJsonRpcClient
 
         assertThatThrownBy(() -> client.executeBatch(List.of(request())).join())
                 .isInstanceOf(CompletionException.class);
+    }
+
+    @Test
+    public void testSanitizesCredentialBearingEndpointTransportFailure()
+    {
+        String secret = "do-not-leak-transport-token";
+        JsonRpcClient client = new JsonRpcClient(
+                HttpClient.newHttpClient(),
+                URI.create("http://" + secret + "@127.0.0.1:1/?api_key=" + secret),
+                Duration.ofMillis(100),
+                1_024,
+                1_024);
+
+        Throwable failure = catchThrowable(() -> client.execute(request()).join());
+
+        assertThat(failure)
+                .hasRootCauseInstanceOf(RemoteTransportException.class);
+        assertThat(messages(failure)).doesNotContain(secret);
     }
 
     @Test
@@ -147,6 +166,15 @@ public class TestJsonRpcClient
     private static JsonRpcClient.JsonRpcRequest request()
     {
         return new JsonRpcClient.JsonRpcRequest(1, "eth_chainId", List.of());
+    }
+
+    private static String messages(Throwable failure)
+    {
+        StringBuilder messages = new StringBuilder();
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            messages.append(current.getMessage());
+        }
+        return messages.toString();
     }
 
     private void handleRequest(HttpExchange exchange)

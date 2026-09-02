@@ -181,6 +181,20 @@ public class TestWeb3Catalog
                     "web3.maximum-transaction-hashes-per-query", "0")))
                     .hasMessageContaining("web3.maximum-transaction-hashes-per-query must be between 1 and 10000");
 
+            assertThatThrownBy(() -> queryRunner.createCatalog("fallback_without_primary", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:8000")))
+                    .hasMessageContaining("web3.ethereum.rpc-fallback-urls requires web3.ethereum.rpc-url");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("empty_fallback", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://127.0.0.1:8000",
+                    "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:8001,")))
+                    .hasMessageContaining("web3.ethereum.rpc-fallback-urls must not contain empty endpoints");
+
+            assertThatThrownBy(() -> queryRunner.createCatalog("duplicate_endpoint", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.ethereum.rpc-url", "http://127.0.0.1:8000",
+                    "web3.ethereum.rpc-fallback-urls", "http://127.0.0.1:8000")))
+                    .hasMessageContaining("must not contain duplicate endpoints");
+
             String secret = "do-not-leak-token";
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_url", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.ethereum.rpc-url", "http://" + secret + "@[invalid")))
@@ -205,6 +219,18 @@ public class TestWeb3Catalog
                     "web3.solana.rpc-url", "http://" + solanaSecret + "@[invalid")))
                     .hasMessageContaining("web3.solana.rpc-url contains an invalid URL")
                     .hasMessageNotContaining(solanaSecret);
+
+            String numericSecret = "do-not-leak-numeric-token";
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_numeric_value", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.rpc.maximum-concurrency", numericSecret)))
+                    .hasMessageContaining("web3.rpc.maximum-concurrency must contain an integer")
+                    .hasMessageNotContaining(numericSecret);
+
+            String sizeSecret = "do-not-leak-size-token";
+            assertThatThrownBy(() -> queryRunner.createCatalog("invalid_size_value", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
+                    "web3.cache.maximum-size", sizeSecret)))
+                    .hasMessageContaining("web3.cache.maximum-size must contain a valid data size")
+                    .hasMessageNotContaining(sizeSecret);
         }
     }
 

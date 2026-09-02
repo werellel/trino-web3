@@ -625,8 +625,9 @@ with native tables for each chain.
 M5.1 delivers safe local runtime snapshots through the five target system
 tables. M5.2 validates native network identity across every configured primary
 and fallback endpoint without bypassing the runtime. M5.3 publishes stable
-Trino page-source metrics and safe provider-role runtime counters. Release
-engineering and the remaining production-hardening work remain in M5.
+Trino page-source metrics and safe provider-role runtime counters. M5.4 closes
+configuration, endpoint secrecy, and connector/runtime lifecycle hardening.
+Release engineering and the remaining production-hardening work remain in M5.
 
 ## Goal
 

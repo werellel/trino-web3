@@ -83,7 +83,7 @@ public final class JsonRpcClient
             payload = objectMapper.writeValueAsBytes(requestValue);
         }
         catch (IOException e) {
-            return CompletableFuture.failedFuture(e);
+            return CompletableFuture.failedFuture(new IllegalStateException("JSON-RPC request cannot be serialized"));
         }
         if (payload.length > maximumRequestBytes) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("JSON-RPC request exceeds maximumRequestBytes"));
@@ -95,7 +95,13 @@ public final class JsonRpcClient
                 .POST(HttpRequest.BodyPublishers.ofByteArray(payload))
                 .build();
         CompletableFuture<HttpResponse<InputStream>> response = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream());
-        CompletableFuture<T> results = response.thenApply(parser);
+        CompletableFuture<HttpResponse<InputStream>> sanitizedResponse = response.handle((value, failure) -> {
+            if (failure != null) {
+                throw RemoteTransportException.sanitize(failure);
+            }
+            return value;
+        });
+        CompletableFuture<T> results = sanitizedResponse.thenApply(parser);
         results.whenComplete((value, failure) -> {
             if (results.isCancelled()) {
                 response.cancel(true);
@@ -154,7 +160,7 @@ public final class JsonRpcClient
             return objectMapper.readTree(bytes);
         }
         catch (IOException e) {
-            throw new IllegalStateException("JSON-RPC endpoint returned malformed JSON", e);
+            throw new IllegalStateException("JSON-RPC endpoint returned malformed JSON");
         }
     }
 

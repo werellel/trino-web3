@@ -124,36 +124,36 @@ public final class Web3Connector
                 components.adapters());
         HttpClient httpClient = HttpClient.newHttpClient();
         Map<String, RemoteExecutionRuntime> configuredRuntimes = new LinkedHashMap<>();
-        if (!ethereumRpcEndpoints.isEmpty()) {
-            configuredRuntimes.put("ethereum", createJsonRpcRuntime(
-                    httpClient,
-                    ethereumRpcEndpoints,
-                    maximumRequestBytes,
-                    maximumResponseBytes,
-                    jsonRpcBatchEnabled,
-                    executionPolicy,
-                    cacheConfig));
-        }
-        if (!solanaRpcEndpoints.isEmpty()) {
-            configuredRuntimes.put("solana", createJsonRpcRuntime(
-                    httpClient,
-                    solanaRpcEndpoints,
-                    maximumRequestBytes,
-                    maximumResponseBytes,
-                    jsonRpcBatchEnabled,
-                    executionPolicy,
-                    cacheConfig));
-        }
-        if (!aptosRestEndpoints.isEmpty()) {
-            configuredRuntimes.put("aptos", createRestRuntime(
-                    httpClient,
-                    aptosRestEndpoints,
-                    maximumRequestBytes,
-                    maximumResponseBytes,
-                    executionPolicy,
-                    cacheConfig));
-        }
         try {
+            if (!ethereumRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("ethereum", createJsonRpcRuntime(
+                        httpClient,
+                        ethereumRpcEndpoints,
+                        maximumRequestBytes,
+                        maximumResponseBytes,
+                        jsonRpcBatchEnabled,
+                        executionPolicy,
+                        cacheConfig));
+            }
+            if (!solanaRpcEndpoints.isEmpty()) {
+                configuredRuntimes.put("solana", createJsonRpcRuntime(
+                        httpClient,
+                        solanaRpcEndpoints,
+                        maximumRequestBytes,
+                        maximumResponseBytes,
+                        jsonRpcBatchEnabled,
+                        executionPolicy,
+                        cacheConfig));
+            }
+            if (!aptosRestEndpoints.isEmpty()) {
+                configuredRuntimes.put("aptos", createRestRuntime(
+                        httpClient,
+                        aptosRestEndpoints,
+                        maximumRequestBytes,
+                        maximumResponseBytes,
+                        executionPolicy,
+                        cacheConfig));
+            }
             verifyEndpointIdentities(components.adapters(), configuredRuntimes);
             runtimes = Map.copyOf(configuredRuntimes);
             pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
