@@ -88,7 +88,9 @@ failure. All fixtures are local.
 
 `BenchmarkRemoteResultCache` is a JMH benchmark for cache hit, miss, and
 serialization/admission costs at 1 KiB and 64 KiB payload sizes. Generate its
-test classes and classpath, then run it with the same Java 23 used by Maven:
+test classes and classpath, then run it with the same Java 23 used by Maven.
+`BenchmarkRemoteExecution` additionally compares one-operation requests with
+100-operation JSON-RPC batching and the rate-admission path:
 
 ```bash
 mvn -pl trino-web3-runtime clean test-compile
@@ -97,5 +99,6 @@ mvn -pl trino-web3-runtime dependency:build-classpath \
     -Dmdep.outputFile=target/jmh-classpath.txt
 JAVA_23_BIN=/path/to/java-23/bin/java
 "$JAVA_23_BIN" -cp "trino-web3-runtime/target/test-classes:trino-web3-runtime/target/classes:$(< trino-web3-runtime/target/jmh-classpath.txt)" \
-    org.openjdk.jmh.Main '.*BenchmarkRemoteResultCache.*'
+    org.openjdk.jmh.Main \
+    '.*BenchmarkRemoteExecution.*|.*BenchmarkRemoteResultCache.*'
 ```

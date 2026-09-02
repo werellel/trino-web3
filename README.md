@@ -56,6 +56,11 @@ Runtime and page-source metric names, units, aggregation, and privacy guarantees
 are documented in [metrics](docs/METRICS.md).
 Endpoint handling, secret-safety, and lifecycle guarantees are documented in
 [security guidance](docs/SECURITY.md).
+Supported versions are listed in the [compatibility matrix](docs/COMPATIBILITY.md);
+release and upgrade steps are in [releasing](docs/RELEASING.md), with changes
+tracked in [CHANGELOG.md](CHANGELOG.md).
+Reproducible local performance measurements are described in
+[benchmarks](docs/BENCHMARKS.md).
 
 ## Chain endpoint configuration
 
@@ -216,6 +221,10 @@ packaged-plugin integration test:
 ```bash
 mvn verify
 ```
+
+The supported release line is tested in CI through an explicit Trino 475
+matrix. See [compatibility](docs/COMPATIBILITY.md) for the policy and
+[releasing](docs/RELEASING.md) for tagged builds.
 
 The test suite starts in-process Trino runners and deterministic local JSON-RPC
 and REST mocks. It does not contact a provider and requires no credentials or

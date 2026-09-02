@@ -627,7 +627,9 @@ tables. M5.2 validates native network identity across every configured primary
 and fallback endpoint without bypassing the runtime. M5.3 publishes stable
 Trino page-source metrics and safe provider-role runtime counters. M5.4 closes
 configuration, endpoint secrecy, and connector/runtime lifecycle hardening.
-Release engineering and the remaining production-hardening work remain in M5.
+Release engineering is documented and automated for the Trino 475 line; the
+reproducible benchmark suite covers remote execution and cache paths. The
+remaining M5 work is final external-user acceptance review.
 
 ## Goal
 

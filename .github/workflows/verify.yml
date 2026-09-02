@@ -11,6 +11,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        # Keep the declared compatibility line explicit. Add a previous line
+        # here only after it is supported and tested by the project.
+        trino_version: ['475']
 
     steps:
       - uses: actions/checkout@v4
@@ -20,5 +26,5 @@ jobs:
           distribution: temurin
           java-version: '23'
           cache: maven
-      - name: Verify
-        run: mvn --batch-mode --errors verify
+      - name: Verify Trino ${{ matrix.trino_version }}
+        run: mvn --batch-mode --errors -Dtrino.version=${{ matrix.trino_version }} verify
