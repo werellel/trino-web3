@@ -48,6 +48,36 @@ public final class Web3ConnectorFactory
     private static final String POLYGON_RPC_FALLBACK_URLS = "web3.polygon.rpc-fallback-urls";
     private static final String AVALANCHE_RPC_URL = "web3.avalanche.rpc-url";
     private static final String AVALANCHE_RPC_FALLBACK_URLS = "web3.avalanche.rpc-fallback-urls";
+    private static final String GNOSIS_RPC_URL = "web3.gnosis.rpc-url";
+    private static final String GNOSIS_RPC_FALLBACK_URLS = "web3.gnosis.rpc-fallback-urls";
+    private static final String KAIA_RPC_URL = "web3.kaia.rpc-url";
+    private static final String KAIA_RPC_FALLBACK_URLS = "web3.kaia.rpc-fallback-urls";
+    private static final String ARC_RPC_URL = "web3.arc.rpc-url";
+    private static final String ARC_RPC_FALLBACK_URLS = "web3.arc.rpc-fallback-urls";
+    private static final String STORY_RPC_URL = "web3.story.rpc-url";
+    private static final String STORY_RPC_FALLBACK_URLS = "web3.story.rpc-fallback-urls";
+    private static final String BOBA_RPC_URL = "web3.boba.rpc-url";
+    private static final String BOBA_RPC_FALLBACK_URLS = "web3.boba.rpc-fallback-urls";
+    private static final String CELO_RPC_URL = "web3.celo.rpc-url";
+    private static final String CELO_RPC_FALLBACK_URLS = "web3.celo.rpc-fallback-urls";
+    private static final String HYPEREVM_RPC_URL = "web3.hyperevm.rpc-url";
+    private static final String HYPEREVM_RPC_FALLBACK_URLS = "web3.hyperevm.rpc-fallback-urls";
+    private static final String ABSTRACT_RPC_URL = "web3.abstract.rpc-url";
+    private static final String ABSTRACT_RPC_FALLBACK_URLS = "web3.abstract.rpc-fallback-urls";
+    private static final String ANIME_RPC_URL = "web3.anime.rpc-url";
+    private static final String ANIME_RPC_FALLBACK_URLS = "web3.anime.rpc-fallback-urls";
+    private static final String APECHAIN_RPC_URL = "web3.apechain.rpc-url";
+    private static final String APECHAIN_RPC_FALLBACK_URLS = "web3.apechain.rpc-fallback-urls";
+    private static final String DEGEN_RPC_URL = "web3.degen.rpc-url";
+    private static final String DEGEN_RPC_FALLBACK_URLS = "web3.degen.rpc-fallback-urls";
+    private static final String INK_RPC_URL = "web3.ink.rpc-url";
+    private static final String INK_RPC_FALLBACK_URLS = "web3.ink.rpc-fallback-urls";
+    private static final String JOVAY_RPC_URL = "web3.jovay.rpc-url";
+    private static final String JOVAY_RPC_FALLBACK_URLS = "web3.jovay.rpc-fallback-urls";
+    private static final String CROSSFI_RPC_URL = "web3.crossfi.rpc-url";
+    private static final String CROSSFI_RPC_FALLBACK_URLS = "web3.crossfi.rpc-fallback-urls";
+    private static final String LINEA_RPC_URL = "web3.linea.rpc-url";
+    private static final String LINEA_RPC_FALLBACK_URLS = "web3.linea.rpc-fallback-urls";
     private static final String SOLANA_RPC_URL = "web3.solana.rpc-url";
     private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
@@ -123,6 +153,24 @@ public final class Web3ConnectorFactory
         List<URI> avalancheEndpoints = parseEndpoints(config, AVALANCHE_RPC_URL, AVALANCHE_RPC_FALLBACK_URLS, false);
         if (baseEndpoints.size() > 8 || optimismEndpoints.size() > 8 || arbitrumEndpoints.size() > 8 || bnbEndpoints.size() > 8 || polygonEndpoints.size() > 8 || avalancheEndpoints.size() > 8) {
             throw new IllegalArgumentException("EVM RPC URLs and fallback URLs must contain at most 8 endpoints per chain");
+        }
+        List<URI> gnosisEndpoints = parseEndpoints(config, GNOSIS_RPC_URL, GNOSIS_RPC_FALLBACK_URLS, false);
+        List<URI> kaiaEndpoints = parseEndpoints(config, KAIA_RPC_URL, KAIA_RPC_FALLBACK_URLS, false);
+        List<URI> arcEndpoints = parseEndpoints(config, ARC_RPC_URL, ARC_RPC_FALLBACK_URLS, false);
+        List<URI> storyEndpoints = parseEndpoints(config, STORY_RPC_URL, STORY_RPC_FALLBACK_URLS, false);
+        List<URI> bobaEndpoints = parseEndpoints(config, BOBA_RPC_URL, BOBA_RPC_FALLBACK_URLS, false);
+        List<URI> celoEndpoints = parseEndpoints(config, CELO_RPC_URL, CELO_RPC_FALLBACK_URLS, false);
+        List<URI> hyperEvmEndpoints = parseEndpoints(config, HYPEREVM_RPC_URL, HYPEREVM_RPC_FALLBACK_URLS, false);
+        List<URI> abstractEndpoints = parseEndpoints(config, ABSTRACT_RPC_URL, ABSTRACT_RPC_FALLBACK_URLS, false);
+        List<URI> animeEndpoints = parseEndpoints(config, ANIME_RPC_URL, ANIME_RPC_FALLBACK_URLS, false);
+        List<URI> apeChainEndpoints = parseEndpoints(config, APECHAIN_RPC_URL, APECHAIN_RPC_FALLBACK_URLS, false);
+        List<URI> degenEndpoints = parseEndpoints(config, DEGEN_RPC_URL, DEGEN_RPC_FALLBACK_URLS, false);
+        List<URI> inkEndpoints = parseEndpoints(config, INK_RPC_URL, INK_RPC_FALLBACK_URLS, false);
+        List<URI> jovayEndpoints = parseEndpoints(config, JOVAY_RPC_URL, JOVAY_RPC_FALLBACK_URLS, false);
+        List<URI> crossFiEndpoints = parseEndpoints(config, CROSSFI_RPC_URL, CROSSFI_RPC_FALLBACK_URLS, false);
+        List<URI> lineaEndpoints = parseEndpoints(config, LINEA_RPC_URL, LINEA_RPC_FALLBACK_URLS, false);
+        if (List.of(gnosisEndpoints, kaiaEndpoints, arcEndpoints, storyEndpoints, bobaEndpoints, celoEndpoints, hyperEvmEndpoints, abstractEndpoints, animeEndpoints, apeChainEndpoints, degenEndpoints, inkEndpoints, jovayEndpoints, crossFiEndpoints, lineaEndpoints).stream().anyMatch(endpoints -> endpoints.size() > 8)) {
+            throw new IllegalArgumentException("Additional EVM RPC URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
         List<URI> solanaEndpoints = parseEndpoints(config, SOLANA_RPC_URL, SOLANA_RPC_FALLBACK_URLS, false);
         if (solanaEndpoints.size() > 8) {
@@ -237,7 +285,23 @@ public final class Web3ConnectorFactory
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
-                context.getTypeManager());
+                context.getTypeManager(),
+                Map.ofEntries(
+                        Map.entry("gnosis", gnosisEndpoints),
+                        Map.entry("kaia", kaiaEndpoints),
+                        Map.entry("arc", arcEndpoints),
+                        Map.entry("story", storyEndpoints),
+                        Map.entry("boba", bobaEndpoints),
+                        Map.entry("celo", celoEndpoints),
+                        Map.entry("hyperevm", hyperEvmEndpoints),
+                        Map.entry("abstract", abstractEndpoints),
+                        Map.entry("anime", animeEndpoints),
+                        Map.entry("apechain", apeChainEndpoints),
+                        Map.entry("degen", degenEndpoints),
+                        Map.entry("ink", inkEndpoints),
+                        Map.entry("jovay", jovayEndpoints),
+                        Map.entry("crossfi", crossFiEndpoints),
+                        Map.entry("linea", lineaEndpoints)));
     }
 
     private static boolean isSupportedProperty(String key)
@@ -256,6 +320,36 @@ public final class Web3ConnectorFactory
                 key.equals(POLYGON_RPC_FALLBACK_URLS) ||
                 key.equals(AVALANCHE_RPC_URL) ||
                 key.equals(AVALANCHE_RPC_FALLBACK_URLS) ||
+                key.equals(GNOSIS_RPC_URL) ||
+                key.equals(GNOSIS_RPC_FALLBACK_URLS) ||
+                key.equals(KAIA_RPC_URL) ||
+                key.equals(KAIA_RPC_FALLBACK_URLS) ||
+                key.equals(ARC_RPC_URL) ||
+                key.equals(ARC_RPC_FALLBACK_URLS) ||
+                key.equals(STORY_RPC_URL) ||
+                key.equals(STORY_RPC_FALLBACK_URLS) ||
+                key.equals(BOBA_RPC_URL) ||
+                key.equals(BOBA_RPC_FALLBACK_URLS) ||
+                key.equals(CELO_RPC_URL) ||
+                key.equals(CELO_RPC_FALLBACK_URLS) ||
+                key.equals(HYPEREVM_RPC_URL) ||
+                key.equals(HYPEREVM_RPC_FALLBACK_URLS) ||
+                key.equals(ABSTRACT_RPC_URL) ||
+                key.equals(ABSTRACT_RPC_FALLBACK_URLS) ||
+                key.equals(ANIME_RPC_URL) ||
+                key.equals(ANIME_RPC_FALLBACK_URLS) ||
+                key.equals(APECHAIN_RPC_URL) ||
+                key.equals(APECHAIN_RPC_FALLBACK_URLS) ||
+                key.equals(DEGEN_RPC_URL) ||
+                key.equals(DEGEN_RPC_FALLBACK_URLS) ||
+                key.equals(INK_RPC_URL) ||
+                key.equals(INK_RPC_FALLBACK_URLS) ||
+                key.equals(JOVAY_RPC_URL) ||
+                key.equals(JOVAY_RPC_FALLBACK_URLS) ||
+                key.equals(CROSSFI_RPC_URL) ||
+                key.equals(CROSSFI_RPC_FALLBACK_URLS) ||
+                key.equals(LINEA_RPC_URL) ||
+                key.equals(LINEA_RPC_FALLBACK_URLS) ||
                 key.equals(SOLANA_RPC_URL) ||
                 key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||

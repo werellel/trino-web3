@@ -25,6 +25,21 @@ import io.trino.plugin.web3.evm.BaseChainAdapter;
 import io.trino.plugin.web3.evm.BnbChainAdapter;
 import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.evm.OptimismChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChainAdapter;
+import io.trino.plugin.web3.evm.KaiaChainAdapter;
+import io.trino.plugin.web3.evm.ArcChainAdapter;
+import io.trino.plugin.web3.evm.StoryChainAdapter;
+import io.trino.plugin.web3.evm.BobaChainAdapter;
+import io.trino.plugin.web3.evm.CeloChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmChainAdapter;
+import io.trino.plugin.web3.evm.AbstractChainAdapter;
+import io.trino.plugin.web3.evm.AnimeChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainChainAdapter;
+import io.trino.plugin.web3.evm.DegenChainAdapter;
+import io.trino.plugin.web3.evm.InkChainAdapter;
+import io.trino.plugin.web3.evm.JovayChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiChainAdapter;
+import io.trino.plugin.web3.evm.LineaChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
@@ -49,6 +64,21 @@ final class TestExecutableChainRegistry
                 new BnbChainAdapter(),
                 new PolygonChainAdapter(),
                 new AvalancheChainAdapter(),
+                new GnosisChainAdapter(),
+                new KaiaChainAdapter(),
+                new ArcChainAdapter(),
+                new StoryChainAdapter(),
+                new BobaChainAdapter(),
+                new CeloChainAdapter(),
+                new HyperEvmChainAdapter(),
+                new AbstractChainAdapter(),
+                new AnimeChainAdapter(),
+                new ApeChainChainAdapter(),
+                new DegenChainAdapter(),
+                new InkChainAdapter(),
+                new JovayChainAdapter(),
+                new CrossFiChainAdapter(),
+                new LineaChainAdapter(),
                 new TronChainAdapter(),
                 new SuiChainAdapter(),
                 new CosmosChainAdapter(),
@@ -63,7 +93,7 @@ final class TestExecutableChainRegistry
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("aptos", "arbitrum", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "cosmos", "dogecoin", "ethereum", "injective", "litecoin", "optimism", "osmosis", "polygon", "solana", "sui", "tron");
+                .containsExactly("abstract", "anime", "apechain", "aptos", "arbitrum", "arc", "avalanche", "base", "bitcoin", "bitcoincash", "bnb", "boba", "celo", "cosmos", "crossfi", "degen", "dogecoin", "ethereum", "gnosis", "hyperevm", "injective", "ink", "jovay", "kaia", "linea", "litecoin", "optimism", "osmosis", "polygon", "solana", "story", "sui", "tron");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("base")).isInstanceOf(BaseChainAdapter.class);
         assertThat(registry.adapterForSchema("optimism")).isInstanceOf(OptimismChainAdapter.class);

@@ -26,6 +26,21 @@ import io.trino.plugin.web3.evm.BnbChainAdapter;
 import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.evm.AvalancheChainAdapter;
 import io.trino.plugin.web3.evm.OptimismChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChainAdapter;
+import io.trino.plugin.web3.evm.KaiaChainAdapter;
+import io.trino.plugin.web3.evm.ArcChainAdapter;
+import io.trino.plugin.web3.evm.StoryChainAdapter;
+import io.trino.plugin.web3.evm.BobaChainAdapter;
+import io.trino.plugin.web3.evm.CeloChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmChainAdapter;
+import io.trino.plugin.web3.evm.AbstractChainAdapter;
+import io.trino.plugin.web3.evm.AnimeChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainChainAdapter;
+import io.trino.plugin.web3.evm.DegenChainAdapter;
+import io.trino.plugin.web3.evm.InkChainAdapter;
+import io.trino.plugin.web3.evm.JovayChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiChainAdapter;
+import io.trino.plugin.web3.evm.LineaChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
@@ -102,7 +117,8 @@ public final class Web3Connector
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
-                createComponents(1_000, Web3Metadata::resolveBuiltInType));
+                createComponents(1_000, Web3Metadata::resolveBuiltInType),
+                Map.of());
     }
 
     public Web3Connector(
@@ -196,7 +212,8 @@ public final class Web3Connector
                 cacheConfig,
                 createComponents(
                         maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
+                Map.of());
     }
 
     public Web3Connector(
@@ -257,7 +274,71 @@ public final class Web3Connector
                 cacheConfig,
                 createComponents(
                         maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
+                Map.of());
+    }
+
+    public Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            List<URI> ethereumRpcEndpoints,
+            List<URI> baseRpcEndpoints,
+            List<URI> optimismRpcEndpoints,
+            List<URI> arbitrumRpcEndpoints,
+            List<URI> bnbRpcEndpoints,
+            List<URI> polygonRpcEndpoints,
+            List<URI> avalancheRpcEndpoints,
+            List<URI> solanaRpcEndpoints,
+            List<URI> aptosRestEndpoints,
+            List<URI> tronApiEndpoints,
+            List<URI> suiRpcEndpoints,
+            List<URI> cosmosRestEndpoints,
+            List<URI> osmosisRestEndpoints,
+            List<URI> injectiveRestEndpoints,
+            List<URI> bitcoinRpcEndpoints,
+            List<URI> litecoinRpcEndpoints,
+            List<URI> dogecoinRpcEndpoints,
+            List<URI> bitcoinCashRpcEndpoints,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            TypeManager typeManager,
+            Map<String, List<URI>> additionalEvmRpcEndpoints)
+    {
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                ethereumRpcEndpoints,
+                baseRpcEndpoints,
+                optimismRpcEndpoints,
+                arbitrumRpcEndpoints,
+                bnbRpcEndpoints,
+                polygonRpcEndpoints,
+                avalancheRpcEndpoints,
+                solanaRpcEndpoints,
+                aptosRestEndpoints,
+                tronApiEndpoints,
+                suiRpcEndpoints,
+                cosmosRestEndpoints,
+                osmosisRestEndpoints,
+                injectiveRestEndpoints,
+                bitcoinRpcEndpoints,
+                litecoinRpcEndpoints,
+                dogecoinRpcEndpoints,
+                bitcoinCashRpcEndpoints,
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                createComponents(
+                        maximumTransactionHashesPerQuery,
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
+                additionalEvmRpcEndpoints);
     }
 
     private Web3Connector(
@@ -287,9 +368,11 @@ public final class Web3Connector
             boolean jsonRpcBatchEnabled,
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
-            ConnectorComponents components)
+            ConnectorComponents components,
+            Map<String, List<URI>> additionalEvmRpcEndpoints)
     {
         requireNonNull(components, "components is null");
+        requireNonNull(additionalEvmRpcEndpoints, "additionalEvmRpcEndpoints is null");
         metadata = components.metadata();
         splitManager = new Web3SplitManager(
                 maximumBlocksPerSplit,
@@ -374,6 +457,11 @@ public final class Web3Connector
             if (!injectiveRestEndpoints.isEmpty()) {
                 configuredRuntimes.put("injective", createRestRuntime(httpClient, injectiveRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
             }
+            additionalEvmRpcEndpoints.forEach((schemaName, endpoints) -> {
+                if (!endpoints.isEmpty()) {
+                    configuredRuntimes.put(schemaName, createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+                }
+            });
             if (!bitcoinRpcEndpoints.isEmpty()) {
                 configuredRuntimes.put("bitcoin", createJsonRpcRuntime(
                         httpClient,
@@ -492,6 +580,21 @@ public final class Web3Connector
                 new BnbChainAdapter(),
                 new PolygonChainAdapter(),
                 new AvalancheChainAdapter(),
+                new GnosisChainAdapter(),
+                new KaiaChainAdapter(),
+                new ArcChainAdapter(),
+                new StoryChainAdapter(),
+                new BobaChainAdapter(),
+                new CeloChainAdapter(),
+                new HyperEvmChainAdapter(),
+                new AbstractChainAdapter(),
+                new AnimeChainAdapter(),
+                new ApeChainChainAdapter(),
+                new DegenChainAdapter(),
+                new InkChainAdapter(),
+                new JovayChainAdapter(),
+                new CrossFiChainAdapter(),
+                new LineaChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
                 new TronChainAdapter(),

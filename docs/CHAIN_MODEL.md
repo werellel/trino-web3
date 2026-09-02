@@ -25,10 +25,16 @@ The adapter converts those constraints into Ethereum JSON-RPC operations and
 validates response identity before producing rows.
 
 The EVM adapter is reused for Base (`0x2105`), Optimism (`0xa`), Arbitrum One
-(`0xa4b1`), BNB Smart Chain (`0x38`), Polygon (`0x89`), and Avalanche C-Chain
-(`0xa86a`). Each network is registered as an independent schema (`base`,
-`optimism`, `arbitrum`, `bnb`, `polygon`, or `avalanche`) and uses a separate
+(`0xa4b1`), BNB Smart Chain (`0x38`), Polygon (`0x89`), Avalanche C-Chain
+(`0xa86a`), Gnosis (`0x64`), Kaia (`0x2019`), Arc (`0x13b2`), Story (`0x5ea`),
+Boba (`0x120`), Celo (`0xa4ec`), HyperEVM (`0x3e7`), Abstract (`0xab5`),
+AnimeChain (`0x10d88`), ApeChain (`0x8173`), Degen (`0x27bc86aa`), Ink
+(`0xdef1`), Jovay (`0x578227`), CrossFi (`0x103e`), and Linea (`0xe708`).
+Each network is registered as an independent schema and uses a separate
 runtime/cache namespace.
+The Arc descriptor targets the requested Arc mainnet identifier (`5042`);
+Arc's publicly documented testnet (`5042002`) is intentionally not aliased to
+the mainnet schema.
 
 Both EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
 the complete block or transaction object returned by the node. This preserves

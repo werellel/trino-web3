@@ -71,6 +71,21 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.CosmosChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.OsmosisChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.InjectiveChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.GnosisChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.KaiaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.ArcChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.StoryChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.BobaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.CeloChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.HyperEvmChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.AbstractChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.AnimeChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.ApeChainChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.DegenChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.InkChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.JovayChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.CrossFiChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.LineaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
@@ -128,6 +143,10 @@ public class ITWeb3PluginArchive
                         .containsExactly("blocks", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.injective").getOnlyColumn())
                         .containsExactly("blocks", "transactions");
+                for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea")) {
+                    assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
+                            .containsExactly("blocks", "transactions");
+                }
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
                         .containsExactly("blocks", "inputs", "outputs", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.litecoin").getOnlyColumn())

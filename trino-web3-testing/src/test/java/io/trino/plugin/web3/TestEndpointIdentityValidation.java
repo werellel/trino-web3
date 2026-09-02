@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -93,6 +95,42 @@ public class TestEndpointIdentityValidation
         }
         finally {
             server.stop(0);
+        }
+    }
+
+    @Test
+    public void testAcceptsAdditionalEvmEndpointIdentities()
+            throws Exception
+    {
+        List<String[]> networks = List.of(
+                new String[] {"gnosis", "web3.gnosis.rpc-url", "0x64"},
+                new String[] {"kaia", "web3.kaia.rpc-url", "0x2019"},
+                new String[] {"arc", "web3.arc.rpc-url", "0x13b2"},
+                new String[] {"story", "web3.story.rpc-url", "0x5ea"},
+                new String[] {"boba", "web3.boba.rpc-url", "0x120"},
+                new String[] {"celo", "web3.celo.rpc-url", "0xa4ec"},
+                new String[] {"hyperevm", "web3.hyperevm.rpc-url", "0x3e7"},
+                new String[] {"abstract", "web3.abstract.rpc-url", "0xab5"},
+                new String[] {"anime", "web3.anime.rpc-url", "0x10d88"},
+                new String[] {"apechain", "web3.apechain.rpc-url", "0x8173"},
+                new String[] {"degen", "web3.degen.rpc-url", "0x27bc86aa"},
+                new String[] {"ink", "web3.ink.rpc-url", "0xdef1"},
+                new String[] {"jovay", "web3.jovay.rpc-url", "0x578227"},
+                new String[] {"crossfi", "web3.crossfi.rpc-url", "0x103e"},
+                new String[] {"linea", "web3.linea.rpc-url", "0xe708"});
+        List<HttpServer> servers = new ArrayList<>();
+        try (StandaloneQueryRunner queryRunner = queryRunner()) {
+            for (String[] network : networks) {
+                HttpServer server = jsonRpcServer(network[2]);
+                servers.add(server);
+                server.start();
+                queryRunner.createCatalog(network[0], Web3ConnectorFactory.CONNECTOR_NAME, Map.of(network[1], endpoint(server)));
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM " + network[0] + ".system.chains WHERE schema_name = '" + network[0] + "'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            servers.forEach(server -> server.stop(0));
         }
     }
 

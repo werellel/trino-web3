@@ -30,8 +30,11 @@ SHOW SCHEMAS FROM web3;
 
 The EVM adapters expose the same native tables (`blocks` and `transactions`)
 for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
-Smart Chain, Polygon, and Avalanche C-Chain. Each network has its own schema and
-chain-identity check, while sharing the provider-independent EVM runtime.
+Smart Chain, Polygon, Avalanche C-Chain, Gnosis, Kaia, Arc, Story, Boba, Celo,
+HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, and Linea.
+Each network has its own schema and chain-identity check, while sharing the
+provider-independent EVM runtime. Optimism is registered once even when it is
+listed more than once in external chain catalogs.
 
 Tron is exposed through its native REST API as `web3.tron.blocks` and
 `web3.tron.transactions`. It is a separate non-EVM adapter: bounded
@@ -164,9 +167,9 @@ cache is disabled, its sizing values are inactive and do not prevent an M2-only
 catalog from loading.
 
 `web3.ethereum.rpc-url` is optional when only loading the catalog or reading
-metadata. A query of `ethereum.blocks` without it fails explicitly.
-The Base, Optimism, Arbitrum, BNB, Polygon, and Avalanche endpoint properties follow
-the same rule and validate `eth_chainId` against their canonical network ID.
+metadata. A query of `ethereum.blocks` without it fails explicitly. All EVM
+endpoint properties follow the same rule and validate `eth_chainId` against
+their canonical network ID.
 Fallback URLs require their chain's primary URL, must not contain blank or
 duplicate entries, and are limited to eight endpoints including the primary.
 Ethereum and Solana provider URLs may use a provider-specific path or query;
@@ -321,7 +324,7 @@ trino-web3-bitcoin   Bitcoin Core UTXO-native block, transaction, input, and out
 trino-web3-litecoin  Litecoin Core UTXO-native block, transaction, input, and output decoding
 trino-web3-dogecoin  Dogecoin Core UTXO-native block, transaction, input, and output decoding
 trino-web3-bitcoincash Bitcoin Cash Node/Bitcoin ABC UTXO-native decoding
-trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
+trino-web3-evm      EVM chain descriptors, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-tron     Tron-native REST block and transaction decoding
 trino-web3-sui      Sui-native checkpoint and transaction decoding

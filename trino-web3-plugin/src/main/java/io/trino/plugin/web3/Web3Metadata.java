@@ -26,6 +26,21 @@ import io.trino.plugin.web3.evm.BaseChainAdapter;
 import io.trino.plugin.web3.evm.BnbChainAdapter;
 import io.trino.plugin.web3.evm.PolygonChainAdapter;
 import io.trino.plugin.web3.evm.OptimismChainAdapter;
+import io.trino.plugin.web3.evm.GnosisChainAdapter;
+import io.trino.plugin.web3.evm.KaiaChainAdapter;
+import io.trino.plugin.web3.evm.ArcChainAdapter;
+import io.trino.plugin.web3.evm.StoryChainAdapter;
+import io.trino.plugin.web3.evm.BobaChainAdapter;
+import io.trino.plugin.web3.evm.CeloChainAdapter;
+import io.trino.plugin.web3.evm.HyperEvmChainAdapter;
+import io.trino.plugin.web3.evm.AbstractChainAdapter;
+import io.trino.plugin.web3.evm.AnimeChainAdapter;
+import io.trino.plugin.web3.evm.ApeChainChainAdapter;
+import io.trino.plugin.web3.evm.DegenChainAdapter;
+import io.trino.plugin.web3.evm.InkChainAdapter;
+import io.trino.plugin.web3.evm.JovayChainAdapter;
+import io.trino.plugin.web3.evm.CrossFiChainAdapter;
+import io.trino.plugin.web3.evm.LineaChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
@@ -65,7 +80,7 @@ public final class Web3Metadata
     {
         this(
                 maximumTransactionHashesPerQuery,
-                ChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new SuiChainAdapter(), new CosmosChainAdapter(), new OsmosisChainAdapter(), new InjectiveChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()),
+                ChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new GnosisChainAdapter(), new KaiaChainAdapter(), new ArcChainAdapter(), new StoryChainAdapter(), new BobaChainAdapter(), new CeloChainAdapter(), new HyperEvmChainAdapter(), new AbstractChainAdapter(), new AnimeChainAdapter(), new ApeChainChainAdapter(), new DegenChainAdapter(), new InkChainAdapter(), new JovayChainAdapter(), new CrossFiChainAdapter(), new LineaChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new SuiChainAdapter(), new CosmosChainAdapter(), new OsmosisChainAdapter(), new InjectiveChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()),
                 Web3Metadata::resolveBuiltInType);
     }
 
