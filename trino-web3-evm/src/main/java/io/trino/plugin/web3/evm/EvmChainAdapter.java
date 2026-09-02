@@ -54,10 +54,13 @@ public class EvmChainAdapter implements ExecutableChainAdapter
         this.chainName = requireNonNull(chainName, "chainName is null");
         requireNonNull(descriptorResource, "descriptorResource is null");
         this.expectedChainId = requireNonNull(expectedChainId, "expectedChainId is null").map(EvmChainAdapter::normalizeChainId);
-        this.descriptor = loadDescriptor(chainName, descriptorResource);
-        if (!descriptor.schemaName().equals(chainName)) {
-            throw new IllegalArgumentException("descriptor schema does not match EVM chain " + chainName);
-        }
+        ChainDescriptor loadedDescriptor = loadDescriptor(chainName, descriptorResource);
+        this.descriptor = loadedDescriptor.schemaName().equals(chainName) ? loadedDescriptor : new ChainDescriptor(
+                loadedDescriptor.apiVersion(),
+                chainName,
+                chainName,
+                loadedDescriptor.adapterVersion(),
+                loadedDescriptor.tables());
     }
 
     @Override

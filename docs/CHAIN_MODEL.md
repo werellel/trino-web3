@@ -29,7 +29,9 @@ The EVM adapter is reused for Base (`0x2105`), Optimism (`0xa`), Arbitrum One
 (`0xa86a`), Gnosis (`0x64`), Kaia (`0x2019`), Arc (`0x13b2`), Story (`0x5ea`),
 Boba (`0x120`), Celo (`0xa4ec`), HyperEVM (`0x3e7`), Abstract (`0xab5`),
 AnimeChain (`0x10d88`), ApeChain (`0x8173`), Degen (`0x27bc86aa`), Ink
-(`0xdef1`), Jovay (`0x578227`), CrossFi (`0x103e`), and Linea (`0xe708`).
+(`0xdef1`), Jovay (`0x578227`), CrossFi (`0x103e`), Linea (`0xe708`),
+Unichain (`0x82`), Tempo (`0x1079`), Robinhood Chain (`0x1237`), and Mode
+(`0x868b`).
 Each network is registered as an independent schema and uses a separate
 runtime/cache namespace.
 The Arc descriptor targets the requested Arc mainnet identifier (`5042`);
@@ -43,7 +45,9 @@ Canonical EVM testnets are also independent schemas: Ethereum Sepolia
 (`5042002`), Story Aeneid (`1315`), Boba Sepolia (`28882`), Celo Sepolia
 (`11142220`), HyperEVM Testnet (`998`), Abstract Sepolia (`11124`), Anime
 Testnet (`2162`), ApeChain Curtis (`33111`), Ink Sepolia (`763373`), Jovay
-Sepolia (`2019775`), CrossFi Testnet (`4157`), and Linea Sepolia (`59141`).
+Sepolia (`2019775`), CrossFi Testnet (`4157`), Linea Sepolia (`59141`),
+Unichain Sepolia (`1301`), Tempo Moderato (`42431`), Robinhood Chain Testnet
+(`46630`), and Mode Sepolia (`919`).
 Their schemas use the `<network>_<testnet>` naming shown by these identifiers
 and cannot be configured through a mainnet property. Degen has no stable,
 officially published testnet chain-ID contract, so no Degen testnet schema is

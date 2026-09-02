@@ -45,6 +45,14 @@ import io.trino.plugin.web3.evm.InkChainAdapter;
 import io.trino.plugin.web3.evm.JovayChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiChainAdapter;
 import io.trino.plugin.web3.evm.LineaChainAdapter;
+import io.trino.plugin.web3.evm.UnichainChainAdapter;
+import io.trino.plugin.web3.evm.UnichainSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.TempoChainAdapter;
+import io.trino.plugin.web3.evm.TempoModeratoChainAdapter;
+import io.trino.plugin.web3.evm.RobinhoodChainAdapter;
+import io.trino.plugin.web3.evm.RobinhoodTestnetChainAdapter;
+import io.trino.plugin.web3.evm.ModeChainAdapter;
+import io.trino.plugin.web3.evm.ModeSepoliaChainAdapter;
 import io.trino.plugin.web3.evm.EthereumSepoliaChainAdapter;
 import io.trino.plugin.web3.evm.BaseSepoliaChainAdapter;
 import io.trino.plugin.web3.evm.OptimismSepoliaChainAdapter;
@@ -633,6 +641,10 @@ public final class Web3Connector
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
                 new LineaChainAdapter(),
+                new UnichainChainAdapter(),
+                new TempoChainAdapter(),
+                new RobinhoodChainAdapter(),
+                new ModeChainAdapter(),
                 new EthereumSepoliaChainAdapter(),
                 new BaseSepoliaChainAdapter(),
                 new OptimismSepoliaChainAdapter(),
@@ -654,6 +666,10 @@ public final class Web3Connector
                 new JovaySepoliaChainAdapter(),
                 new CrossFiTestnetChainAdapter(),
                 new LineaSepoliaChainAdapter(),
+                new UnichainSepoliaChainAdapter(),
+                new TempoModeratoChainAdapter(),
+                new RobinhoodTestnetChainAdapter(),
+                new ModeSepoliaChainAdapter(),
                 new SolanaChainAdapter(),
                 new SolanaDevnetChainAdapter(),
                 new AptosChainAdapter(),

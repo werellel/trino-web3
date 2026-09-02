@@ -117,7 +117,11 @@ public class TestEndpointIdentityValidation
                 new String[] {"ink", "web3.ink.rpc-url", "0xdef1"},
                 new String[] {"jovay", "web3.jovay.rpc-url", "0x578227"},
                 new String[] {"crossfi", "web3.crossfi.rpc-url", "0x103e"},
-                new String[] {"linea", "web3.linea.rpc-url", "0xe708"});
+                new String[] {"linea", "web3.linea.rpc-url", "0xe708"},
+                new String[] {"unichain", "web3.unichain.rpc-url", "0x82"},
+                new String[] {"tempo", "web3.tempo.rpc-url", "0x1079"},
+                new String[] {"robinhood", "web3.robinhood.rpc-url", "0x1237"},
+                new String[] {"mode", "web3.mode.rpc-url", "0x868b"});
         List<HttpServer> servers = new ArrayList<>();
         try (StandaloneQueryRunner queryRunner = queryRunner()) {
             for (String[] network : networks) {
@@ -159,7 +163,11 @@ public class TestEndpointIdentityValidation
                 new String[] {"ink_sepolia", "web3.ink-sepolia.rpc-url", "0xba5ed"},
                 new String[] {"jovay_sepolia", "web3.jovay-sepolia.rpc-url", "0x1ed1bf"},
                 new String[] {"crossfi_testnet", "web3.crossfi-testnet.rpc-url", "0x103d"},
-                new String[] {"linea_sepolia", "web3.linea-sepolia.rpc-url", "0xe705"});
+                new String[] {"linea_sepolia", "web3.linea-sepolia.rpc-url", "0xe705"},
+                new String[] {"unichain_sepolia", "web3.unichain-sepolia.rpc-url", "0x515"},
+                new String[] {"tempo_moderato", "web3.tempo-moderato.rpc-url", "0xa5bf"},
+                new String[] {"robinhood_testnet", "web3.robinhood-testnet.rpc-url", "0xb626"},
+                new String[] {"mode_sepolia", "web3.mode-sepolia.rpc-url", "0x397"});
         List<HttpServer> servers = new ArrayList<>();
         try (StandaloneQueryRunner queryRunner = queryRunner()) {
             for (String[] network : networks) {

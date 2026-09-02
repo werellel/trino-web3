@@ -49,6 +49,10 @@ final class TestEvmChainAdapters
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
                 new LineaChainAdapter(),
+                new UnichainChainAdapter(),
+                new TempoChainAdapter(),
+                new RobinhoodChainAdapter(),
+                new ModeChainAdapter(),
                 new EthereumSepoliaChainAdapter(),
                 new BaseSepoliaChainAdapter(),
                 new OptimismSepoliaChainAdapter(),
@@ -69,10 +73,14 @@ final class TestEvmChainAdapters
                 new InkSepoliaChainAdapter(),
                 new JovaySepoliaChainAdapter(),
                 new CrossFiTestnetChainAdapter(),
-                new LineaSepoliaChainAdapter());
+                new LineaSepoliaChainAdapter(),
+                new UnichainSepoliaChainAdapter(),
+                new TempoModeratoChainAdapter(),
+                new RobinhoodTestnetChainAdapter(),
+                new ModeSepoliaChainAdapter());
 
         assertThat(adapters).extracting(adapter -> adapter.descriptor().schemaName())
-                .containsExactly("ethereum", "base", "optimism", "arbitrum", "bnb", "polygon", "avalanche", "gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia");
+                .containsExactly("ethereum", "base", "optimism", "arbitrum", "bnb", "polygon", "avalanche", "gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "unichain", "tempo", "robinhood", "mode", "ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia", "unichain_sepolia", "tempo_moderato", "robinhood_testnet", "mode_sepolia");
         assertThat(adapters).allSatisfy(adapter -> {
             assertThat(adapter.descriptor().table("blocks")).isPresent();
             assertThat(adapter.descriptor().table("transactions")).isPresent();
@@ -100,6 +108,10 @@ final class TestEvmChainAdapters
         assertThat(new JovayChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x578227"))).isEqualTo("0x578227");
         assertThat(new CrossFiChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x103E"))).isEqualTo("0x103e");
         assertThat(new LineaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xE708"))).isEqualTo("0xe708");
+        assertThat(new UnichainChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x82"))).isEqualTo("0x82");
+        assertThat(new TempoChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x1079"))).isEqualTo("0x1079");
+        assertThat(new RobinhoodChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x1237"))).isEqualTo("0x1237");
+        assertThat(new ModeChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x868b"))).isEqualTo("0x868b");
         assertThat(new EthereumSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xAA36A7"))).isEqualTo("0xaa36a7");
         assertThat(new BaseSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x14A34"))).isEqualTo("0x14a34");
         assertThat(new OptimismSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xAA37DC"))).isEqualTo("0xaa37dc");
@@ -121,6 +133,10 @@ final class TestEvmChainAdapters
         assertThat(new JovaySepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x1ED1BF"))).isEqualTo("0x1ed1bf");
         assertThat(new CrossFiTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x103D"))).isEqualTo("0x103d");
         assertThat(new LineaSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xE705"))).isEqualTo("0xe705");
+        assertThat(new UnichainSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x515"))).isEqualTo("0x515");
+        assertThat(new TempoModeratoChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xA5BF"))).isEqualTo("0xa5bf");
+        assertThat(new RobinhoodTestnetChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0xB626"))).isEqualTo("0xb626");
+        assertThat(new ModeSepoliaChainAdapter().endpointIdentityProbe().extractIdentity(TextNode.valueOf("0x397"))).isEqualTo("0x397");
     }
 
     @Test

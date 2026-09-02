@@ -61,7 +61,7 @@ public class TestWeb3Catalog
             queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of());
 
             MaterializedResult result = queryRunner.execute("SHOW SCHEMAS FROM web3");
-            assertThat(result.getOnlyColumn()).containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "system", "tron", "tron_nile", "tron_shasta");
+            assertThat(result.getOnlyColumn()).containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "mode", "mode_sepolia", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "robinhood", "robinhood_testnet", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "system", "tempo", "tempo_moderato", "tron", "tron_nile", "tron_shasta", "unichain", "unichain_sepolia");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoin").getOnlyColumn())
                     .containsExactly("blocks", "inputs", "outputs", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.litecoin").getOnlyColumn())
@@ -78,11 +78,11 @@ public class TestWeb3Catalog
                     .containsExactly("blocks", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.optimism").getOnlyColumn())
                     .containsExactly("blocks", "transactions");
-            for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea")) {
+            for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "unichain", "tempo", "robinhood", "mode")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
                         .containsExactly("blocks", "transactions");
             }
-            for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia")) {
+            for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia", "unichain_sepolia", "tempo_moderato", "robinhood_testnet", "mode_sepolia")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
                         .containsExactly("blocks", "transactions");
             }
@@ -180,21 +180,29 @@ public class TestWeb3Catalog
                             org.assertj.core.groups.Tuple.tuple("linea_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("litecoin", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("litecoin_testnet", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("mode", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("mode_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("optimism", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("optimism_sepolia", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("osmosis", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("osmosis_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("polygon", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("polygon_amoy", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("robinhood", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("robinhood_testnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("solana", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("solana_devnet", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("story", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("story_aeneid", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("sui", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("sui_testnet", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("tempo", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("tempo_moderato", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("tron", false, 0L, false),
                             org.assertj.core.groups.Tuple.tuple("tron_nile", false, 0L, false),
-                            org.assertj.core.groups.Tuple.tuple("tron_shasta", false, 0L, false));
+                            org.assertj.core.groups.Tuple.tuple("tron_shasta", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("unichain", false, 0L, false),
+                            org.assertj.core.groups.Tuple.tuple("unichain_sepolia", false, 0L, false));
         }
     }
 
@@ -297,7 +305,7 @@ public class TestWeb3Catalog
                     "web3.cache.enabled", "false",
                     "web3.cache.maximum-size", "1MB"));
             assertThat(queryRunner.execute("SHOW SCHEMAS FROM disabled_cache").getOnlyColumn())
-                    .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "system", "tron", "tron_nile", "tron_shasta");
+                    .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "information_schema", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "mode", "mode_sepolia", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "robinhood", "robinhood_testnet", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "system", "tempo", "tempo_moderato", "tron", "tron_nile", "tron_shasta", "unichain", "unichain_sepolia");
 
             assertThatThrownBy(() -> queryRunner.createCatalog("invalid_hash_limit", Web3ConnectorFactory.CONNECTOR_NAME, java.util.Map.of(
                     "web3.maximum-transaction-hashes-per-query", "0")))

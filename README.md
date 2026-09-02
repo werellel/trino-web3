@@ -31,7 +31,8 @@ SHOW SCHEMAS FROM web3;
 The EVM adapters expose the same native tables (`blocks` and `transactions`)
 for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
 Smart Chain, Polygon, Avalanche C-Chain, Gnosis, Kaia, Arc, Story, Boba, Celo,
-HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, and Linea.
+HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, Linea,
+Unichain, Tempo, Robinhood Chain, Celo, Gnosis, and Mode.
 Each network has its own schema and chain-identity check, while sharing the
 provider-independent EVM runtime. Optimism is registered once even when it is
 listed more than once in external chain catalogs.
@@ -41,7 +42,8 @@ The same model is used for canonical testnets, each with an independent schema:
 `bnb_testnet`, `polygon_amoy`, `avalanche_fuji`, `gnosis_chiado`, `kaia_kairos`,
 `arc_testnet`, `story_aeneid`, `boba_sepolia`, `celo_sepolia`,
 `hyperevm_testnet`, `abstract_sepolia`, `anime_testnet`, `apechain_curtis`,
-`ink_sepolia`, `jovay_sepolia`, `crossfi_testnet`, and `linea_sepolia`.
+`ink_sepolia`, `jovay_sepolia`, `crossfi_testnet`, `linea_sepolia`,
+`unichain_sepolia`, `tempo_moderato`, `robinhood_testnet`, and `mode_sepolia`.
 Degen testnet is intentionally not registered until its canonical chain ID and
 endpoint contract are published.
 

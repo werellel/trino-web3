@@ -36,6 +36,14 @@ public final class Web3ConnectorFactory
     public static final String CONNECTOR_NAME = "web3";
     private static final String ETHEREUM_RPC_URL = "web3.ethereum.rpc-url";
     private static final String ETHEREUM_RPC_FALLBACK_URLS = "web3.ethereum.rpc-fallback-urls";
+    private static final String UNICHAIN_RPC_URL = "web3.unichain.rpc-url";
+    private static final String UNICHAIN_RPC_FALLBACK_URLS = "web3.unichain.rpc-fallback-urls";
+    private static final String TEMPO_RPC_URL = "web3.tempo.rpc-url";
+    private static final String TEMPO_RPC_FALLBACK_URLS = "web3.tempo.rpc-fallback-urls";
+    private static final String ROBINHOOD_RPC_URL = "web3.robinhood.rpc-url";
+    private static final String ROBINHOOD_RPC_FALLBACK_URLS = "web3.robinhood.rpc-fallback-urls";
+    private static final String MODE_RPC_URL = "web3.mode.rpc-url";
+    private static final String MODE_RPC_FALLBACK_URLS = "web3.mode.rpc-fallback-urls";
     private static final String BASE_RPC_URL = "web3.base.rpc-url";
     private static final String BASE_RPC_FALLBACK_URLS = "web3.base.rpc-fallback-urls";
     private static final String OPTIMISM_RPC_URL = "web3.optimism.rpc-url";
@@ -120,6 +128,14 @@ public final class Web3ConnectorFactory
     private static final String CROSSFI_TESTNET_RPC_FALLBACK_URLS = "web3.crossfi-testnet.rpc-fallback-urls";
     private static final String LINEA_SEPOLIA_RPC_URL = "web3.linea-sepolia.rpc-url";
     private static final String LINEA_SEPOLIA_RPC_FALLBACK_URLS = "web3.linea-sepolia.rpc-fallback-urls";
+    private static final String UNICHAIN_SEPOLIA_RPC_URL = "web3.unichain-sepolia.rpc-url";
+    private static final String UNICHAIN_SEPOLIA_RPC_FALLBACK_URLS = "web3.unichain-sepolia.rpc-fallback-urls";
+    private static final String TEMPO_MODERATO_RPC_URL = "web3.tempo-moderato.rpc-url";
+    private static final String TEMPO_MODERATO_RPC_FALLBACK_URLS = "web3.tempo-moderato.rpc-fallback-urls";
+    private static final String ROBINHOOD_TESTNET_RPC_URL = "web3.robinhood-testnet.rpc-url";
+    private static final String ROBINHOOD_TESTNET_RPC_FALLBACK_URLS = "web3.robinhood-testnet.rpc-fallback-urls";
+    private static final String MODE_SEPOLIA_RPC_URL = "web3.mode-sepolia.rpc-url";
+    private static final String MODE_SEPOLIA_RPC_FALLBACK_URLS = "web3.mode-sepolia.rpc-fallback-urls";
     private static final String SOLANA_RPC_URL = "web3.solana.rpc-url";
     private static final String SOLANA_RPC_FALLBACK_URLS = "web3.solana.rpc-fallback-urls";
     private static final String APTOS_REST_URL = "web3.aptos.rest-url";
@@ -235,6 +251,10 @@ public final class Web3ConnectorFactory
         List<URI> jovayEndpoints = parseEndpoints(config, JOVAY_RPC_URL, JOVAY_RPC_FALLBACK_URLS, false);
         List<URI> crossFiEndpoints = parseEndpoints(config, CROSSFI_RPC_URL, CROSSFI_RPC_FALLBACK_URLS, false);
         List<URI> lineaEndpoints = parseEndpoints(config, LINEA_RPC_URL, LINEA_RPC_FALLBACK_URLS, false);
+        List<URI> unichainEndpoints = parseEndpoints(config, UNICHAIN_RPC_URL, UNICHAIN_RPC_FALLBACK_URLS, false);
+        List<URI> tempoEndpoints = parseEndpoints(config, TEMPO_RPC_URL, TEMPO_RPC_FALLBACK_URLS, false);
+        List<URI> robinhoodEndpoints = parseEndpoints(config, ROBINHOOD_RPC_URL, ROBINHOOD_RPC_FALLBACK_URLS, false);
+        List<URI> modeEndpoints = parseEndpoints(config, MODE_RPC_URL, MODE_RPC_FALLBACK_URLS, false);
         List<URI> ethereumSepoliaEndpoints = parseEndpoints(config, ETHEREUM_SEPOLIA_RPC_URL, ETHEREUM_SEPOLIA_RPC_FALLBACK_URLS, false);
         List<URI> baseSepoliaEndpoints = parseEndpoints(config, BASE_SEPOLIA_RPC_URL, BASE_SEPOLIA_RPC_FALLBACK_URLS, false);
         List<URI> optimismSepoliaEndpoints = parseEndpoints(config, OPTIMISM_SEPOLIA_RPC_URL, OPTIMISM_SEPOLIA_RPC_FALLBACK_URLS, false);
@@ -256,7 +276,11 @@ public final class Web3ConnectorFactory
         List<URI> jovaySepoliaEndpoints = parseEndpoints(config, JOVAY_SEPOLIA_RPC_URL, JOVAY_SEPOLIA_RPC_FALLBACK_URLS, false);
         List<URI> crossFiTestnetEndpoints = parseEndpoints(config, CROSSFI_TESTNET_RPC_URL, CROSSFI_TESTNET_RPC_FALLBACK_URLS, false);
         List<URI> lineaSepoliaEndpoints = parseEndpoints(config, LINEA_SEPOLIA_RPC_URL, LINEA_SEPOLIA_RPC_FALLBACK_URLS, false);
-        if (List.of(gnosisEndpoints, kaiaEndpoints, arcEndpoints, storyEndpoints, bobaEndpoints, celoEndpoints, hyperEvmEndpoints, abstractEndpoints, animeEndpoints, apeChainEndpoints, degenEndpoints, inkEndpoints, jovayEndpoints, crossFiEndpoints, lineaEndpoints, ethereumSepoliaEndpoints, baseSepoliaEndpoints, optimismSepoliaEndpoints, arbitrumSepoliaEndpoints, bnbTestnetEndpoints, polygonAmoyEndpoints, avalancheFujiEndpoints, gnosisChiadoEndpoints, kaiaKairosEndpoints, arcTestnetEndpoints, storyAeneidEndpoints, bobaSepoliaEndpoints, celoSepoliaEndpoints, hyperEvmTestnetEndpoints, abstractSepoliaEndpoints, animeTestnetEndpoints, apeChainCurtisEndpoints, inkSepoliaEndpoints, jovaySepoliaEndpoints, crossFiTestnetEndpoints, lineaSepoliaEndpoints).stream().anyMatch(endpoints -> endpoints.size() > 8)) {
+        List<URI> unichainSepoliaEndpoints = parseEndpoints(config, UNICHAIN_SEPOLIA_RPC_URL, UNICHAIN_SEPOLIA_RPC_FALLBACK_URLS, false);
+        List<URI> tempoModeratoEndpoints = parseEndpoints(config, TEMPO_MODERATO_RPC_URL, TEMPO_MODERATO_RPC_FALLBACK_URLS, false);
+        List<URI> robinhoodTestnetEndpoints = parseEndpoints(config, ROBINHOOD_TESTNET_RPC_URL, ROBINHOOD_TESTNET_RPC_FALLBACK_URLS, false);
+        List<URI> modeSepoliaEndpoints = parseEndpoints(config, MODE_SEPOLIA_RPC_URL, MODE_SEPOLIA_RPC_FALLBACK_URLS, false);
+        if (List.of(gnosisEndpoints, kaiaEndpoints, arcEndpoints, storyEndpoints, bobaEndpoints, celoEndpoints, hyperEvmEndpoints, abstractEndpoints, animeEndpoints, apeChainEndpoints, degenEndpoints, inkEndpoints, jovayEndpoints, crossFiEndpoints, lineaEndpoints, unichainEndpoints, tempoEndpoints, robinhoodEndpoints, modeEndpoints, ethereumSepoliaEndpoints, baseSepoliaEndpoints, optimismSepoliaEndpoints, arbitrumSepoliaEndpoints, bnbTestnetEndpoints, polygonAmoyEndpoints, avalancheFujiEndpoints, gnosisChiadoEndpoints, kaiaKairosEndpoints, arcTestnetEndpoints, storyAeneidEndpoints, bobaSepoliaEndpoints, celoSepoliaEndpoints, hyperEvmTestnetEndpoints, abstractSepoliaEndpoints, animeTestnetEndpoints, apeChainCurtisEndpoints, inkSepoliaEndpoints, jovaySepoliaEndpoints, crossFiTestnetEndpoints, lineaSepoliaEndpoints, unichainSepoliaEndpoints, tempoModeratoEndpoints, robinhoodTestnetEndpoints, modeSepoliaEndpoints).stream().anyMatch(endpoints -> endpoints.size() > 8)) {
             throw new IllegalArgumentException("Additional EVM RPC URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
         List<URI> solanaEndpoints = parseEndpoints(config, SOLANA_RPC_URL, SOLANA_RPC_FALLBACK_URLS, false);
@@ -404,6 +428,10 @@ public final class Web3ConnectorFactory
                         Map.entry("jovay", jovayEndpoints),
                         Map.entry("crossfi", crossFiEndpoints),
                         Map.entry("linea", lineaEndpoints),
+                        Map.entry("unichain", unichainEndpoints),
+                        Map.entry("tempo", tempoEndpoints),
+                        Map.entry("robinhood", robinhoodEndpoints),
+                        Map.entry("mode", modeEndpoints),
                         Map.entry("ethereum_sepolia", ethereumSepoliaEndpoints),
                         Map.entry("base_sepolia", baseSepoliaEndpoints),
                         Map.entry("optimism_sepolia", optimismSepoliaEndpoints),
@@ -425,6 +453,10 @@ public final class Web3ConnectorFactory
                         Map.entry("jovay_sepolia", jovaySepoliaEndpoints),
                         Map.entry("crossfi_testnet", crossFiTestnetEndpoints),
                         Map.entry("linea_sepolia", lineaSepoliaEndpoints),
+                        Map.entry("unichain_sepolia", unichainSepoliaEndpoints),
+                        Map.entry("tempo_moderato", tempoModeratoEndpoints),
+                        Map.entry("robinhood_testnet", robinhoodTestnetEndpoints),
+                        Map.entry("mode_sepolia", modeSepoliaEndpoints),
                         Map.entry("solana_devnet", solanaDevnetEndpoints),
                         Map.entry("aptos_testnet", aptosTestnetEndpoints),
                         Map.entry("tron_nile", tronNileEndpoints),
@@ -485,6 +517,14 @@ public final class Web3ConnectorFactory
                 key.equals(CROSSFI_RPC_FALLBACK_URLS) ||
                 key.equals(LINEA_RPC_URL) ||
                 key.equals(LINEA_RPC_FALLBACK_URLS) ||
+                key.equals(UNICHAIN_RPC_URL) ||
+                key.equals(UNICHAIN_RPC_FALLBACK_URLS) ||
+                key.equals(TEMPO_RPC_URL) ||
+                key.equals(TEMPO_RPC_FALLBACK_URLS) ||
+                key.equals(ROBINHOOD_RPC_URL) ||
+                key.equals(ROBINHOOD_RPC_FALLBACK_URLS) ||
+                key.equals(MODE_RPC_URL) ||
+                key.equals(MODE_RPC_FALLBACK_URLS) ||
                 key.equals(ETHEREUM_SEPOLIA_RPC_URL) ||
                 key.equals(ETHEREUM_SEPOLIA_RPC_FALLBACK_URLS) ||
                 key.equals(BASE_SEPOLIA_RPC_URL) ||
@@ -527,6 +567,14 @@ public final class Web3ConnectorFactory
                 key.equals(CROSSFI_TESTNET_RPC_FALLBACK_URLS) ||
                 key.equals(LINEA_SEPOLIA_RPC_URL) ||
                 key.equals(LINEA_SEPOLIA_RPC_FALLBACK_URLS) ||
+                key.equals(UNICHAIN_SEPOLIA_RPC_URL) ||
+                key.equals(UNICHAIN_SEPOLIA_RPC_FALLBACK_URLS) ||
+                key.equals(TEMPO_MODERATO_RPC_URL) ||
+                key.equals(TEMPO_MODERATO_RPC_FALLBACK_URLS) ||
+                key.equals(ROBINHOOD_TESTNET_RPC_URL) ||
+                key.equals(ROBINHOOD_TESTNET_RPC_FALLBACK_URLS) ||
+                key.equals(MODE_SEPOLIA_RPC_URL) ||
+                key.equals(MODE_SEPOLIA_RPC_FALLBACK_URLS) ||
                 key.equals(SOLANA_RPC_URL) ||
                 key.equals(SOLANA_RPC_FALLBACK_URLS) ||
                 key.equals(APTOS_REST_URL) ||

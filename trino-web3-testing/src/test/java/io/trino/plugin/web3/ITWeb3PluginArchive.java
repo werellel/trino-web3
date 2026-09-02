@@ -98,6 +98,10 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.JovayChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.CrossFiChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.LineaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.UnichainChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.TempoChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.RobinhoodChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.ModeChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumSepoliaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.BaseSepoliaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.OptimismSepoliaChainAdapter")).isNotNull();
@@ -119,6 +123,10 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.JovaySepoliaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.LineaSepoliaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.UnichainSepoliaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.TempoModeratoChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.RobinhoodTestnetChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.ModeSepoliaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.core.Web3TableHandle")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.EthereumBlockClient")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.runtime.JsonRpcClient")).isNotNull();
@@ -176,11 +184,11 @@ public class ITWeb3PluginArchive
                         .containsExactly("blocks", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.injective").getOnlyColumn())
                         .containsExactly("blocks", "transactions");
-                for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea")) {
+                for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "unichain", "tempo", "robinhood", "mode")) {
                     assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
                             .containsExactly("blocks", "transactions");
                 }
-                for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia")) {
+                for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia", "unichain_sepolia", "tempo_moderato", "robinhood_testnet", "mode_sepolia")) {
                     assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
                             .containsExactly("blocks", "transactions");
                 }

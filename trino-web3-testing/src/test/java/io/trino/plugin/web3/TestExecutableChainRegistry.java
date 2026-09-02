@@ -44,6 +44,14 @@ import io.trino.plugin.web3.evm.InkChainAdapter;
 import io.trino.plugin.web3.evm.JovayChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiChainAdapter;
 import io.trino.plugin.web3.evm.LineaChainAdapter;
+import io.trino.plugin.web3.evm.UnichainChainAdapter;
+import io.trino.plugin.web3.evm.UnichainSepoliaChainAdapter;
+import io.trino.plugin.web3.evm.TempoChainAdapter;
+import io.trino.plugin.web3.evm.TempoModeratoChainAdapter;
+import io.trino.plugin.web3.evm.RobinhoodChainAdapter;
+import io.trino.plugin.web3.evm.RobinhoodTestnetChainAdapter;
+import io.trino.plugin.web3.evm.ModeChainAdapter;
+import io.trino.plugin.web3.evm.ModeSepoliaChainAdapter;
 import io.trino.plugin.web3.evm.AbstractSepoliaChainAdapter;
 import io.trino.plugin.web3.evm.AnimeTestnetChainAdapter;
 import io.trino.plugin.web3.evm.ApeChainCurtisChainAdapter;
@@ -112,6 +120,10 @@ final class TestExecutableChainRegistry
                 new JovayChainAdapter(),
                 new CrossFiChainAdapter(),
                 new LineaChainAdapter(),
+                new UnichainChainAdapter(),
+                new TempoChainAdapter(),
+                new RobinhoodChainAdapter(),
+                new ModeChainAdapter(),
                 new EthereumSepoliaChainAdapter(),
                 new BaseSepoliaChainAdapter(),
                 new OptimismSepoliaChainAdapter(),
@@ -133,6 +145,10 @@ final class TestExecutableChainRegistry
                 new JovaySepoliaChainAdapter(),
                 new CrossFiTestnetChainAdapter(),
                 new LineaSepoliaChainAdapter(),
+                new UnichainSepoliaChainAdapter(),
+                new TempoModeratoChainAdapter(),
+                new RobinhoodTestnetChainAdapter(),
+                new ModeSepoliaChainAdapter(),
                 new TronChainAdapter(),
                 new TronNileChainAdapter(),
                 new TronShastaChainAdapter(),
@@ -159,7 +175,7 @@ final class TestExecutableChainRegistry
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "tron", "tron_nile", "tron_shasta");
+                .containsExactly("abstract", "abstract_sepolia", "anime", "anime_testnet", "apechain", "apechain_curtis", "aptos", "aptos_testnet", "arbitrum", "arbitrum_sepolia", "arc", "arc_testnet", "avalanche", "avalanche_fuji", "base", "base_sepolia", "bitcoin", "bitcoin_testnet", "bitcoincash", "bitcoincash_testnet", "bnb", "bnb_testnet", "boba", "boba_sepolia", "celo", "celo_sepolia", "cosmos", "cosmos_testnet", "crossfi", "crossfi_testnet", "degen", "dogecoin", "dogecoin_testnet", "ethereum", "ethereum_sepolia", "gnosis", "gnosis_chiado", "hyperevm", "hyperevm_testnet", "injective", "injective_testnet", "ink", "ink_sepolia", "jovay", "jovay_sepolia", "kaia", "kaia_kairos", "linea", "linea_sepolia", "litecoin", "litecoin_testnet", "mode", "mode_sepolia", "optimism", "optimism_sepolia", "osmosis", "osmosis_testnet", "polygon", "polygon_amoy", "robinhood", "robinhood_testnet", "solana", "solana_devnet", "story", "story_aeneid", "sui", "sui_testnet", "tempo", "tempo_moderato", "tron", "tron_nile", "tron_shasta", "unichain", "unichain_sepolia");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("base")).isInstanceOf(BaseChainAdapter.class);
         assertThat(registry.adapterForSchema("optimism")).isInstanceOf(OptimismChainAdapter.class);
@@ -178,6 +194,14 @@ final class TestExecutableChainRegistry
         assertThat(registry.adapterForSchema("litecoin")).isInstanceOf(LitecoinChainAdapter.class);
         assertThat(registry.adapterForSchema("dogecoin")).isInstanceOf(DogecoinChainAdapter.class);
         assertThat(registry.adapterForSchema("bitcoincash")).isInstanceOf(BitcoinCashChainAdapter.class);
+        assertThat(registry.adapterForSchema("unichain")).isInstanceOf(UnichainChainAdapter.class);
+        assertThat(registry.adapterForSchema("unichain_sepolia")).isInstanceOf(UnichainSepoliaChainAdapter.class);
+        assertThat(registry.adapterForSchema("tempo")).isInstanceOf(TempoChainAdapter.class);
+        assertThat(registry.adapterForSchema("tempo_moderato")).isInstanceOf(TempoModeratoChainAdapter.class);
+        assertThat(registry.adapterForSchema("robinhood")).isInstanceOf(RobinhoodChainAdapter.class);
+        assertThat(registry.adapterForSchema("robinhood_testnet")).isInstanceOf(RobinhoodTestnetChainAdapter.class);
+        assertThat(registry.adapterForSchema("mode")).isInstanceOf(ModeChainAdapter.class);
+        assertThat(registry.adapterForSchema("mode_sepolia")).isInstanceOf(ModeSepoliaChainAdapter.class);
         assertThat(registry.adapterForSchema("solana_devnet")).isInstanceOf(SolanaDevnetChainAdapter.class);
         assertThat(registry.adapterForSchema("aptos_testnet")).isInstanceOf(AptosTestnetChainAdapter.class);
         assertThat(registry.adapterForSchema("tron_nile")).isInstanceOf(TronNileChainAdapter.class);
