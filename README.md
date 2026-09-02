@@ -29,9 +29,14 @@ SHOW SCHEMAS FROM web3;
 ```
 
 The M1 vertical slice exposes `web3.ethereum.blocks` and
-`web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`) and
-`block_hash` (`VARCHAR`). Transactions provide `hash`, `block_number`,
-`from_address`, and `to_address`. Both tables accept an equality or bounded
+`web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
+`block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
+`VARCHAR`). Transactions provide `hash`, `block_number`, `from_address`,
+`to_address`, and the same `raw_json` column. The raw document is the complete
+block or transaction object returned by the node, so additive provider fields
+remain queryable without changing the stable typed schema; use
+`json_parse(raw_json)` with Trino's JSON functions when structured access is
+needed. Both tables accept an equality or bounded
 range predicate on `block_number`. `ethereum.transactions` also accepts
 bounded equality or `IN` predicates on `hash`. Unbounded scans are rejected
 before remote work is scheduled.
@@ -42,12 +47,27 @@ All four tables require a bounded `height` or `block_height` predicate. Bitcoin
 Core reads use bounded `getblockhash` plus `getblock` operations; satoshi values
 are represented as integer `BIGINT` values.
 
+Litecoin, Dogecoin, and Bitcoin Cash use the same bounded UTXO execution path
+with separate native schemas: `web3.litecoin`, `web3.dogecoin`, and
+`web3.bitcoincash`. Each exposes `blocks`, `transactions`, `inputs`, and
+`outputs`, validates the node's `getnetworkinfo.subversion`, and keeps cache
+admission disabled until a chain-specific reorganization-safe identity contract
+is defined. The shared decoder accepts the Bitcoin Core-compatible `address`
+and legacy `addresses` script shapes without adding provider-specific behavior.
+
 This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
 The worker-local runtime bounds concurrency, queue size, batch size, retries,
 and rate admission; it handles generic endpoint failover and `429`
 `Retry-After`. It does not implement receipts, logs, vendor-specific provider
 profiles, Solana inner instructions, or additional Aptos tables beyond
 transactions and events.
+
+Every remote chain table also exposes a `raw_json` `VARCHAR` containing the
+complete source object for the row (the block, transaction, event, input,
+output, or instruction). This compatibility column preserves additive provider
+fields across all JSON-RPC and REST integrations. It contains valid compact
+JSON and can be queried with `json_parse(raw_json)`; the JSON-RPC envelope is
+not included.
 
 ## Runtime snapshots
 
@@ -85,6 +105,12 @@ web3.solana.rpc-url=http://127.0.0.1:8899
 web3.solana.rpc-fallback-urls=http://127.0.0.1:8900,http://127.0.0.1:8901
 web3.bitcoin.rpc-url=http://127.0.0.1:8332
 web3.bitcoin.rpc-fallback-urls=http://127.0.0.1:18332
+web3.litecoin.rpc-url=http://127.0.0.1:9332
+web3.litecoin.rpc-fallback-urls=http://127.0.0.1:19332
+web3.dogecoin.rpc-url=http://127.0.0.1:22555
+web3.dogecoin.rpc-fallback-urls=http://127.0.0.1:22556
+web3.bitcoincash.rpc-url=http://127.0.0.1:8332
+web3.bitcoincash.rpc-fallback-urls=http://127.0.0.1:18332
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
 web3.maximum-transaction-hashes-per-query=1000
@@ -130,11 +156,13 @@ predicate. A null block result produces no rows. The initial instruction table
 contains compiled top-level instructions only; it intentionally excludes inner
 instructions and parsed instruction variants. Solana cache admission is disabled
 until a stable cache identity and reorganization policy are defined.
-`web3.bitcoin.rpc-url` follows Ethereum's JSON-RPC endpoint rules. Bitcoin
-Core identity is validated with `getblockchaininfo.chain`; all Bitcoin tables
-require bounded height predicates and use native UTXO-oriented rows. Satoshi
-amounts are returned as integer `BIGINT` values, and Bitcoin cache admission is
-disabled until reorganization-safe identity semantics are defined.
+`web3.bitcoin.rpc-url`, `web3.litecoin.rpc-url`, `web3.dogecoin.rpc-url`, and
+`web3.bitcoincash.rpc-url` follow Ethereum's JSON-RPC endpoint rules. Their
+Bitcoin Core-family identities are validated with `getnetworkinfo.subversion`
+against the corresponding node product prefix. All four schemas require
+bounded height predicates and use native UTXO-oriented rows. Satoshi amounts
+are returned as integer `BIGINT` values, and cache admission is disabled until
+reorganization-safe identity semantics are defined for each chain.
 The connector enforces hard upper bounds of 1,000 blocks per split, 10,000
 blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
 Fallback URLs are optional and are used in declaration order after a retryable
@@ -253,7 +281,11 @@ trino-web3-core     Trino planning handles and bounded range splitting
 trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
 trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
 trino-web3-aptos    Aptos-native transaction/event planning, REST mapping, and decoding
-trino-web3-bitcoin  Bitcoin Core UTXO-native block, transaction, input, and output decoding
+trino-web3-utxo      Shared bounded Bitcoin Core-family UTXO planning and decoding
+trino-web3-bitcoin   Bitcoin Core UTXO-native block, transaction, input, and output decoding
+trino-web3-litecoin  Litecoin Core UTXO-native block, transaction, input, and output decoding
+trino-web3-dogecoin  Dogecoin Core UTXO-native block, transaction, input, and output decoding
+trino-web3-bitcoincash Bitcoin Cash Node/Bitcoin ABC UTXO-native decoding
 trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
@@ -269,9 +301,11 @@ splits retain their predicate column when crossing Trino's serialized split
 boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
 REST request values through the same policy state machine. Aptos transactions
 and account event streams are REST vertical slices. Solana uses bounded
-`getBlock` JSON-RPC reads, and Bitcoin uses bounded Bitcoin Core
-`getblockhash`/`getblock` reads. Tron, Sui, and Near remain follow-up
-chain-adapter work.
+`getBlock` JSON-RPC reads, and Bitcoin-family adapters use bounded Bitcoin Core
+`getblockhash`/`getblock` reads. Litecoin, Dogecoin, and Bitcoin Cash share only
+the transport-neutral UTXO runtime and decoder; each keeps a separate descriptor
+and node identity matcher. Tron, Sui, and Near remain follow-up chain-adapter
+work.
 
 ## Development rules
 

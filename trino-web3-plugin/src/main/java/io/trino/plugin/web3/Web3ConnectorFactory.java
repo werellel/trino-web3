@@ -42,6 +42,12 @@ public final class Web3ConnectorFactory
     private static final String APTOS_REST_FALLBACK_URLS = "web3.aptos.rest-fallback-urls";
     private static final String BITCOIN_RPC_URL = "web3.bitcoin.rpc-url";
     private static final String BITCOIN_RPC_FALLBACK_URLS = "web3.bitcoin.rpc-fallback-urls";
+    private static final String LITECOIN_RPC_URL = "web3.litecoin.rpc-url";
+    private static final String LITECOIN_RPC_FALLBACK_URLS = "web3.litecoin.rpc-fallback-urls";
+    private static final String DOGECOIN_RPC_URL = "web3.dogecoin.rpc-url";
+    private static final String DOGECOIN_RPC_FALLBACK_URLS = "web3.dogecoin.rpc-fallback-urls";
+    private static final String BITCOINCASH_RPC_URL = "web3.bitcoincash.rpc-url";
+    private static final String BITCOINCASH_RPC_FALLBACK_URLS = "web3.bitcoincash.rpc-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
     private static final String MAXIMUM_TRANSACTION_HASHES_PER_QUERY = "web3.maximum-transaction-hashes-per-query";
@@ -98,6 +104,18 @@ public final class Web3ConnectorFactory
         List<URI> bitcoinEndpoints = parseEndpoints(config, BITCOIN_RPC_URL, BITCOIN_RPC_FALLBACK_URLS, false);
         if (bitcoinEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.bitcoin.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> litecoinEndpoints = parseEndpoints(config, LITECOIN_RPC_URL, LITECOIN_RPC_FALLBACK_URLS, false);
+        if (litecoinEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.litecoin.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> dogecoinEndpoints = parseEndpoints(config, DOGECOIN_RPC_URL, DOGECOIN_RPC_FALLBACK_URLS, false);
+        if (dogecoinEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.dogecoin.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> bitcoinCashEndpoints = parseEndpoints(config, BITCOINCASH_RPC_URL, BITCOINCASH_RPC_FALLBACK_URLS, false);
+        if (bitcoinCashEndpoints.size() > 8) {
+            throw new IllegalArgumentException("web3.bitcoincash.rpc-url and fallback URLs must contain at most 8 endpoints");
         }
         long maximumBlocksPerSplit = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_SPLIT))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_SPLIT, 1_000))
@@ -157,6 +175,9 @@ public final class Web3ConnectorFactory
                 solanaEndpoints,
                 aptosEndpoints,
                 bitcoinEndpoints,
+                litecoinEndpoints,
+                dogecoinEndpoints,
+                bitcoinCashEndpoints,
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -173,6 +194,12 @@ public final class Web3ConnectorFactory
                 key.equals(APTOS_REST_FALLBACK_URLS) ||
                 key.equals(BITCOIN_RPC_URL) ||
                 key.equals(BITCOIN_RPC_FALLBACK_URLS) ||
+                key.equals(LITECOIN_RPC_URL) ||
+                key.equals(LITECOIN_RPC_FALLBACK_URLS) ||
+                key.equals(DOGECOIN_RPC_URL) ||
+                key.equals(DOGECOIN_RPC_FALLBACK_URLS) ||
+                key.equals(BITCOINCASH_RPC_URL) ||
+                key.equals(BITCOINCASH_RPC_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
                 key.equals(MAXIMUM_TRANSACTION_HASHES_PER_QUERY) ||

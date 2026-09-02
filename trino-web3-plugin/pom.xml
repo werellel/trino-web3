@@ -36,12 +36,27 @@
         </dependency>
         <dependency>
             <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-bitcoincash</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-evm</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-dogecoin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-litecoin</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -94,7 +94,8 @@ public class TestEthereumBlocks
                     .extracting(row -> row.getField(0), row -> row.getField(1))
                     .containsExactly(
                             org.assertj.core.groups.Tuple.tuple("block_number", "bigint"),
-                            org.assertj.core.groups.Tuple.tuple("block_hash", "varchar"));
+                            org.assertj.core.groups.Tuple.tuple("block_hash", "varchar"),
+                            org.assertj.core.groups.Tuple.tuple("raw_json", "varchar"));
 
             MaterializedResult result = queryRunner.execute("""
                     SELECT block_number, block_hash
@@ -113,6 +114,11 @@ public class TestEthereumBlocks
                     FROM web3.ethereum.blocks
                     WHERE block_number = 23000000
                     """).getOnlyColumn()).containsExactly("0x15ef3c0");
+            assertThat(queryRunner.execute("""
+                    SELECT raw_json
+                    FROM web3.ethereum.blocks
+                    WHERE block_number = 23000000
+                    """).getOnlyColumn().findFirst().map(String.class::cast).orElseThrow()).contains("\"futureBlockField\":\"present\"");
 
             MaterializedResult transactions = queryRunner.execute("""
                     SELECT hash, block_number, from_address, to_address
@@ -125,6 +131,11 @@ public class TestEthereumBlocks
                     .containsExactly(
                             org.assertj.core.groups.Tuple.tuple("0xtx15ef3c0", 23000000L, "0xfrom", "0xto"),
                             org.assertj.core.groups.Tuple.tuple("0xtx15ef3c1", 23000001L, "0xfrom", "0xto"));
+            assertThat(queryRunner.execute("""
+                    SELECT raw_json
+                    FROM web3.ethereum.transactions
+                    WHERE block_number = 23000000
+                    """).getOnlyColumn().findFirst().map(String.class::cast).orElseThrow()).contains("\"futureTransactionField\":\"present\"");
 
             assertThatThrownBy(() -> queryRunner.execute("SELECT * FROM web3.ethereum.blocks"))
                     .hasMessageContaining("requires a bounded block_number predicate");
@@ -291,6 +302,7 @@ public class TestEthereumBlocks
             ObjectNode block = response.putObject("result");
             block.put("number", quantity);
             block.put("hash", "0x" + Long.toHexString(blockNumber));
+            block.put("futureBlockField", "present");
             if (request.path("params").get(1).asBoolean()) {
                 ArrayNode transactions = block.putArray("transactions");
                 ObjectNode transaction = transactions.addObject();
@@ -298,6 +310,7 @@ public class TestEthereumBlocks
                 transaction.put("blockNumber", quantity);
                 transaction.put("from", "0xfrom");
                 transaction.put("to", "0xto");
+                transaction.put("futureTransactionField", "present");
             }
             responses.insert(0, response);
         }

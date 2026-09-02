@@ -16,7 +16,10 @@ package io.trino.plugin.web3;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
 import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
+import io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter;
+import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
+import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import org.junit.jupiter.api.Test;
 
@@ -31,15 +34,21 @@ final class TestExecutableChainRegistry
                 new EthereumChainAdapter(),
                 new SolanaChainAdapter(),
                 new AptosChainAdapter(),
-                new BitcoinChainAdapter());
+                new BitcoinChainAdapter(),
+                new LitecoinChainAdapter(),
+                new DogecoinChainAdapter(),
+                new BitcoinCashChainAdapter());
 
         assertThat(registry.descriptors().descriptors())
                 .extracting(descriptor -> descriptor.schemaName())
-                .containsExactly("aptos", "bitcoin", "ethereum", "solana");
+                .containsExactly("aptos", "bitcoin", "bitcoincash", "dogecoin", "ethereum", "litecoin", "solana");
         assertThat(registry.adapterForSchema("ethereum")).isInstanceOf(EthereumChainAdapter.class);
         assertThat(registry.adapterForSchema("solana")).isInstanceOf(SolanaChainAdapter.class);
         assertThat(registry.adapterForSchema("aptos")).isInstanceOf(AptosChainAdapter.class);
         assertThat(registry.adapterForSchema("bitcoin")).isInstanceOf(BitcoinChainAdapter.class);
+        assertThat(registry.adapterForSchema("litecoin")).isInstanceOf(LitecoinChainAdapter.class);
+        assertThat(registry.adapterForSchema("dogecoin")).isInstanceOf(DogecoinChainAdapter.class);
+        assertThat(registry.adapterForSchema("bitcoincash")).isInstanceOf(BitcoinCashChainAdapter.class);
         assertThat(new Web3Metadata(10).listSchemaNames(null))
                 .containsExactlyElementsOf(registry.descriptors().descriptors().stream()
                         .map(descriptor -> descriptor.schemaName())

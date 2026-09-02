@@ -100,7 +100,8 @@ public final class SolanaChainDataClient
                     "parent_slot", LongNode.valueOf(requiredLong(block, "parentSlot")),
                     "block_time", optionalLong(block, "blockTime")
                             .<JsonNode>map(LongNode::valueOf)
-                            .orElse(NullNode.instance))));
+                            .orElse(NullNode.instance),
+                    "raw_json", TextNode.valueOf(block.toString()))));
         }
         return List.copyOf(rows);
     }
@@ -121,7 +122,8 @@ public final class SolanaChainDataClient
                         "slot", LongNode.valueOf(slot),
                         "signature", TextNode.valueOf(transactionSignature(transaction)),
                         "success", BooleanNode.valueOf(meta.get("err") != null && meta.get("err").isNull()),
-                        "fee", LongNode.valueOf(requiredLong(meta, "fee")))));
+                        "fee", LongNode.valueOf(requiredLong(meta, "fee")),
+                        "raw_json", TextNode.valueOf(transaction.toString()))));
             }
         }
         return List.copyOf(rows);
@@ -155,7 +157,8 @@ public final class SolanaChainDataClient
                             "instruction_index", LongNode.valueOf(instructionIndex),
                             "program_id", TextNode.valueOf(accountKeys.get(programIdIndex)),
                             "account_indices", TextNode.valueOf(accounts.toString()),
-                            "data", TextNode.valueOf(requiredText(instruction, "data")))));
+                            "data", TextNode.valueOf(requiredText(instruction, "data")),
+                            "raw_json", TextNode.valueOf(instruction.toString()))));
                 }
             }
         }

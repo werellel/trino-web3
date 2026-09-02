@@ -36,7 +36,7 @@ final class TestSolanaChainAdapter
 
         assertThat(descriptor.name()).isEqualTo("solana");
         assertThat(descriptor.schemaName()).isEqualTo("solana");
-        assertThat(descriptor.adapterVersion()).isEqualTo(1);
+        assertThat(descriptor.adapterVersion()).isEqualTo(2);
         assertThat(descriptor.tables()).extracting(ChainTableDescriptor::name)
                 .containsExactly("blocks", "transactions", "instructions");
         assertThat(descriptor.table("instructions").orElseThrow().columns())
@@ -47,7 +47,8 @@ final class TestSolanaChainAdapter
                         "instruction_index:bigint",
                         "program_id:varchar",
                         "account_indices:varchar",
-                        "data:varchar");
+                        "data:varchar",
+                        "raw_json:varchar");
     }
 
     @Test

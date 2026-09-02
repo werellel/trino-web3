@@ -27,6 +27,18 @@
         </dependency>
         <dependency>
             <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-bitcoincash</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-dogecoin</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-chain</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -52,6 +64,12 @@
         <dependency>
             <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-solana</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-litecoin</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

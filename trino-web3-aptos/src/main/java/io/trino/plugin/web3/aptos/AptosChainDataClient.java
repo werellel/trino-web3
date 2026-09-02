@@ -187,7 +187,8 @@ public final class AptosChainDataClient
                     "vm_status", TextNode.valueOf(requiredText(transaction, "vm_status")),
                     "sender", optionalText(transaction, "sender")
                             .<JsonNode>map(TextNode::valueOf)
-                            .orElse(NullNode.instance))));
+                            .orElse(NullNode.instance),
+                    "raw_json", TextNode.valueOf(transaction.toString()))));
         }
         return List.copyOf(rows);
     }
@@ -235,7 +236,8 @@ public final class AptosChainDataClient
                     CREATION_NUMBER_COLUMN, TextNode.valueOf(creationNumber),
                     SEQUENCE_NUMBER_COLUMN, LongNode.valueOf(sequenceNumber),
                     "event_type", TextNode.valueOf(requiredText(event, "type")),
-                    "data", TextNode.valueOf(data.toString()))));
+                    "data", TextNode.valueOf(data.toString()),
+                    "raw_json", TextNode.valueOf(event.toString()))));
         }
         return List.copyOf(rows);
     }

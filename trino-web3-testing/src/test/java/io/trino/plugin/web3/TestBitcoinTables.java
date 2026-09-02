@@ -134,7 +134,7 @@ public class TestBitcoinTables
     private static JsonNode result(JsonNode request)
     {
         return switch (request.path("method").asText()) {
-            case "getblockchaininfo" -> OBJECT_MAPPER.createObjectNode().put("chain", "main");
+            case "getnetworkinfo" -> OBJECT_MAPPER.createObjectNode().put("subversion", "/Satoshi:29.3.0/");
             case "getblockhash" -> OBJECT_MAPPER.getNodeFactory().textNode(BLOCK_HASH);
             case "getblock" -> block(request.path("params").get(1).asInt());
             default -> throw new IllegalArgumentException("unexpected Bitcoin RPC method");

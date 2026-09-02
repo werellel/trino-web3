@@ -19,8 +19,8 @@ Bitcoin inputs/outputs as Ethereum transactions or logs.
 * Add a dedicated `trino-web3-bitcoin` Maven module and built-in versioned
   descriptor.
 * Use one catalog-owned `web3.bitcoin.rpc-url` plus validated fallback URLs.
-* Validate endpoint identity with `getblockchaininfo.chain` and require all
-  configured endpoints to agree.
+* Validate endpoint identity with `getnetworkinfo.subversion` and require all
+  configured endpoints to identify the Bitcoin Core product family.
 * Keep retry, batching, rate limits, failover, cancellation, and transport in
   `RemoteExecutionRuntime`.
 * Use bounded non-negative `height` predicates for all initial tables.

@@ -149,11 +149,11 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
-    public void testRejectsMismatchedBitcoinEndpoints()
+    public void testRejectsBitcoinEndpointWithWrongNodeIdentity()
             throws Exception
     {
-        HttpServer primary = bitcoinServer("main");
-        HttpServer fallback = bitcoinServer("test");
+        HttpServer primary = bitcoinServer("/Satoshi:29.3.0/");
+        HttpServer fallback = bitcoinServer("/Litecoin Core:0.21.3/");
         try {
             primary.start();
             fallback.start();
@@ -161,7 +161,7 @@ public class TestEndpointIdentityValidation
                 assertThatThrownBy(() -> queryRunner.createCatalog("web3", Web3ConnectorFactory.CONNECTOR_NAME, Map.of(
                         "web3.bitcoin.rpc-url", endpoint(primary),
                         "web3.bitcoin.rpc-fallback-urls", endpoint(fallback))))
-                        .hasMessageContaining("configured endpoints do not have the same chain identity for schema bitcoin");
+                        .hasMessageContaining("endpoint returned an invalid chain identity for schema bitcoin");
             }
         }
         finally {
@@ -201,14 +201,14 @@ public class TestEndpointIdentityValidation
         return server;
     }
 
-    private static HttpServer bitcoinServer(String chain)
+    private static HttpServer bitcoinServer(String subversion)
             throws IOException
     {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
             JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
-            ObjectNode result = OBJECT_MAPPER.createObjectNode().put("chain", chain);
+            ObjectNode result = OBJECT_MAPPER.createObjectNode().put("subversion", subversion);
             ObjectNode response = OBJECT_MAPPER.createObjectNode();
             response.put("jsonrpc", "2.0");
             response.put("id", request.path("id").asLong());

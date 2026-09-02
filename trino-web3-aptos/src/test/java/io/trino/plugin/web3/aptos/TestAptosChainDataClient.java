@@ -78,7 +78,7 @@ public class TestAptosChainDataClient
     {
         JsonNode response = OBJECT_MAPPER.readTree("""
                 [
-                  {"version":"20","hash":"0x1","type":"user_transaction","success":false,"vm_status":"Move abort","sender":"0xa"},
+                  {"version":"20","hash":"0x1","type":"user_transaction","success":false,"vm_status":"Move abort","sender":"0xa","futureField":"present"},
                   {"version":"21","hash":"0x2","type":"state_checkpoint_transaction","success":true,"vm_status":"Executed"}
                 ]
                 """);
@@ -88,6 +88,7 @@ public class TestAptosChainDataClient
         assertThat(rows).hasSize(2);
         assertThat(rows.get(0).value("success").booleanValue()).isFalse();
         assertThat(rows.get(1).value("type").textValue()).isEqualTo("state_checkpoint_transaction");
+        assertThat(rows.get(0).value("raw_json").textValue()).contains("\"futureField\":\"present\"");
     }
 
     @Test
@@ -144,7 +145,7 @@ public class TestAptosChainDataClient
             target.set(exchange.getRequestURI().toString());
             respond(exchange, """
                     [
-                      {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"0x1::coin::WithdrawEvent","data":{"amount":"100"}},
+                      {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"10","type":"0x1::coin::WithdrawEvent","data":{"amount":"100"},"futureField":"present"},
                       {"guid":{"account_address":"0x1","creation_number":"7"},"sequence_number":"11","type":"0x1::coin::WithdrawEvent","data":{"amount":"200"}}
                     ]
                     """);
@@ -163,6 +164,7 @@ public class TestAptosChainDataClient
             assertThat(rows.get(0).value("account_address").textValue()).isEqualTo("0x1");
             assertThat(rows.get(0).value("creation_number").textValue()).isEqualTo("7");
             assertThat(rows.get(1).value("data").textValue()).isEqualTo("{\"amount\":\"200\"}");
+            assertThat(rows.get(0).value("raw_json").textValue()).contains("\"futureField\":\"present\"");
             assertThat(execution.metrics().requestCount()).isEqualTo(1);
         }
     }

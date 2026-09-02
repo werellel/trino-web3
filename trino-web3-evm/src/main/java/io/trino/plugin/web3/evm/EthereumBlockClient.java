@@ -104,7 +104,7 @@ public final class EthereumBlockClient
             if (actualNumber != expectedNumber) {
                 throw new IllegalStateException("Ethereum block number does not match its request");
             }
-            blocks.add(new EthereumBlock(actualNumber, hash.textValue()));
+            blocks.add(new EthereumBlock(actualNumber, hash.textValue(), result.toString()));
         }
         return List.copyOf(blocks);
     }
@@ -115,7 +115,7 @@ public final class EthereumBlockClient
         for (int index = 0; index < results.size(); index++) {
             long blockNumber = range.startInclusive() + index;
             String hash = EthereumBlockResponseLoader.validateBlock(results.get(index), blockNumber, null);
-            blocks.add(new EthereumBlock(blockNumber, hash));
+            blocks.add(new EthereumBlock(blockNumber, hash, results.get(index).toString()));
         }
         return List.copyOf(blocks);
     }
@@ -128,14 +128,32 @@ public final class EthereumBlockClient
         return Long.parseUnsignedLong(value.substring(2), 16);
     }
 
-    public record EthereumBlock(long number, String hash)
+    public record EthereumBlock(long number, String hash, String rawJson)
     {
+        public EthereumBlock(long number, String hash)
+        {
+            this(number, hash, "{}");
+        }
+
         public EthereumBlock
         {
             if (number < 0) {
                 throw new IllegalArgumentException("number is negative");
             }
             requireNonNull(hash, "hash is null");
+            requireNonNull(rawJson, "rawJson is null");
+        }
+
+        @Override
+        public boolean equals(Object other)
+        {
+            return other instanceof EthereumBlock block && number == block.number && hash.equals(block.hash);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return java.util.Objects.hash(number, hash);
         }
     }
 

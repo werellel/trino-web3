@@ -13,77 +13,24 @@
  */
 package io.trino.plugin.web3.bitcoin;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.trino.plugin.web3.adapter.ChainDataClient;
-import io.trino.plugin.web3.adapter.ChainPlanningException;
-import io.trino.plugin.web3.adapter.ChainScan;
-import io.trino.plugin.web3.adapter.ChainSplit;
-import io.trino.plugin.web3.adapter.ChainSplitLimits;
-import io.trino.plugin.web3.adapter.EndpointIdentityProbe;
-import io.trino.plugin.web3.adapter.ExecutableChainAdapter;
-import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
 import io.trino.plugin.web3.chain.ChainDescriptorCodec;
+import io.trino.plugin.web3.utxo.UtxoChainAdapter;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
-import io.trino.plugin.web3.runtime.RemoteOperation;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 
 public final class BitcoinChainAdapter
-        implements ExecutableChainAdapter
+        extends UtxoChainAdapter
 {
     private static final String DESCRIPTOR_RESOURCE = "bitcoin-chain.json";
-    private static final String HEIGHT_COLUMN = "height";
-    private static final String BLOCK_HEIGHT_COLUMN = "block_height";
-    private static final String BY_HEIGHT_METHOD = "by-height";
-    private static final Set<String> TABLES = Set.of("blocks", "transactions", "inputs", "outputs");
     private static final ChainDescriptor DESCRIPTOR = loadDescriptor();
 
-    @Override
-    public ChainDescriptor descriptor()
+    public BitcoinChainAdapter()
     {
-        return DESCRIPTOR;
-    }
-
-    @Override
-    public EndpointIdentityProbe endpointIdentityProbe()
-    {
-        return new EndpointIdentityProbe(new RemoteOperation("getblockchaininfo", List.of()), BitcoinChainAdapter::chainName);
-    }
-
-    @Override
-    public List<ChainSplit> planSplits(ChainScan scan, ChainSplitLimits limits)
-    {
-        if (!TABLES.contains(scan.tableName()) || descriptor().table(scan.tableName()).isEmpty()) {
-            throw new ChainPlanningException("unknown Bitcoin table " + scan.tableName());
-        }
-        if (scan.methodName().isPresent() && !scan.methodName().orElseThrow().equals(BY_HEIGHT_METHOD)) {
-            throw new ChainPlanningException("descriptor method does not match predicates for bitcoin." + scan.tableName());
-        }
-        String rangeColumn = scan.tableName().equals("blocks") ? HEIGHT_COLUMN : BLOCK_HEIGHT_COLUMN;
-        if (!Set.of(rangeColumn).containsAll(scan.ranges().keySet()) || !scan.discreteValues().isEmpty()) {
-            throw new ChainPlanningException("unsupported pushed predicates for bitcoin." + scan.tableName());
-        }
-        ChainScan.LongRange range = scan.ranges().get(rangeColumn);
-        if (range == null) {
-            throw new ChainPlanningException("bitcoin." + scan.tableName() + " requires a bounded " + rangeColumn + " predicate");
-        }
-        if (range.endInclusive() - range.startInclusive() >= limits.maximumRangeItemsPerQuery()) {
-            throw new ChainPlanningException("Bitcoin height range exceeds the configured query limit");
-        }
-        List<ChainSplit> splits = new ArrayList<>();
-        long start = range.startInclusive();
-        while (true) {
-            long remaining = range.endInclusive() - start;
-            long end = remaining < limits.maximumRangeItemsPerSplit() ? range.endInclusive() : Math.addExact(start, limits.maximumRangeItemsPerSplit() - 1);
-            splits.add(new RangeChainSplit(rangeColumn, start, end));
-            if (end == range.endInclusive()) {
-                return List.copyOf(splits);
-            }
-            start = Math.addExact(end, 1);
-        }
+        super(DESCRIPTOR, "bitcoin", subversion -> subversion.startsWith("/Satoshi:"));
     }
 
     @Override
@@ -92,13 +39,13 @@ public final class BitcoinChainAdapter
         return new BitcoinChainDataClient(runtime);
     }
 
-    static String chainName(com.fasterxml.jackson.databind.JsonNode response)
+    static String chainName(JsonNode response)
     {
-        String chain = response.path("chain").isTextual() ? response.path("chain").textValue() : "";
-        if (!chain.matches("main|test|regtest|signet")) {
-            throw new IllegalArgumentException("invalid Bitcoin chain identity");
+        JsonNode subversion = response.get("subversion");
+        if (subversion == null || !subversion.isTextual() || !subversion.textValue().startsWith("/Satoshi:")) {
+            throw new IllegalArgumentException("invalid Bitcoin node identity");
         }
-        return chain;
+        return "bitcoin";
     }
 
     private static ChainDescriptor loadDescriptor()

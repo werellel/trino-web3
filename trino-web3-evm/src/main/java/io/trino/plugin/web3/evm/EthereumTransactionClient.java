@@ -203,7 +203,8 @@ public final class EthereumTransactionClient
                 hash,
                 blockNumber,
                 requiredText(transaction, "from"),
-                optionalText(transaction, "to"));
+                optionalText(transaction, "to"),
+                transaction.toString());
     }
 
     private static String optionalText(JsonNode node, String fieldName)
@@ -246,8 +247,13 @@ public final class EthereumTransactionClient
         });
     }
 
-    public record EthereumTransaction(String hash, Long blockNumber, String fromAddress, String toAddress)
+    public record EthereumTransaction(String hash, Long blockNumber, String fromAddress, String toAddress, String rawJson)
     {
+        public EthereumTransaction(String hash, Long blockNumber, String fromAddress, String toAddress)
+        {
+            this(hash, blockNumber, fromAddress, toAddress, "{}");
+        }
+
         public EthereumTransaction
         {
             requireNonNull(hash, "hash is null");
@@ -255,6 +261,23 @@ public final class EthereumTransactionClient
                 throw new IllegalArgumentException("blockNumber is negative");
             }
             requireNonNull(fromAddress, "fromAddress is null");
+            requireNonNull(rawJson, "rawJson is null");
+        }
+
+        @Override
+        public boolean equals(Object other)
+        {
+            return other instanceof EthereumTransaction transaction &&
+                    java.util.Objects.equals(hash, transaction.hash) &&
+                    java.util.Objects.equals(blockNumber, transaction.blockNumber) &&
+                    java.util.Objects.equals(fromAddress, transaction.fromAddress) &&
+                    java.util.Objects.equals(toAddress, transaction.toAddress);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return java.util.Objects.hash(hash, blockNumber, fromAddress, toAddress);
         }
     }
 }

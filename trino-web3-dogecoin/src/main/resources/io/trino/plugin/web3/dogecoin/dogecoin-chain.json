@@ -1,0 +1,462 @@
+{
+  "apiVersion": "web3.trino.io/v1alpha1",
+  "name": "dogecoin",
+  "schemaName": "dogecoin",
+  "adapterVersion": 2,
+  "tables": [
+    {
+      "name": "blocks",
+      "version": 2,
+      "columns": [
+        {
+          "name": "height",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "previous_block_hash",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "time",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "transaction_count",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-height",
+          "protocol": "JSON_RPC",
+          "action": "getblockhash+getblock",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "height",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "1",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "SINGLE",
+            "rowsPointer": "",
+            "fields": [
+              {
+                "column": "height",
+                "pointer": "/height",
+                "required": true
+              },
+              {
+                "column": "hash",
+                "pointer": "/hash",
+                "required": true
+              },
+              {
+                "column": "previous_block_hash",
+                "pointer": "/previousblockhash",
+                "required": false
+              },
+              {
+                "column": "time",
+                "pointer": "/time",
+                "required": false
+              },
+              {
+                "column": "transaction_count",
+                "pointer": "/nTx",
+                "required": true
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "version": 2,
+      "columns": [
+        {
+          "name": "txid",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_height",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "lock_time",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "input_count",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "output_count",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-height",
+          "protocol": "JSON_RPC",
+          "action": "getblockhash+getblock",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "block_height",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "2",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/tx",
+            "fields": [
+              {
+                "column": "txid",
+                "pointer": "/txid",
+                "required": true
+              },
+              {
+                "column": "block_hash",
+                "pointer": "/blockhash",
+                "required": true
+              },
+              {
+                "column": "block_height",
+                "pointer": "/blockheight",
+                "required": true
+              },
+              {
+                "column": "version",
+                "pointer": "/version",
+                "required": true
+              },
+              {
+                "column": "lock_time",
+                "pointer": "/locktime",
+                "required": true
+              },
+              {
+                "column": "input_count",
+                "pointer": "/vin",
+                "required": true
+              },
+              {
+                "column": "output_count",
+                "pointer": "/vout",
+                "required": true
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "inputs",
+      "version": 2,
+      "columns": [
+        {
+          "name": "txid",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_height",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "input_index",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "previous_txid",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "previous_vout",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "coinbase",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "sequence",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-height",
+          "protocol": "JSON_RPC",
+          "action": "getblockhash+getblock",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "block_height",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "2",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/tx/vin",
+            "fields": [
+              {
+                "column": "txid",
+                "pointer": "/txid",
+                "required": true
+              },
+              {
+                "column": "block_hash",
+                "pointer": "/blockhash",
+                "required": true
+              },
+              {
+                "column": "block_height",
+                "pointer": "/blockheight",
+                "required": true
+              },
+              {
+                "column": "input_index",
+                "pointer": "/n",
+                "required": true
+              },
+              {
+                "column": "previous_txid",
+                "pointer": "/txid",
+                "required": false
+              },
+              {
+                "column": "previous_vout",
+                "pointer": "/vout",
+                "required": false
+              },
+              {
+                "column": "coinbase",
+                "pointer": "/coinbase",
+                "required": false
+              },
+              {
+                "column": "sequence",
+                "pointer": "/sequence",
+                "required": true
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "outputs",
+      "version": 2,
+      "columns": [
+        {
+          "name": "txid",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "block_height",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "output_index",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "value_satoshis",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "script_pubkey_hex",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "address",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "raw_json",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "by-height",
+          "protocol": "JSON_RPC",
+          "action": "getblockhash+getblock",
+          "path": "",
+          "bindings": [
+            {
+              "target": "0",
+              "kind": "SPLIT",
+              "value": "block_height",
+              "location": "PARAMETER",
+              "required": true
+            },
+            {
+              "target": "1",
+              "kind": "LITERAL",
+              "value": "2",
+              "location": "PARAMETER",
+              "required": true
+            }
+          ],
+          "response": {
+            "cardinality": "ARRAY",
+            "rowsPointer": "/tx/vout",
+            "fields": [
+              {
+                "column": "txid",
+                "pointer": "/txid",
+                "required": true
+              },
+              {
+                "column": "block_hash",
+                "pointer": "/blockhash",
+                "required": true
+              },
+              {
+                "column": "block_height",
+                "pointer": "/blockheight",
+                "required": true
+              },
+              {
+                "column": "output_index",
+                "pointer": "/n",
+                "required": true
+              },
+              {
+                "column": "value_satoshis",
+                "pointer": "/value",
+                "required": true
+              },
+              {
+                "column": "script_pubkey_hex",
+                "pointer": "/scriptPubKey/hex",
+                "required": true
+              },
+              {
+                "column": "address",
+                "pointer": "/scriptPubKey/address",
+                "required": false
+              },
+              {
+                "column": "raw_json",
+                "pointer": "",
+                "required": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

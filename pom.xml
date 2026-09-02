@@ -18,7 +18,11 @@
         <module>trino-web3-adapter</module>
         <module>trino-web3-solana</module>
         <module>trino-web3-aptos</module>
+        <module>trino-web3-utxo</module>
         <module>trino-web3-bitcoin</module>
+        <module>trino-web3-litecoin</module>
+        <module>trino-web3-dogecoin</module>
+        <module>trino-web3-bitcoincash</module>
         <module>trino-web3-evm</module>
         <module>trino-web3-plugin</module>
         <module>trino-web3-testing</module>

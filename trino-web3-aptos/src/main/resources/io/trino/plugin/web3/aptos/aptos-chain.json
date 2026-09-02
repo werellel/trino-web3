@@ -2,18 +2,19 @@
   "apiVersion": "web3.trino.io/v1alpha1",
   "name": "aptos",
   "schemaName": "aptos",
-  "adapterVersion": 2,
+  "adapterVersion": 3,
   "tables": [
     {
       "name": "transactions",
-      "version": 1,
+      "version": 2,
       "columns": [
         {"name": "ledger_version", "type": "bigint", "nullable": false},
         {"name": "hash", "type": "varchar", "nullable": false},
         {"name": "type", "type": "varchar", "nullable": false},
         {"name": "success", "type": "boolean", "nullable": false},
         {"name": "vm_status", "type": "varchar", "nullable": false},
-        {"name": "sender", "type": "varchar", "nullable": true}
+        {"name": "sender", "type": "varchar", "nullable": true},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
       ],
       "methods": [
         {
@@ -34,7 +35,8 @@
               {"column": "type", "pointer": "/type", "required": true},
               {"column": "success", "pointer": "/success", "required": true},
               {"column": "vm_status", "pointer": "/vm_status", "required": true},
-              {"column": "sender", "pointer": "/sender", "required": false}
+              {"column": "sender", "pointer": "/sender", "required": false},
+              {"column": "raw_json", "pointer": "", "required": true}
             ]
           }
         }
@@ -42,13 +44,14 @@
     },
     {
       "name": "events",
-      "version": 1,
+      "version": 2,
       "columns": [
         {"name": "account_address", "type": "varchar", "nullable": false},
         {"name": "creation_number", "type": "varchar", "nullable": false},
         {"name": "sequence_number", "type": "bigint", "nullable": false},
         {"name": "event_type", "type": "varchar", "nullable": false},
-        {"name": "data", "type": "varchar", "nullable": false}
+        {"name": "data", "type": "varchar", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
       ],
       "methods": [
         {
@@ -70,7 +73,8 @@
               {"column": "creation_number", "pointer": "/guid/creation_number", "required": true},
               {"column": "sequence_number", "pointer": "/sequence_number", "required": true},
               {"column": "event_type", "pointer": "/type", "required": true},
-              {"column": "data", "pointer": "/data", "required": true}
+              {"column": "data", "pointer": "/data", "required": true},
+              {"column": "raw_json", "pointer": "", "required": true}
             ]
           }
         }

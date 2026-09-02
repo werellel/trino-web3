@@ -36,14 +36,16 @@ final class TestSolanaChainDataClient
                   "blockhash":"block-hash",
                   "parentSlot":9,
                   "blockTime":123,
+                  "futureBlockField":"present",
                   "transactions":[
                     {
+                      "futureTransactionField":"present",
                       "meta":{"err":null,"fee":5000},
                       "transaction":{
                         "signatures":["signature"],
                         "message":{
                           "accountKeys":["payer","program"],
-                          "instructions":[{"programIdIndex":1,"accounts":[0],"data":"3Bxs"}]
+                          "instructions":[{"programIdIndex":1,"accounts":[0],"data":"3Bxs","futureInstructionField":"present"}]
                         }
                       }
                     }
@@ -55,13 +57,19 @@ final class TestSolanaChainDataClient
 
         assertThat(SolanaChainDataClient.decodeBlocks(range, results).getFirst().values())
                 .containsEntry("slot", com.fasterxml.jackson.databind.node.LongNode.valueOf(10))
-                .containsEntry("blockhash", com.fasterxml.jackson.databind.node.TextNode.valueOf("block-hash"));
+                .containsEntry("blockhash", com.fasterxml.jackson.databind.node.TextNode.valueOf("block-hash"))
+                .containsEntry("raw_json", com.fasterxml.jackson.databind.node.TextNode.valueOf(block.toString()))
+                .satisfies(values -> assertThat(values.get("raw_json").textValue()).contains("\"futureBlockField\":\"present\""));
         assertThat(SolanaChainDataClient.decodeTransactions(range, results).getFirst().values())
                 .containsEntry("signature", com.fasterxml.jackson.databind.node.TextNode.valueOf("signature"))
-                .containsEntry("success", com.fasterxml.jackson.databind.node.BooleanNode.TRUE);
+                .containsEntry("success", com.fasterxml.jackson.databind.node.BooleanNode.TRUE)
+                .containsEntry("raw_json", com.fasterxml.jackson.databind.node.TextNode.valueOf(block.get("transactions").get(0).toString()))
+                .satisfies(values -> assertThat(values.get("raw_json").textValue()).contains("\"futureTransactionField\":\"present\""));
         assertThat(SolanaChainDataClient.decodeInstructions(range, results).getFirst().values())
                 .containsEntry("program_id", com.fasterxml.jackson.databind.node.TextNode.valueOf("program"))
-                .containsEntry("account_indices", com.fasterxml.jackson.databind.node.TextNode.valueOf("[0]"));
+                .containsEntry("account_indices", com.fasterxml.jackson.databind.node.TextNode.valueOf("[0]"))
+                .containsEntry("raw_json", com.fasterxml.jackson.databind.node.TextNode.valueOf(block.get("transactions").get(0).get("transaction").get("message").get("instructions").get(0).toString()))
+                .satisfies(values -> assertThat(values.get("raw_json").textValue()).contains("\"futureInstructionField\":\"present\""));
     }
 
     @Test

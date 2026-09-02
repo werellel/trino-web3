@@ -41,15 +41,15 @@ final class TestEthereumChainAdapter
         assertThat(descriptor.apiVersion()).isEqualTo(ChainDescriptor.SUPPORTED_API_VERSION);
         assertThat(descriptor.name()).isEqualTo("ethereum");
         assertThat(descriptor.schemaName()).isEqualTo("ethereum");
-        assertThat(descriptor.adapterVersion()).isEqualTo(1);
+        assertThat(descriptor.adapterVersion()).isEqualTo(2);
         assertThat(descriptor.tables()).extracting(ChainTableDescriptor::name)
                 .containsExactly("blocks", "transactions");
         assertThat(descriptor.table("blocks").orElseThrow().columns())
                 .extracting(column -> column.name() + ":" + column.type())
-                .containsExactly("block_number:bigint", "block_hash:varchar");
+                .containsExactly("block_number:bigint", "block_hash:varchar", "raw_json:varchar");
         assertThat(descriptor.table("transactions").orElseThrow().columns())
                 .extracting(column -> column.name() + ":" + column.type())
-                .containsExactly("hash:varchar", "block_number:bigint", "from_address:varchar", "to_address:varchar");
+                .containsExactly("hash:varchar", "block_number:bigint", "from_address:varchar", "to_address:varchar", "raw_json:varchar");
     }
 
     @Test

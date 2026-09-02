@@ -63,8 +63,8 @@ public class TestBitcoinChainAdapter
     @Test
     public void testIdentityProbeRecognizesBitcoinNetworks()
     {
-        assertThat(BitcoinChainAdapter.chainName(OBJECT_MAPPER.createObjectNode().put("chain", "main"))).isEqualTo("main");
-        assertThatThrownBy(() -> BitcoinChainAdapter.chainName(OBJECT_MAPPER.createObjectNode().put("chain", "unknown")))
-                .hasMessage("invalid Bitcoin chain identity");
+        assertThat(BitcoinChainAdapter.chainName(OBJECT_MAPPER.createObjectNode().put("subversion", "/Satoshi:29.3.0/"))).isEqualTo("bitcoin");
+        assertThatThrownBy(() -> BitcoinChainAdapter.chainName(OBJECT_MAPPER.createObjectNode().put("subversion", "/Litecoin Core:0.21.3/")))
+                .hasMessage("invalid Bitcoin node identity");
     }
 }

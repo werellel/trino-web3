@@ -42,11 +42,11 @@ public class TestAptosChainAdapter
         assertThat(descriptor.name()).isEqualTo("aptos");
         assertThat(descriptor.schemaName()).isEqualTo("aptos");
         assertThat(table.columns()).extracting(column -> column.name())
-                .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender");
+                .containsExactly("ledger_version", "hash", "type", "success", "vm_status", "sender", "raw_json");
         assertThat(table.method("by-ledger-version-range").orElseThrow().protocol()).isEqualTo(REST);
         var events = descriptor.table("events").orElseThrow();
         assertThat(events.columns()).extracting(column -> column.name())
-                .containsExactly("account_address", "creation_number", "sequence_number", "event_type", "data");
+                .containsExactly("account_address", "creation_number", "sequence_number", "event_type", "data", "raw_json");
         assertThat(events.method("by-account-creation-number-sequence-range").orElseThrow().protocol()).isEqualTo(REST);
     }
 

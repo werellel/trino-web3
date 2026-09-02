@@ -84,7 +84,8 @@ public final class EthereumChainDataClient
     {
         return new ChainRow(Map.of(
                 "block_number", LongNode.valueOf(block.number()),
-                "block_hash", TextNode.valueOf(block.hash())));
+                "block_hash", TextNode.valueOf(block.hash()),
+                "raw_json", TextNode.valueOf(block.rawJson())));
     }
 
     private static ChainRow transactionRow(EthereumTransactionClient.EthereumTransaction transaction)
@@ -93,6 +94,7 @@ public final class EthereumChainDataClient
                 "hash", TextNode.valueOf(transaction.hash()),
                 "block_number", transaction.blockNumber() == null ? NullNode.instance : LongNode.valueOf(transaction.blockNumber()),
                 "from_address", TextNode.valueOf(transaction.fromAddress()),
-                "to_address", transaction.toAddress() == null ? NullNode.instance : TextNode.valueOf(transaction.toAddress())));
+                "to_address", transaction.toAddress() == null ? NullNode.instance : TextNode.valueOf(transaction.toAddress()),
+                "raw_json", TextNode.valueOf(transaction.rawJson())));
     }
 }

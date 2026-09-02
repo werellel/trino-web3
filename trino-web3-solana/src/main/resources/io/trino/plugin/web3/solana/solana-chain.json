@@ -2,16 +2,17 @@
   "apiVersion": "web3.trino.io/v1alpha1",
   "name": "solana",
   "schemaName": "solana",
-  "adapterVersion": 1,
+  "adapterVersion": 2,
   "tables": [
     {
       "name": "blocks",
-      "version": 1,
+      "version": 2,
       "columns": [
         {"name": "slot", "type": "bigint", "nullable": false},
         {"name": "blockhash", "type": "varchar", "nullable": false},
         {"name": "parent_slot", "type": "bigint", "nullable": false},
-        {"name": "block_time", "type": "bigint", "nullable": true}
+        {"name": "block_time", "type": "bigint", "nullable": true},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
       ],
       "methods": [
         {
@@ -30,7 +31,8 @@
               {"column": "slot", "pointer": "/slot", "required": true},
               {"column": "blockhash", "pointer": "/blockhash", "required": true},
               {"column": "parent_slot", "pointer": "/parentSlot", "required": true},
-              {"column": "block_time", "pointer": "/blockTime", "required": false}
+              {"column": "block_time", "pointer": "/blockTime", "required": false},
+              {"column": "raw_json", "pointer": "", "required": true}
             ]
           }
         }
@@ -38,12 +40,13 @@
     },
     {
       "name": "transactions",
-      "version": 1,
+      "version": 2,
       "columns": [
         {"name": "slot", "type": "bigint", "nullable": false},
         {"name": "signature", "type": "varchar", "nullable": false},
         {"name": "success", "type": "boolean", "nullable": false},
-        {"name": "fee", "type": "bigint", "nullable": false}
+        {"name": "fee", "type": "bigint", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
       ],
       "methods": [
         {
@@ -62,7 +65,8 @@
               {"column": "slot", "pointer": "/slot", "required": true},
               {"column": "signature", "pointer": "/transaction/signatures/0", "required": true},
               {"column": "success", "pointer": "/meta/err", "required": true},
-              {"column": "fee", "pointer": "/meta/fee", "required": true}
+              {"column": "fee", "pointer": "/meta/fee", "required": true},
+              {"column": "raw_json", "pointer": "", "required": true}
             ]
           }
         }
@@ -70,14 +74,15 @@
     },
     {
       "name": "instructions",
-      "version": 1,
+      "version": 2,
       "columns": [
         {"name": "slot", "type": "bigint", "nullable": false},
         {"name": "transaction_signature", "type": "varchar", "nullable": false},
         {"name": "instruction_index", "type": "bigint", "nullable": false},
         {"name": "program_id", "type": "varchar", "nullable": false},
         {"name": "account_indices", "type": "varchar", "nullable": false},
-        {"name": "data", "type": "varchar", "nullable": false}
+        {"name": "data", "type": "varchar", "nullable": false},
+        {"name": "raw_json", "type": "varchar", "nullable": false}
       ],
       "methods": [
         {
@@ -98,7 +103,8 @@
               {"column": "instruction_index", "pointer": "/transaction/message/instructions/0", "required": true},
               {"column": "program_id", "pointer": "/transaction/message/accountKeys/0", "required": true},
               {"column": "account_indices", "pointer": "/transaction/message/instructions/0/accounts", "required": true},
-              {"column": "data", "pointer": "/transaction/message/instructions/0/data", "required": true}
+              {"column": "data", "pointer": "/transaction/message/instructions/0/data", "required": true},
+              {"column": "raw_json", "pointer": "", "required": true}
             ]
           }
         }

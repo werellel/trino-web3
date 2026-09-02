@@ -24,6 +24,14 @@ for transactions, a bounded equality or `IN` predicate on transaction hash.
 The adapter converts those constraints into Ethereum JSON-RPC operations and
 validates response identity before producing rows.
 
+Both EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
+the complete block or transaction object returned by the node. This preserves
+additive provider fields without destabilizing the typed columns; callers can
+apply Trino's `json_parse(raw_json)` and JSON functions for access to fields
+that are not yet modeled. The JSON-RPC envelope is not included. A typed field
+must be added to the descriptor (and its version bumped) only when stable
+relational access is required.
+
 EVM finality uses `HEAD`, `SAFE`, and `FINALIZED` classifications. Only a
 finalized block number may retain a canonical number-to-hash reference. Block
 payloads are cached by block hash, and transaction-hash results are cached only
@@ -40,6 +48,11 @@ Connector split planning and PageSource creation dispatch through that
 executable adapter by schema. Adapter splits are transport-neutral range or
 discrete-value records; their column identity is preserved across Trino split
 serialization.
+
+The same raw-payload compatibility contract applies to every chain adapter:
+each remote table includes a `raw_json` `VARCHAR` containing the compact JSON
+source object for the emitted row. It preserves additive fields from JSON-RPC
+and REST providers without requiring an immediate typed-column migration.
 
 ## Current Solana model
 
@@ -129,11 +142,14 @@ must define:
 
 Solana and Aptos adapters must model their native blocks, transactions,
 instructions, events, and finality semantics. They must not reuse EVM tables or
-Ethereum-specific decoding. Bitcoin, Tron, Sui, and Near follow the same
-registry boundary but keep UTXO, object, receipt, event, and finality semantics
-in their own adapters. Production execution for Aptos transactions/events and
-Solana blocks/transactions/instructions is present. The initial Bitcoin slice
-adds native UTXO-oriented `bitcoin.blocks`, `bitcoin.transactions`,
-`bitcoin.inputs`, and `bitcoin.outputs` tables through Bitcoin Core JSON-RPC;
-all require bounded height predicates, and Bitcoin cache admission remains
-disabled until a reorganization-safe identity contract is defined.
+Ethereum-specific decoding. Bitcoin-family, Tron, Sui, and Near adapters follow
+the same registry boundary but keep UTXO, object, receipt, event, and finality
+semantics in their own adapters. Production execution for Aptos
+transactions/events, Solana blocks/transactions/instructions, and the
+Bitcoin-family schemas is present. Bitcoin, Litecoin, Dogecoin, and Bitcoin
+Cash each expose native UTXO-oriented `blocks`, `transactions`, `inputs`, and
+`outputs` tables through bounded Core-compatible `getblockhash`/`getblock`
+reads. Their node identity is checked using `getnetworkinfo.subversion` with a
+chain-specific product prefix, while the shared decoder accepts only the
+documented Core response shapes. Cache admission remains disabled for all four
+until each chain has a reorganization-safe immutable identity contract.

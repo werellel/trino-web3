@@ -602,9 +602,13 @@ and should not require rewriting:
 
 Bitcoin now uses this extension boundary through an initial native UTXO
 vertical slice (`blocks`, `transactions`, `inputs`, and `outputs`) with bounded
-Bitcoin Core reads. Tron, Sui, Near, and additional chains should subsequently
-use the same adapter boundary. Their support does not change the M4 acceptance
-floor of meaningful Solana and Aptos vertical slices.
+Bitcoin Core reads. Litecoin, Dogecoin, and Bitcoin Cash use the same
+transport-neutral UTXO runtime and decoder, but retain separate descriptors,
+schemas, and node identity matchers. This family extension does not add
+provider-specific behavior or cache admission. Tron, Sui, Near, and additional
+chains should subsequently use the same adapter boundary. Their support does
+not change the M4 acceptance floor of meaningful Solana and Aptos vertical
+slices.
 
 ## Acceptance criteria
 
@@ -615,6 +619,9 @@ SHOW TABLES FROM web3.ethereum;
 SHOW TABLES FROM web3.solana;
 SHOW TABLES FROM web3.aptos;
 SHOW TABLES FROM web3.bitcoin;
+SHOW TABLES FROM web3.litecoin;
+SHOW TABLES FROM web3.dogecoin;
+SHOW TABLES FROM web3.bitcoincash;
 ```
 
 with native tables for each configured chain.
