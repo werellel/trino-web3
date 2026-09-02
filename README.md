@@ -46,6 +46,11 @@ with `sui_getCheckpoint`, and transaction rows use checkpoint digests with
 `sui_getTransactionBlock`. Native response objects remain available through
 `raw_json`.
 
+Cosmos Hub, Osmosis, and Injective are exposed through separate native Cosmos
+SDK REST adapters. Each provides bounded `blocks` and `transactions` tables
+using `/cosmos/base/tendermint/v1beta1/blocks/{height}`; transaction payloads
+remain as native base64 values and are preserved in `raw_json`.
+
 The M1 vertical slice exposes `web3.ethereum.blocks` and
 `web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
 `block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
@@ -320,6 +325,7 @@ trino-web3-evm      Ethereum blocks schema, request mapping, and decoding
 trino-web3-solana   Solana-native block, transaction, and instruction decoding
 trino-web3-tron     Tron-native REST block and transaction decoding
 trino-web3-sui      Sui-native checkpoint and transaction decoding
+trino-web3-cosmos   Cosmos SDK REST adapters for Cosmos, Osmosis, and Injective
 trino-web3-plugin   Trino SPI metadata, splits, and page sources
 trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
 ```

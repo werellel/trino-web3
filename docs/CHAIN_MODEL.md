@@ -88,6 +88,18 @@ Endpoint identity is established with `sui_getChainIdentifier`. Sui cache
 admission remains disabled until checkpoint finality and reorganization
 identity semantics are explicitly defined.
 
+## Current Cosmos-family model
+
+Cosmos Hub, Osmosis, and Injective use separate adapters and descriptors while
+sharing the Cosmos SDK REST block envelope. Their native `blocks` and
+`transactions` tables require bounded BIGINT `height` ranges and read
+`GET /cosmos/base/tendermint/v1beta1/blocks/{height}`. Block rows retain the
+chain ID, header time, block hash, and transaction count. Transaction rows
+retain each native base64 transaction with its block/index and `raw_json`.
+Endpoint identity validates the expected chain-ID prefix (`cosmoshub-`,
+`osmosis-`, or `injective-`). Cache admission remains disabled until chain
+specific finality and reorganization identity rules are defined.
+
 ## Current Solana model
 
 M4 exposes `solana.blocks`, `solana.transactions`, and

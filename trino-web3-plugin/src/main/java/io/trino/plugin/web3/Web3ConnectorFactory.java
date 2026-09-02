@@ -56,6 +56,12 @@ public final class Web3ConnectorFactory
     private static final String TRON_API_FALLBACK_URLS = "web3.tron.api-fallback-urls";
     private static final String SUI_RPC_URL = "web3.sui.rpc-url";
     private static final String SUI_RPC_FALLBACK_URLS = "web3.sui.rpc-fallback-urls";
+    private static final String COSMOS_REST_URL = "web3.cosmos.rest-url";
+    private static final String COSMOS_REST_FALLBACK_URLS = "web3.cosmos.rest-fallback-urls";
+    private static final String OSMOSIS_REST_URL = "web3.osmosis.rest-url";
+    private static final String OSMOSIS_REST_FALLBACK_URLS = "web3.osmosis.rest-fallback-urls";
+    private static final String INJECTIVE_REST_URL = "web3.injective.rest-url";
+    private static final String INJECTIVE_REST_FALLBACK_URLS = "web3.injective.rest-fallback-urls";
     private static final String BITCOIN_RPC_URL = "web3.bitcoin.rpc-url";
     private static final String BITCOIN_RPC_FALLBACK_URLS = "web3.bitcoin.rpc-fallback-urls";
     private static final String LITECOIN_RPC_URL = "web3.litecoin.rpc-url";
@@ -133,6 +139,12 @@ public final class Web3ConnectorFactory
         List<URI> suiEndpoints = parseEndpoints(config, SUI_RPC_URL, SUI_RPC_FALLBACK_URLS, false);
         if (suiEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.sui.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> cosmosEndpoints = parseEndpoints(config, COSMOS_REST_URL, COSMOS_REST_FALLBACK_URLS, true);
+        List<URI> osmosisEndpoints = parseEndpoints(config, OSMOSIS_REST_URL, OSMOSIS_REST_FALLBACK_URLS, true);
+        List<URI> injectiveEndpoints = parseEndpoints(config, INJECTIVE_REST_URL, INJECTIVE_REST_FALLBACK_URLS, true);
+        if (cosmosEndpoints.size() > 8 || osmosisEndpoints.size() > 8 || injectiveEndpoints.size() > 8) {
+            throw new IllegalArgumentException("Cosmos REST URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
         List<URI> bitcoinEndpoints = parseEndpoints(config, BITCOIN_RPC_URL, BITCOIN_RPC_FALLBACK_URLS, false);
         if (bitcoinEndpoints.size() > 8) {
@@ -215,6 +227,9 @@ public final class Web3ConnectorFactory
                 aptosEndpoints,
                 tronEndpoints,
                 suiEndpoints,
+                cosmosEndpoints,
+                osmosisEndpoints,
+                injectiveEndpoints,
                 bitcoinEndpoints,
                 litecoinEndpoints,
                 dogecoinEndpoints,
@@ -249,6 +264,12 @@ public final class Web3ConnectorFactory
                 key.equals(TRON_API_FALLBACK_URLS) ||
                 key.equals(SUI_RPC_URL) ||
                 key.equals(SUI_RPC_FALLBACK_URLS) ||
+                key.equals(COSMOS_REST_URL) ||
+                key.equals(COSMOS_REST_FALLBACK_URLS) ||
+                key.equals(OSMOSIS_REST_URL) ||
+                key.equals(OSMOSIS_REST_FALLBACK_URLS) ||
+                key.equals(INJECTIVE_REST_URL) ||
+                key.equals(INJECTIVE_REST_FALLBACK_URLS) ||
                 key.equals(BITCOIN_RPC_URL) ||
                 key.equals(BITCOIN_RPC_FALLBACK_URLS) ||
                 key.equals(LITECOIN_RPC_URL) ||

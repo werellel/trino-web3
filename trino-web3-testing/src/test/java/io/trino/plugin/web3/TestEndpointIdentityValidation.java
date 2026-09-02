@@ -184,6 +184,37 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
+    public void testAcceptsCosmosFamilyRestEndpointIdentities()
+            throws Exception
+    {
+        HttpServer cosmos = cosmosServer("cosmoshub-4");
+        HttpServer osmosis = cosmosServer("osmosis-1");
+        HttpServer injective = cosmosServer("injective-1");
+        try {
+            cosmos.start();
+            osmosis.start();
+            injective.start();
+            try (StandaloneQueryRunner queryRunner = queryRunner()) {
+                queryRunner.createCatalog("cosmos", Web3ConnectorFactory.CONNECTOR_NAME, Map.of("web3.cosmos.rest-url", endpoint(cosmos)));
+                queryRunner.createCatalog("osmosis", Web3ConnectorFactory.CONNECTOR_NAME, Map.of("web3.osmosis.rest-url", endpoint(osmosis)));
+                queryRunner.createCatalog("injective", Web3ConnectorFactory.CONNECTOR_NAME, Map.of("web3.injective.rest-url", endpoint(injective)));
+
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM cosmos.system.chains WHERE schema_name = 'cosmos'").getOnlyColumn())
+                        .containsExactly(1L);
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM osmosis.system.chains WHERE schema_name = 'osmosis'").getOnlyColumn())
+                        .containsExactly(1L);
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM injective.system.chains WHERE schema_name = 'injective'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            cosmos.stop(0);
+            osmosis.stop(0);
+            injective.stop(0);
+        }
+    }
+
+    @Test
     public void testRejectsMismatchedAptosEndpoints()
             throws Exception
     {
@@ -266,6 +297,22 @@ public class TestEndpointIdentityValidation
             ObjectNode response = OBJECT_MAPPER.createObjectNode()
                     .put("blockID", "0000000000000000000000000000000000000000000000000000000000000001");
             response.putObject("block_header").putObject("raw_data").put("number", 1);
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(response);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        return server;
+    }
+
+    private static HttpServer cosmosServer(String chainId)
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/cosmos/base/tendermint/v1beta1/blocks/latest", exchange -> {
+            ObjectNode response = OBJECT_MAPPER.createObjectNode();
+            response.putObject("block").putObject("header").put("chain_id", chainId);
             byte[] body = OBJECT_MAPPER.writeValueAsBytes(response);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);

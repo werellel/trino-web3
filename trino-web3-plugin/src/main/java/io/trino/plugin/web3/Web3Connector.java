@@ -28,6 +28,9 @@ import io.trino.plugin.web3.evm.AvalancheChainAdapter;
 import io.trino.plugin.web3.evm.OptimismChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
+import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
+import io.trino.plugin.web3.cosmos.OsmosisChainAdapter;
+import io.trino.plugin.web3.cosmos.InjectiveChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
@@ -65,6 +68,11 @@ public final class Web3Connector
     private final Map<String, RemoteExecutionRuntime> runtimes;
     private final Set<SystemTable> systemTables;
 
+    private static List<URI> emptyEndpoints()
+    {
+        return List.of();
+    }
+
     public Web3Connector()
     {
         this(
@@ -73,21 +81,24 @@ public final class Web3Connector
                 1_000,
                 1_048_576,
                 16 * 1_048_576,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
@@ -115,20 +126,23 @@ public final class Web3Connector
                 maximumRequestBytes,
                 maximumResponseBytes,
                 ethereumRpcEndpoints,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
                 jsonRpcBatchEnabled,
                 executionPolicy,
                 cacheConfig,
@@ -168,8 +182,11 @@ public final class Web3Connector
                 List.of(),
                 solanaRpcEndpoints,
                 aptosRestEndpoints,
-                List.of(),
-                List.of(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
+                emptyEndpoints(),
                 bitcoinRpcEndpoints,
                 litecoinRpcEndpoints,
                 dogecoinRpcEndpoints,
@@ -199,6 +216,9 @@ public final class Web3Connector
             List<URI> aptosRestEndpoints,
             List<URI> tronApiEndpoints,
             List<URI> suiRpcEndpoints,
+            List<URI> cosmosRestEndpoints,
+            List<URI> osmosisRestEndpoints,
+            List<URI> injectiveRestEndpoints,
             List<URI> bitcoinRpcEndpoints,
             List<URI> litecoinRpcEndpoints,
             List<URI> dogecoinRpcEndpoints,
@@ -225,6 +245,9 @@ public final class Web3Connector
                 aptosRestEndpoints,
                 tronApiEndpoints,
                 suiRpcEndpoints,
+                cosmosRestEndpoints,
+                osmosisRestEndpoints,
+                injectiveRestEndpoints,
                 bitcoinRpcEndpoints,
                 litecoinRpcEndpoints,
                 dogecoinRpcEndpoints,
@@ -254,6 +277,9 @@ public final class Web3Connector
             List<URI> aptosRestEndpoints,
             List<URI> tronApiEndpoints,
             List<URI> suiRpcEndpoints,
+            List<URI> cosmosRestEndpoints,
+            List<URI> osmosisRestEndpoints,
+            List<URI> injectiveRestEndpoints,
             List<URI> bitcoinRpcEndpoints,
             List<URI> litecoinRpcEndpoints,
             List<URI> dogecoinRpcEndpoints,
@@ -338,6 +364,15 @@ public final class Web3Connector
                         jsonRpcBatchEnabled,
                         executionPolicy,
                         cacheConfig));
+            }
+            if (!cosmosRestEndpoints.isEmpty()) {
+                configuredRuntimes.put("cosmos", createRestRuntime(httpClient, cosmosRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
+            }
+            if (!osmosisRestEndpoints.isEmpty()) {
+                configuredRuntimes.put("osmosis", createRestRuntime(httpClient, osmosisRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
+            }
+            if (!injectiveRestEndpoints.isEmpty()) {
+                configuredRuntimes.put("injective", createRestRuntime(httpClient, injectiveRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
             }
             if (!bitcoinRpcEndpoints.isEmpty()) {
                 configuredRuntimes.put("bitcoin", createJsonRpcRuntime(
@@ -461,6 +496,9 @@ public final class Web3Connector
                 new AptosChainAdapter(),
                 new TronChainAdapter(),
                 new SuiChainAdapter(),
+                new CosmosChainAdapter(),
+                new OsmosisChainAdapter(),
+                new InjectiveChainAdapter(),
                 new BitcoinChainAdapter(),
                 new LitecoinChainAdapter(),
                 new DogecoinChainAdapter(),
