@@ -21,6 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestBitcoinCashChainAdapter
 {
     @Test
+    public void testTestnetSchema()
+    {
+        assertThat(new BitcoinCashTestnetChainAdapter().descriptor().schemaName()).isEqualTo("bitcoincash_testnet");
+    }
+
+    @Test
     public void testRecognizesBitcoinCashNodeIdentity()
             throws Exception
     {

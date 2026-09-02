@@ -21,6 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestDogecoinChainAdapter
 {
     @Test
+    public void testTestnetSchema()
+    {
+        assertThat(new DogecoinTestnetChainAdapter().descriptor().schemaName()).isEqualTo("dogecoin_testnet");
+    }
+
+    @Test
     public void testRecognizesDogecoinNodeIdentity()
             throws Exception
     {

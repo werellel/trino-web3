@@ -32,6 +32,16 @@ public class TestBitcoinChainAdapter
     private final BitcoinChainAdapter adapter = new BitcoinChainAdapter();
 
     @Test
+    public void testTestnetIdentityRequiresCoreTestNetwork()
+    {
+        var response = OBJECT_MAPPER.createObjectNode()
+                .put("chain", "test")
+                .put("subversion", "/Satoshi:27.0.0/");
+        assertThat(new BitcoinTestnetChainAdapter().descriptor().schemaName()).isEqualTo("bitcoin_testnet");
+        assertThat(new BitcoinTestnetChainAdapter().endpointIdentityProbe().extractIdentity(response)).isEqualTo("bitcoin_testnet");
+    }
+
+    @Test
     public void testDescriptorAndBoundedSplits()
     {
         assertThat(adapter.descriptor().schemaName()).isEqualTo("bitcoin");

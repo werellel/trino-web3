@@ -30,6 +30,21 @@ final class TestCosmosChainAdapters
         assertThat(new CosmosChainAdapter().descriptor().schemaName()).isEqualTo("cosmos");
         assertThat(new OsmosisChainAdapter().descriptor().schemaName()).isEqualTo("osmosis");
         assertThat(new InjectiveChainAdapter().descriptor().schemaName()).isEqualTo("injective");
+        assertThat(new CosmosTestnetChainAdapter().descriptor().schemaName()).isEqualTo("cosmos_testnet");
+        assertThat(new OsmosisTestnetChainAdapter().descriptor().schemaName()).isEqualTo("osmosis_testnet");
+        assertThat(new InjectiveTestnetChainAdapter().descriptor().schemaName()).isEqualTo("injective_testnet");
+        var injectiveIdentity = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        injectiveIdentity.putObject("block").putObject("header").put("chain_id", "injective-888");
+        assertThat(new InjectiveTestnetChainAdapter().endpointIdentityProbe().extractIdentity(injectiveIdentity))
+                .isEqualTo("injective-888");
+        var cosmosIdentity = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        cosmosIdentity.putObject("block").putObject("header").put("chain_id", "theta-testnet-001");
+        assertThat(new CosmosTestnetChainAdapter().endpointIdentityProbe().extractIdentity(cosmosIdentity))
+                .isEqualTo("theta-testnet-001");
+        var osmosisIdentity = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        osmosisIdentity.putObject("block").putObject("header").put("chain_id", "osmo-test-5");
+        assertThat(new OsmosisTestnetChainAdapter().endpointIdentityProbe().extractIdentity(osmosisIdentity))
+                .isEqualTo("osmo-test-5");
         assertThat(new CosmosChainAdapter().planSplits(
                 new ChainScan("blocks", Map.of("height", new ChainScan.LongRange(10, 11)), Map.of()),
                 new ChainSplitLimits(1, 100, 100))).hasSize(2);

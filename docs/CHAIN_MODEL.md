@@ -79,6 +79,23 @@ each remote table includes a `raw_json` `VARCHAR` containing the compact JSON
 source object for the emitted row. It preserves additive fields from JSON-RPC
 and REST providers without requiring an immediate typed-column migration.
 
+Non-EVM testnets are independent schemas as well. Solana Devnet is exposed as
+`solana_devnet`; Aptos testnet as `aptos_testnet` (REST `chain_id=2`); Tron
+Nile and Shasta as `tron_nile` and `tron_shasta`; Sui testnet as `sui_testnet`;
+Cosmos Hub, Osmosis, and Injective testnets as `cosmos_testnet`,
+`osmosis_testnet`, and `injective_testnet`; and Bitcoin, Litecoin, Dogecoin,
+and Bitcoin Cash testnets as `bitcoin_testnet`, `litecoin_testnet`,
+`dogecoin_testnet`, and `bitcoincash_testnet`. Their endpoint properties are
+separate from mainnet properties and use native REST, JSON-RPC, or Core
+network identity checks. Solana Devnet identity is its known genesis hash;
+Sui testnet uses its `4c78adac` chain identifier, Cosmos-family identities are
+their native network IDs (Cosmos Hub `theta-testnet-001`, Osmosis `osmo-test-5`,
+and Injective `injective-888`); and Core-family
+identities require the `test` network discriminator in addition to the node
+product prefix. These identifiers are intentionally pinned; if a public
+testnet is reset or rotated, its adapter must be updated rather than silently
+accepting a different network.
+
 ## Current Tron model
 
 Tron uses its native HTTP API rather than an EVM JSON-RPC compatibility layer.

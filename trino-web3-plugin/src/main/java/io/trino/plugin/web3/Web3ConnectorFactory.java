@@ -134,6 +134,22 @@ public final class Web3ConnectorFactory
     private static final String OSMOSIS_REST_FALLBACK_URLS = "web3.osmosis.rest-fallback-urls";
     private static final String INJECTIVE_REST_URL = "web3.injective.rest-url";
     private static final String INJECTIVE_REST_FALLBACK_URLS = "web3.injective.rest-fallback-urls";
+    private static final String SOLANA_DEVNET_RPC_URL = "web3.solana-devnet.rpc-url";
+    private static final String SOLANA_DEVNET_RPC_FALLBACK_URLS = "web3.solana-devnet.rpc-fallback-urls";
+    private static final String APTOS_TESTNET_REST_URL = "web3.aptos-testnet.rest-url";
+    private static final String APTOS_TESTNET_REST_FALLBACK_URLS = "web3.aptos-testnet.rest-fallback-urls";
+    private static final String TRON_NILE_API_URL = "web3.tron-nile.api-url";
+    private static final String TRON_NILE_API_FALLBACK_URLS = "web3.tron-nile.api-fallback-urls";
+    private static final String TRON_SHASTA_API_URL = "web3.tron-shasta.api-url";
+    private static final String TRON_SHASTA_API_FALLBACK_URLS = "web3.tron-shasta.api-fallback-urls";
+    private static final String SUI_TESTNET_RPC_URL = "web3.sui-testnet.rpc-url";
+    private static final String SUI_TESTNET_RPC_FALLBACK_URLS = "web3.sui-testnet.rpc-fallback-urls";
+    private static final String COSMOS_TESTNET_REST_URL = "web3.cosmos-testnet.rest-url";
+    private static final String COSMOS_TESTNET_REST_FALLBACK_URLS = "web3.cosmos-testnet.rest-fallback-urls";
+    private static final String OSMOSIS_TESTNET_REST_URL = "web3.osmosis-testnet.rest-url";
+    private static final String OSMOSIS_TESTNET_REST_FALLBACK_URLS = "web3.osmosis-testnet.rest-fallback-urls";
+    private static final String INJECTIVE_TESTNET_REST_URL = "web3.injective-testnet.rest-url";
+    private static final String INJECTIVE_TESTNET_REST_FALLBACK_URLS = "web3.injective-testnet.rest-fallback-urls";
     private static final String BITCOIN_RPC_URL = "web3.bitcoin.rpc-url";
     private static final String BITCOIN_RPC_FALLBACK_URLS = "web3.bitcoin.rpc-fallback-urls";
     private static final String LITECOIN_RPC_URL = "web3.litecoin.rpc-url";
@@ -142,6 +158,14 @@ public final class Web3ConnectorFactory
     private static final String DOGECOIN_RPC_FALLBACK_URLS = "web3.dogecoin.rpc-fallback-urls";
     private static final String BITCOINCASH_RPC_URL = "web3.bitcoincash.rpc-url";
     private static final String BITCOINCASH_RPC_FALLBACK_URLS = "web3.bitcoincash.rpc-fallback-urls";
+    private static final String BITCOIN_TESTNET_RPC_URL = "web3.bitcoin-testnet.rpc-url";
+    private static final String BITCOIN_TESTNET_RPC_FALLBACK_URLS = "web3.bitcoin-testnet.rpc-fallback-urls";
+    private static final String LITECOIN_TESTNET_RPC_URL = "web3.litecoin-testnet.rpc-url";
+    private static final String LITECOIN_TESTNET_RPC_FALLBACK_URLS = "web3.litecoin-testnet.rpc-fallback-urls";
+    private static final String DOGECOIN_TESTNET_RPC_URL = "web3.dogecoin-testnet.rpc-url";
+    private static final String DOGECOIN_TESTNET_RPC_FALLBACK_URLS = "web3.dogecoin-testnet.rpc-fallback-urls";
+    private static final String BITCOINCASH_TESTNET_RPC_URL = "web3.bitcoincash-testnet.rpc-url";
+    private static final String BITCOINCASH_TESTNET_RPC_FALLBACK_URLS = "web3.bitcoincash-testnet.rpc-fallback-urls";
     private static final String MAXIMUM_BLOCKS_PER_SPLIT = "web3.maximum-blocks-per-split";
     private static final String MAXIMUM_BLOCKS_PER_QUERY = "web3.maximum-blocks-per-query";
     private static final String MAXIMUM_TRANSACTION_HASHES_PER_QUERY = "web3.maximum-transaction-hashes-per-query";
@@ -254,6 +278,14 @@ public final class Web3ConnectorFactory
         List<URI> cosmosEndpoints = parseEndpoints(config, COSMOS_REST_URL, COSMOS_REST_FALLBACK_URLS, true);
         List<URI> osmosisEndpoints = parseEndpoints(config, OSMOSIS_REST_URL, OSMOSIS_REST_FALLBACK_URLS, true);
         List<URI> injectiveEndpoints = parseEndpoints(config, INJECTIVE_REST_URL, INJECTIVE_REST_FALLBACK_URLS, true);
+        List<URI> solanaDevnetEndpoints = parseEndpoints(config, SOLANA_DEVNET_RPC_URL, SOLANA_DEVNET_RPC_FALLBACK_URLS, false);
+        List<URI> aptosTestnetEndpoints = parseEndpoints(config, APTOS_TESTNET_REST_URL, APTOS_TESTNET_REST_FALLBACK_URLS, true);
+        List<URI> tronNileEndpoints = parseEndpoints(config, TRON_NILE_API_URL, TRON_NILE_API_FALLBACK_URLS, true);
+        List<URI> tronShastaEndpoints = parseEndpoints(config, TRON_SHASTA_API_URL, TRON_SHASTA_API_FALLBACK_URLS, true);
+        List<URI> suiTestnetEndpoints = parseEndpoints(config, SUI_TESTNET_RPC_URL, SUI_TESTNET_RPC_FALLBACK_URLS, false);
+        List<URI> cosmosTestnetEndpoints = parseEndpoints(config, COSMOS_TESTNET_REST_URL, COSMOS_TESTNET_REST_FALLBACK_URLS, true);
+        List<URI> osmosisTestnetEndpoints = parseEndpoints(config, OSMOSIS_TESTNET_REST_URL, OSMOSIS_TESTNET_REST_FALLBACK_URLS, true);
+        List<URI> injectiveTestnetEndpoints = parseEndpoints(config, INJECTIVE_TESTNET_REST_URL, INJECTIVE_TESTNET_REST_FALLBACK_URLS, true);
         if (cosmosEndpoints.size() > 8 || osmosisEndpoints.size() > 8 || injectiveEndpoints.size() > 8) {
             throw new IllegalArgumentException("Cosmos REST URLs and fallback URLs must contain at most 8 endpoints per chain");
         }
@@ -272,6 +304,13 @@ public final class Web3ConnectorFactory
         List<URI> bitcoinCashEndpoints = parseEndpoints(config, BITCOINCASH_RPC_URL, BITCOINCASH_RPC_FALLBACK_URLS, false);
         if (bitcoinCashEndpoints.size() > 8) {
             throw new IllegalArgumentException("web3.bitcoincash.rpc-url and fallback URLs must contain at most 8 endpoints");
+        }
+        List<URI> bitcoinTestnetEndpoints = parseEndpoints(config, BITCOIN_TESTNET_RPC_URL, BITCOIN_TESTNET_RPC_FALLBACK_URLS, false);
+        List<URI> litecoinTestnetEndpoints = parseEndpoints(config, LITECOIN_TESTNET_RPC_URL, LITECOIN_TESTNET_RPC_FALLBACK_URLS, false);
+        List<URI> dogecoinTestnetEndpoints = parseEndpoints(config, DOGECOIN_TESTNET_RPC_URL, DOGECOIN_TESTNET_RPC_FALLBACK_URLS, false);
+        List<URI> bitcoinCashTestnetEndpoints = parseEndpoints(config, BITCOINCASH_TESTNET_RPC_URL, BITCOINCASH_TESTNET_RPC_FALLBACK_URLS, false);
+        if (List.of(solanaDevnetEndpoints, aptosTestnetEndpoints, tronNileEndpoints, tronShastaEndpoints, suiTestnetEndpoints, cosmosTestnetEndpoints, osmosisTestnetEndpoints, injectiveTestnetEndpoints, bitcoinTestnetEndpoints, litecoinTestnetEndpoints, dogecoinTestnetEndpoints, bitcoinCashTestnetEndpoints).stream().anyMatch(endpoints -> endpoints.size() > 8)) {
+            throw new IllegalArgumentException("non-EVM testnet endpoints must contain at most 8 endpoints per chain");
         }
         long maximumBlocksPerSplit = Optional.ofNullable(config.get(MAXIMUM_BLOCKS_PER_SPLIT))
                 .map(value -> parseBoundedPositiveLong(value, MAXIMUM_BLOCKS_PER_SPLIT, 1_000))
@@ -385,7 +424,19 @@ public final class Web3ConnectorFactory
                         Map.entry("ink_sepolia", inkSepoliaEndpoints),
                         Map.entry("jovay_sepolia", jovaySepoliaEndpoints),
                         Map.entry("crossfi_testnet", crossFiTestnetEndpoints),
-                        Map.entry("linea_sepolia", lineaSepoliaEndpoints)));
+                        Map.entry("linea_sepolia", lineaSepoliaEndpoints),
+                        Map.entry("solana_devnet", solanaDevnetEndpoints),
+                        Map.entry("aptos_testnet", aptosTestnetEndpoints),
+                        Map.entry("tron_nile", tronNileEndpoints),
+                        Map.entry("tron_shasta", tronShastaEndpoints),
+                        Map.entry("sui_testnet", suiTestnetEndpoints),
+                        Map.entry("cosmos_testnet", cosmosTestnetEndpoints),
+                        Map.entry("osmosis_testnet", osmosisTestnetEndpoints),
+                        Map.entry("injective_testnet", injectiveTestnetEndpoints),
+                        Map.entry("bitcoin_testnet", bitcoinTestnetEndpoints),
+                        Map.entry("litecoin_testnet", litecoinTestnetEndpoints),
+                        Map.entry("dogecoin_testnet", dogecoinTestnetEndpoints),
+                        Map.entry("bitcoincash_testnet", bitcoinCashTestnetEndpoints)));
     }
 
     private static boolean isSupportedProperty(String key)
@@ -490,6 +541,22 @@ public final class Web3ConnectorFactory
                 key.equals(OSMOSIS_REST_FALLBACK_URLS) ||
                 key.equals(INJECTIVE_REST_URL) ||
                 key.equals(INJECTIVE_REST_FALLBACK_URLS) ||
+                key.equals(SOLANA_DEVNET_RPC_URL) ||
+                key.equals(SOLANA_DEVNET_RPC_FALLBACK_URLS) ||
+                key.equals(APTOS_TESTNET_REST_URL) ||
+                key.equals(APTOS_TESTNET_REST_FALLBACK_URLS) ||
+                key.equals(TRON_NILE_API_URL) ||
+                key.equals(TRON_NILE_API_FALLBACK_URLS) ||
+                key.equals(TRON_SHASTA_API_URL) ||
+                key.equals(TRON_SHASTA_API_FALLBACK_URLS) ||
+                key.equals(SUI_TESTNET_RPC_URL) ||
+                key.equals(SUI_TESTNET_RPC_FALLBACK_URLS) ||
+                key.equals(COSMOS_TESTNET_REST_URL) ||
+                key.equals(COSMOS_TESTNET_REST_FALLBACK_URLS) ||
+                key.equals(OSMOSIS_TESTNET_REST_URL) ||
+                key.equals(OSMOSIS_TESTNET_REST_FALLBACK_URLS) ||
+                key.equals(INJECTIVE_TESTNET_REST_URL) ||
+                key.equals(INJECTIVE_TESTNET_REST_FALLBACK_URLS) ||
                 key.equals(BITCOIN_RPC_URL) ||
                 key.equals(BITCOIN_RPC_FALLBACK_URLS) ||
                 key.equals(LITECOIN_RPC_URL) ||
@@ -498,6 +565,14 @@ public final class Web3ConnectorFactory
                 key.equals(DOGECOIN_RPC_FALLBACK_URLS) ||
                 key.equals(BITCOINCASH_RPC_URL) ||
                 key.equals(BITCOINCASH_RPC_FALLBACK_URLS) ||
+                key.equals(BITCOIN_TESTNET_RPC_URL) ||
+                key.equals(BITCOIN_TESTNET_RPC_FALLBACK_URLS) ||
+                key.equals(LITECOIN_TESTNET_RPC_URL) ||
+                key.equals(LITECOIN_TESTNET_RPC_FALLBACK_URLS) ||
+                key.equals(DOGECOIN_TESTNET_RPC_URL) ||
+                key.equals(DOGECOIN_TESTNET_RPC_FALLBACK_URLS) ||
+                key.equals(BITCOINCASH_TESTNET_RPC_URL) ||
+                key.equals(BITCOINCASH_TESTNET_RPC_FALLBACK_URLS) ||
                 key.equals(MAXIMUM_BLOCKS_PER_SPLIT) ||
                 key.equals(MAXIMUM_BLOCKS_PER_QUERY) ||
                 key.equals(MAXIMUM_TRANSACTION_HASHES_PER_QUERY) ||

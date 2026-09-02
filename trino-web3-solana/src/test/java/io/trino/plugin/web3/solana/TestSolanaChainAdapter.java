@@ -92,4 +92,17 @@ final class TestSolanaChainAdapter
                 .isInstanceOf(ChainPlanningException.class)
                 .hasMessage("unsupported pushed predicates for solana.transactions");
     }
+
+    @Test
+    void testDevnetUsesIndependentSchema()
+    {
+        SolanaDevnetChainAdapter devnet = new SolanaDevnetChainAdapter();
+        assertThat(devnet.descriptor().schemaName()).isEqualTo("solana_devnet");
+        assertThat(devnet.endpointIdentityProbe().extractIdentity(
+                com.fasterxml.jackson.databind.node.TextNode.valueOf("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG")))
+                .isEqualTo("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG");
+        assertThatThrownBy(() -> devnet.endpointIdentityProbe().extractIdentity(
+                com.fasterxml.jackson.databind.node.TextNode.valueOf("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d")))
+                .hasMessage("invalid Solana devnet chain identity");
+    }
 }

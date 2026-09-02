@@ -313,6 +313,49 @@ public class TestEndpointIdentityValidation
     }
 
     @Test
+    public void testAcceptsNonEvmTestnetEndpointIdentities()
+            throws Exception
+    {
+        HttpServer solana = jsonRpcServer("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG");
+        HttpServer aptos = aptosServer(2);
+        HttpServer sui = jsonRpcServer("4c78adac");
+        HttpServer cosmos = cosmosServer("theta-testnet-001");
+        HttpServer osmosis = cosmosServer("osmo-test-5");
+        HttpServer injective = cosmosServer("injective-888");
+        HttpServer tronNile = tronJsonRpcServer("0xcd8690dc");
+        HttpServer tronShasta = tronJsonRpcServer("0x94a9059e");
+        HttpServer bitcoin = bitcoinTestnetServer("/Satoshi:29.3.0/");
+        HttpServer litecoin = bitcoinTestnetServer("/Litecoin Core:0.21.3/");
+        HttpServer dogecoin = bitcoinTestnetServer("/Dogecoin Core:1.14.7/");
+        HttpServer bitcoinCash = bitcoinTestnetServer("/Bitcoin Cash Node:27.0.0/");
+        List<HttpServer> servers = List.of(solana, aptos, sui, cosmos, osmosis, injective, tronNile, tronShasta, bitcoin, litecoin, dogecoin, bitcoinCash);
+        try (StandaloneQueryRunner queryRunner = queryRunner()) {
+            servers.forEach(server -> server.start());
+            List<String[]> networks = List.of(
+                    new String[] {"solana_devnet", "web3.solana-devnet.rpc-url", endpoint(solana)},
+                    new String[] {"aptos_testnet", "web3.aptos-testnet.rest-url", endpoint(aptos)},
+                    new String[] {"sui_testnet", "web3.sui-testnet.rpc-url", endpoint(sui)},
+                    new String[] {"cosmos_testnet", "web3.cosmos-testnet.rest-url", endpoint(cosmos)},
+                    new String[] {"osmosis_testnet", "web3.osmosis-testnet.rest-url", endpoint(osmosis)},
+                    new String[] {"injective_testnet", "web3.injective-testnet.rest-url", endpoint(injective)},
+                    new String[] {"tron_nile", "web3.tron-nile.api-url", endpoint(tronNile)},
+                    new String[] {"tron_shasta", "web3.tron-shasta.api-url", endpoint(tronShasta)},
+                    new String[] {"bitcoin_testnet", "web3.bitcoin-testnet.rpc-url", endpoint(bitcoin)},
+                    new String[] {"litecoin_testnet", "web3.litecoin-testnet.rpc-url", endpoint(litecoin)},
+                    new String[] {"dogecoin_testnet", "web3.dogecoin-testnet.rpc-url", endpoint(dogecoin)},
+                    new String[] {"bitcoincash_testnet", "web3.bitcoincash-testnet.rpc-url", endpoint(bitcoinCash)});
+            for (String[] network : networks) {
+                queryRunner.createCatalog(network[0], Web3ConnectorFactory.CONNECTOR_NAME, Map.of(network[1], network[2]));
+                assertThat(queryRunner.execute("SELECT configured_provider_count FROM " + network[0] + ".system.chains WHERE schema_name = '" + network[0] + "'").getOnlyColumn())
+                        .containsExactly(1L);
+            }
+        }
+        finally {
+            servers.forEach(server -> server.stop(0));
+        }
+    }
+
+    @Test
     public void testRejectsMismatchedAptosEndpoints()
             throws Exception
     {
@@ -434,6 +477,49 @@ public class TestEndpointIdentityValidation
             response.set("result", result);
             JsonNode responseDocument = requestDocument.isArray() ? OBJECT_MAPPER.createArrayNode().add(response) : response;
             byte[] body = OBJECT_MAPPER.writeValueAsBytes(responseDocument);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        return server;
+    }
+
+    private static HttpServer bitcoinTestnetServer(String subversion)
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            JsonNode requestDocument = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+            JsonNode request = requestDocument.isArray() ? requestDocument.get(0) : requestDocument;
+            ObjectNode result = OBJECT_MAPPER.createObjectNode()
+                    .put("chain", "test")
+                    .put("subversion", subversion);
+            ObjectNode response = OBJECT_MAPPER.createObjectNode()
+                    .put("jsonrpc", "2.0")
+                    .put("id", request.path("id").asLong());
+            response.set("result", result);
+            JsonNode responseDocument = requestDocument.isArray() ? OBJECT_MAPPER.createArrayNode().add(response) : response;
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(responseDocument);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        return server;
+    }
+
+    private static HttpServer tronJsonRpcServer(String chainId)
+            throws IOException
+    {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/jsonrpc", exchange -> {
+            JsonNode request = OBJECT_MAPPER.readTree(exchange.getRequestBody());
+            ObjectNode response = OBJECT_MAPPER.createObjectNode()
+                    .put("jsonrpc", "2.0")
+                    .put("id", request.path("id").asLong())
+                    .put("result", chainId);
+            byte[] body = OBJECT_MAPPER.writeValueAsBytes(response);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);

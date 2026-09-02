@@ -42,7 +42,13 @@ public class CosmosChainAdapter
 
     protected CosmosChainAdapter(String descriptorResource, String chainIdPrefix)
     {
-        descriptor = loadDescriptor(descriptorResource);
+        this(descriptorResource, chainIdPrefix, null);
+    }
+
+    protected CosmosChainAdapter(String descriptorResource, String chainIdPrefix, String schemaName)
+    {
+        ChainDescriptor base = loadDescriptor(descriptorResource);
+        descriptor = schemaName == null ? base : new ChainDescriptor(base.apiVersion(), schemaName, schemaName, base.adapterVersion(), base.tables());
         this.chainIdPrefix = chainIdPrefix;
     }
 

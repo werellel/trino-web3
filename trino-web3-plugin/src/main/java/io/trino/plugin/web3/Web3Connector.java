@@ -14,11 +14,15 @@
 package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
+import io.trino.plugin.web3.aptos.AptosTestnetChainAdapter;
 import io.trino.plugin.web3.adapter.ExecutableChainRegistry;
 import io.trino.plugin.web3.adapter.EndpointIdentityVerifier;
 import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
+import io.trino.plugin.web3.bitcoin.BitcoinTestnetChainAdapter;
 import io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter;
+import io.trino.plugin.web3.bitcoincash.BitcoinCashTestnetChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
+import io.trino.plugin.web3.dogecoin.DogecoinTestnetChainAdapter;
 import io.trino.plugin.web3.evm.EthereumChainAdapter;
 import io.trino.plugin.web3.evm.BaseChainAdapter;
 import io.trino.plugin.web3.evm.ArbitrumChainAdapter;
@@ -63,12 +67,20 @@ import io.trino.plugin.web3.evm.JovaySepoliaChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter;
 import io.trino.plugin.web3.evm.LineaSepoliaChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
+import io.trino.plugin.web3.tron.TronNileChainAdapter;
+import io.trino.plugin.web3.tron.TronShastaChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
+import io.trino.plugin.web3.sui.SuiTestnetChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
 import io.trino.plugin.web3.cosmos.OsmosisChainAdapter;
 import io.trino.plugin.web3.cosmos.InjectiveChainAdapter;
+import io.trino.plugin.web3.cosmos.CosmosTestnetChainAdapter;
+import io.trino.plugin.web3.cosmos.OsmosisTestnetChainAdapter;
+import io.trino.plugin.web3.cosmos.InjectiveTestnetChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
+import io.trino.plugin.web3.litecoin.LitecoinTestnetChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
+import io.trino.plugin.web3.solana.SolanaDevnetChainAdapter;
 import io.trino.plugin.web3.runtime.ExecutionPolicy;
 import io.trino.plugin.web3.runtime.ProviderCapabilities;
 import io.trino.plugin.web3.runtime.ProviderProfile;
@@ -98,6 +110,9 @@ import static java.util.Objects.requireNonNull;
 public final class Web3Connector
         implements Connector
 {
+    private static final Set<String> ADDITIONAL_REST_SCHEMAS = Set.of(
+            "cosmos_testnet", "osmosis_testnet", "injective_testnet",
+            "aptos_testnet", "tron_nile", "tron_shasta");
     private final ConnectorMetadata metadata;
     private final ConnectorSplitManager splitManager;
     private final ConnectorPageSourceProvider pageSourceProvider;
@@ -480,7 +495,9 @@ public final class Web3Connector
             }
             additionalEvmRpcEndpoints.forEach((schemaName, endpoints) -> {
                 if (!endpoints.isEmpty()) {
-                    configuredRuntimes.put(schemaName, createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
+                    configuredRuntimes.put(schemaName, ADDITIONAL_REST_SCHEMAS.contains(schemaName)
+                            ? createRestRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig)
+                            : createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
                 }
             });
             if (!bitcoinRpcEndpoints.isEmpty()) {
@@ -638,16 +655,28 @@ public final class Web3Connector
                 new CrossFiTestnetChainAdapter(),
                 new LineaSepoliaChainAdapter(),
                 new SolanaChainAdapter(),
+                new SolanaDevnetChainAdapter(),
                 new AptosChainAdapter(),
+                new AptosTestnetChainAdapter(),
                 new TronChainAdapter(),
+                new TronNileChainAdapter(),
+                new TronShastaChainAdapter(),
                 new SuiChainAdapter(),
+                new SuiTestnetChainAdapter(),
                 new CosmosChainAdapter(),
+                new CosmosTestnetChainAdapter(),
                 new OsmosisChainAdapter(),
+                new OsmosisTestnetChainAdapter(),
                 new InjectiveChainAdapter(),
+                new InjectiveTestnetChainAdapter(),
                 new BitcoinChainAdapter(),
+                new BitcoinTestnetChainAdapter(),
                 new LitecoinChainAdapter(),
+                new LitecoinTestnetChainAdapter(),
                 new DogecoinChainAdapter(),
-                new BitcoinCashChainAdapter());
+                new DogecoinTestnetChainAdapter(),
+                new BitcoinCashChainAdapter(),
+                new BitcoinCashTestnetChainAdapter());
         return new ConnectorComponents(
                 adapters,
                 new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),

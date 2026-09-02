@@ -14,8 +14,11 @@
 package io.trino.plugin.web3;
 
 import io.trino.plugin.web3.aptos.AptosChainAdapter;
+import io.trino.plugin.web3.aptos.AptosTestnetChainAdapter;
 import io.trino.plugin.web3.bitcoin.BitcoinChainAdapter;
+import io.trino.plugin.web3.bitcoin.BitcoinTestnetChainAdapter;
 import io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter;
+import io.trino.plugin.web3.bitcoincash.BitcoinCashTestnetChainAdapter;
 import io.trino.plugin.web3.adapter.ChainPlanningException;
 import io.trino.plugin.web3.adapter.ChainScan;
 import io.trino.plugin.web3.adapter.ChainSplit;
@@ -72,13 +75,22 @@ import io.trino.plugin.web3.evm.JovaySepoliaChainAdapter;
 import io.trino.plugin.web3.evm.CrossFiTestnetChainAdapter;
 import io.trino.plugin.web3.evm.LineaSepoliaChainAdapter;
 import io.trino.plugin.web3.dogecoin.DogecoinChainAdapter;
+import io.trino.plugin.web3.dogecoin.DogecoinTestnetChainAdapter;
 import io.trino.plugin.web3.litecoin.LitecoinChainAdapter;
+import io.trino.plugin.web3.litecoin.LitecoinTestnetChainAdapter;
 import io.trino.plugin.web3.solana.SolanaChainAdapter;
+import io.trino.plugin.web3.solana.SolanaDevnetChainAdapter;
 import io.trino.plugin.web3.tron.TronChainAdapter;
+import io.trino.plugin.web3.tron.TronNileChainAdapter;
+import io.trino.plugin.web3.tron.TronShastaChainAdapter;
 import io.trino.plugin.web3.sui.SuiChainAdapter;
+import io.trino.plugin.web3.sui.SuiTestnetChainAdapter;
 import io.trino.plugin.web3.cosmos.CosmosChainAdapter;
+import io.trino.plugin.web3.cosmos.CosmosTestnetChainAdapter;
 import io.trino.plugin.web3.cosmos.OsmosisChainAdapter;
+import io.trino.plugin.web3.cosmos.OsmosisTestnetChainAdapter;
 import io.trino.plugin.web3.cosmos.InjectiveChainAdapter;
+import io.trino.plugin.web3.cosmos.InjectiveTestnetChainAdapter;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
@@ -112,7 +124,7 @@ public final class Web3SplitManager
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
-                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new GnosisChainAdapter(), new KaiaChainAdapter(), new ArcChainAdapter(), new StoryChainAdapter(), new BobaChainAdapter(), new CeloChainAdapter(), new HyperEvmChainAdapter(), new AbstractChainAdapter(), new AnimeChainAdapter(), new ApeChainChainAdapter(), new DegenChainAdapter(), new InkChainAdapter(), new JovayChainAdapter(), new CrossFiChainAdapter(), new LineaChainAdapter(), new EthereumSepoliaChainAdapter(), new BaseSepoliaChainAdapter(), new OptimismSepoliaChainAdapter(), new ArbitrumSepoliaChainAdapter(), new BnbTestnetChainAdapter(), new PolygonAmoyChainAdapter(), new AvalancheFujiChainAdapter(), new GnosisChiadoChainAdapter(), new KaiaKairosChainAdapter(), new ArcTestnetChainAdapter(), new StoryAeneidChainAdapter(), new BobaSepoliaChainAdapter(), new CeloSepoliaChainAdapter(), new HyperEvmTestnetChainAdapter(), new AbstractSepoliaChainAdapter(), new AnimeTestnetChainAdapter(), new ApeChainCurtisChainAdapter(), new InkSepoliaChainAdapter(), new JovaySepoliaChainAdapter(), new CrossFiTestnetChainAdapter(), new LineaSepoliaChainAdapter(), new SolanaChainAdapter(), new AptosChainAdapter(), new TronChainAdapter(), new SuiChainAdapter(), new CosmosChainAdapter(), new OsmosisChainAdapter(), new InjectiveChainAdapter(), new BitcoinChainAdapter(), new LitecoinChainAdapter(), new DogecoinChainAdapter(), new BitcoinCashChainAdapter()));
+                ExecutableChainRegistry.of(new EthereumChainAdapter(), new BaseChainAdapter(), new OptimismChainAdapter(), new ArbitrumChainAdapter(), new BnbChainAdapter(), new PolygonChainAdapter(), new AvalancheChainAdapter(), new GnosisChainAdapter(), new KaiaChainAdapter(), new ArcChainAdapter(), new StoryChainAdapter(), new BobaChainAdapter(), new CeloChainAdapter(), new HyperEvmChainAdapter(), new AbstractChainAdapter(), new AnimeChainAdapter(), new ApeChainChainAdapter(), new DegenChainAdapter(), new InkChainAdapter(), new JovayChainAdapter(), new CrossFiChainAdapter(), new LineaChainAdapter(), new EthereumSepoliaChainAdapter(), new BaseSepoliaChainAdapter(), new OptimismSepoliaChainAdapter(), new ArbitrumSepoliaChainAdapter(), new BnbTestnetChainAdapter(), new PolygonAmoyChainAdapter(), new AvalancheFujiChainAdapter(), new GnosisChiadoChainAdapter(), new KaiaKairosChainAdapter(), new ArcTestnetChainAdapter(), new StoryAeneidChainAdapter(), new BobaSepoliaChainAdapter(), new CeloSepoliaChainAdapter(), new HyperEvmTestnetChainAdapter(), new AbstractSepoliaChainAdapter(), new AnimeTestnetChainAdapter(), new ApeChainCurtisChainAdapter(), new InkSepoliaChainAdapter(), new JovaySepoliaChainAdapter(), new CrossFiTestnetChainAdapter(), new LineaSepoliaChainAdapter(), new SolanaChainAdapter(), new SolanaDevnetChainAdapter(), new AptosChainAdapter(), new AptosTestnetChainAdapter(), new TronChainAdapter(), new TronNileChainAdapter(), new TronShastaChainAdapter(), new SuiChainAdapter(), new SuiTestnetChainAdapter(), new CosmosChainAdapter(), new CosmosTestnetChainAdapter(), new OsmosisChainAdapter(), new OsmosisTestnetChainAdapter(), new InjectiveChainAdapter(), new InjectiveTestnetChainAdapter(), new BitcoinChainAdapter(), new BitcoinTestnetChainAdapter(), new LitecoinChainAdapter(), new LitecoinTestnetChainAdapter(), new DogecoinChainAdapter(), new DogecoinTestnetChainAdapter(), new BitcoinCashChainAdapter(), new BitcoinCashTestnetChainAdapter()));
     }
 
     Web3SplitManager(

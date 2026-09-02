@@ -45,6 +45,13 @@ The same model is used for canonical testnets, each with an independent schema:
 Degen testnet is intentionally not registered until its canonical chain ID and
 endpoint contract are published.
 
+Non-EVM testnets are also isolated by native schema: `solana_devnet`,
+`aptos_testnet`, `tron_nile`, `tron_shasta`, `sui_testnet`,
+`cosmos_testnet`, `osmosis_testnet`, `injective_testnet`,
+`bitcoin_testnet`, `litecoin_testnet`, `dogecoin_testnet`, and
+`bitcoincash_testnet`. They retain each chain's native table model and use
+separate REST or JSON-RPC endpoint properties with network identity checks.
+
 Tron is exposed through its native REST API as `web3.tron.blocks` and
 `web3.tron.transactions`. It is a separate non-EVM adapter: bounded
 `block_number` predicates are translated to `/wallet/getblockbynum`, and the
@@ -152,6 +159,13 @@ web3.dogecoin.rpc-url=http://127.0.0.1:22555
 web3.dogecoin.rpc-fallback-urls=http://127.0.0.1:22556
 web3.bitcoincash.rpc-url=http://127.0.0.1:8332
 web3.bitcoincash.rpc-fallback-urls=http://127.0.0.1:18332
+# Non-EVM testnets use separate properties and schemas:
+# web3.solana-devnet.rpc-url, web3.aptos-testnet.rest-url,
+# web3.tron-nile.api-url, web3.tron-shasta.api-url, web3.sui-testnet.rpc-url,
+# web3.cosmos-testnet.rest-url, web3.osmosis-testnet.rest-url,
+# web3.injective-testnet.rest-url, web3.bitcoin-testnet.rpc-url,
+# web3.litecoin-testnet.rpc-url, web3.dogecoin-testnet.rpc-url,
+# web3.bitcoincash-testnet.rpc-url (each also accepts a fallback-urls property).
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
 web3.maximum-transaction-hashes-per-query=1000

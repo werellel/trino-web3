@@ -79,6 +79,15 @@ public class TestAptosChainAdapter
     }
 
     @Test
+    public void testTestnetUsesIndependentSchemaAndChainId()
+    {
+        AptosTestnetChainAdapter testnet = new AptosTestnetChainAdapter();
+        assertThat(testnet.descriptor().schemaName()).isEqualTo("aptos_testnet");
+        assertThat(testnet.endpointIdentityProbe().extractIdentity(
+                com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("chain_id", 2))).isEqualTo("2");
+    }
+
+    @Test
     public void testRejectsUnboundedAndMismatchedScans()
     {
         ChainSplitLimits limits = new ChainSplitLimits(10, 10, 10);

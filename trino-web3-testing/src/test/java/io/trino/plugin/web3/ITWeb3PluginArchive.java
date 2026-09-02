@@ -60,17 +60,29 @@ public class ITWeb3PluginArchive
             assertThat(classLoader.loadClass("io.trino.plugin.web3.chain.ChainDescriptor")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.adapter.ExecutableChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.aptos.AptosChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.aptos.AptosTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoin.BitcoinChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoin.BitcoinTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.utxo.UtxoChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.litecoin.LitecoinChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.dogecoin.DogecoinChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoincash.BitcoinCashChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.bitcoincash.BitcoinCashTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.solana.SolanaChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.solana.SolanaDevnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.tron.TronChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.tron.TronNileChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.tron.TronShastaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.sui.SuiChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.sui.SuiTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.CosmosChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.OsmosisChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.InjectiveChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.CosmosTestnetChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.OsmosisTestnetChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.cosmos.InjectiveTestnetChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.litecoin.LitecoinTestnetChainAdapter")).isNotNull();
+            assertThat(classLoader.loadClass("io.trino.plugin.web3.dogecoin.DogecoinTestnetChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.GnosisChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.KaiaChainAdapter")).isNotNull();
             assertThat(classLoader.loadClass("io.trino.plugin.web3.evm.ArcChainAdapter")).isNotNull();
@@ -180,6 +192,20 @@ public class ITWeb3PluginArchive
                         .containsExactly("blocks", "inputs", "outputs", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.bitcoincash").getOnlyColumn())
                         .containsExactly("blocks", "inputs", "outputs", "transactions");
+                for (String schema : List.of("bitcoin_testnet", "litecoin_testnet", "dogecoin_testnet", "bitcoincash_testnet")) {
+                    assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
+                            .containsExactly("blocks", "inputs", "outputs", "transactions");
+                }
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos_testnet").getOnlyColumn())
+                        .containsExactly("events", "transactions");
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.solana_devnet").getOnlyColumn())
+                        .containsExactly("blocks", "instructions", "transactions");
+                for (String schema : List.of("tron_nile", "tron_shasta", "cosmos_testnet", "osmosis_testnet", "injective_testnet")) {
+                    assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
+                            .containsExactly("blocks", "transactions");
+                }
+                assertThat(queryRunner.execute("SHOW TABLES FROM web3.sui_testnet").getOnlyColumn())
+                        .containsExactly("checkpoints", "transactions");
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3.system").getOnlyColumn())
                         .containsExactly("cache_stats", "chains", "providers", "rate_limits", "rpc_metrics");
 

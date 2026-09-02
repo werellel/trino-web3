@@ -33,6 +33,13 @@ final class TestTronChainAdapter
     private final TronChainAdapter adapter = new TronChainAdapter();
 
     @Test
+    void testTestnetSchemasAreIndependent()
+    {
+        assertThat(new TronNileChainAdapter().descriptor().schemaName()).isEqualTo("tron_nile");
+        assertThat(new TronShastaChainAdapter().descriptor().schemaName()).isEqualTo("tron_shasta");
+    }
+
+    @Test
     void testBuiltInDescriptorDefinesNativeTables()
     {
         var descriptor = adapter.descriptor();

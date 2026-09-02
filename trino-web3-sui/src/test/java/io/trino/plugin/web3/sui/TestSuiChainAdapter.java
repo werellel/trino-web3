@@ -42,4 +42,16 @@ final class TestSuiChainAdapter
         assertThatThrownBy(() -> new SuiChainAdapter().planSplits(new ChainScan("transactions", Map.of(), Map.of()), new ChainSplitLimits(100, 100, 100)))
                 .hasMessage("sui.transactions requires a bounded checkpoint_sequence_number predicate");
     }
+
+    @Test
+    void testTestnetUsesIndependentSchemaAndChainIdentity()
+    {
+        SuiTestnetChainAdapter testnet = new SuiTestnetChainAdapter();
+        assertThat(testnet.descriptor().schemaName()).isEqualTo("sui_testnet");
+        assertThat(testnet.endpointIdentityProbe().extractIdentity(
+                com.fasterxml.jackson.databind.node.TextNode.valueOf("4c78adac"))).isEqualTo("4c78adac");
+        assertThatThrownBy(() -> testnet.endpointIdentityProbe().extractIdentity(
+                com.fasterxml.jackson.databind.node.TextNode.valueOf("35834a8a")))
+                .hasMessage("invalid Sui testnet chain identity");
+    }
 }

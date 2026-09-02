@@ -27,6 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestLitecoinChainAdapter
 {
     @Test
+    public void testTestnetSchema()
+    {
+        assertThat(new LitecoinTestnetChainAdapter().descriptor().schemaName()).isEqualTo("litecoin_testnet");
+    }
+
+    @Test
     public void testPlansBoundedNativeRangeAndValidatesIdentity()
             throws Exception
     {
