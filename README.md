@@ -210,7 +210,10 @@ HTTP(S) origin without credentials, a path, query, or fragment. Aptos REST
 requests share the configured concurrency, queue, rate, retry, cooldown,
 failover, request-size, and response-size limits, but are never placed in a
 JSON-RPC batch envelope. Aptos cache admission uses committed range identities
-after complete native-response validation.
+after complete native-response validation. Aptos full nodes may prune old
+ledger versions; inspect `GET /v1` (`oldest_ledger_version`) before choosing a
+range. Pruning errors are surfaced to Trino rather than converted to an empty
+result.
 `web3.solana.rpc-url` follows Ethereum's metadata-only rule. Solana scans use
 `getBlock` with `commitment=finalized`; every table requires a bounded `slot`
 predicate. A null block result produces no rows. The initial instruction table
@@ -312,12 +315,13 @@ docker compose exec coordinator trino --catalog web3
 ```
 
 The coordinator is available at `http://localhost:8080`. The catalog uses an
-Alchemy Ethereum endpoint with the API key supplied by `ALCHEMY_API_KEY` and
-falls back to the credential-free Ethereum PublicNode endpoint. Set the
-environment variable before running the script; a literal key must never be
-placed in the catalog file. Firo's PublicNode endpoint is not activated
-because the current release does not yet provide a Firo adapter. Stop the
-cluster with `docker compose down`.
+Alchemy Ethereum endpoint with the API key supplied by `ALCHEMY_API_KEY`,
+falls back to the credential-free Ethereum PublicNode endpoint, and enables
+the credential-free Aptos PublicNode REST origin. Set the environment
+variable before running the script; a literal key must never be placed in the
+catalog file. Firo's PublicNode endpoint is not activated because the current
+release does not yet provide a Firo adapter. Stop the cluster with `docker
+compose down`.
 
 The coordinator and all workers receive the same catalog and plugin files;
 only `node.properties` and the coordinator/worker role settings differ. The
