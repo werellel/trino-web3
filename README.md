@@ -284,6 +284,39 @@ with `mvn package`, then extract it as one Trino plugin directory. The ZIP
 contains the plugin, chain descriptor API, adapter execution API, core, EVM,
 Solana, Aptos, Bitcoin, runtime, and runtime library JARs.
 
+## Local Trino cluster with Docker
+
+The repository includes an official `trinodb/trino:475`-based image and a
+minimal Docker Compose cluster with one coordinator and three workers. The
+image build installs the assembled plugin ZIP into
+`/usr/lib/trino/plugin/web3`, matching Trino's plugin directory convention.
+
+From the repository root:
+
+```bash
+./docker/verify.sh
+```
+
+The verification script builds the Maven ZIP and image, starts the four-node
+cluster, prints the registered worker count, runs `SHOW SCHEMAS`, and executes
+a bounded Ethereum block query. It removes the containers when finished; set
+`KEEP_CLUSTER=1` to leave them running for interactive queries.
+
+```bash
+KEEP_CLUSTER=1 ./docker/verify.sh
+docker compose exec coordinator trino --catalog web3
+```
+
+The coordinator is available at `http://localhost:8080`. The default catalog
+uses the credential-free Ethereum PublicNode endpoint for a smoke test. Set
+`web3.ethereum.rpc-url` in
+`docker/trino/catalog/web3.properties` to a local or private endpoint before
+production-like testing. Stop the cluster with `docker compose down`.
+
+The coordinator and all workers receive the same catalog and plugin files;
+only `node.properties` and the coordinator/worker role settings differ. The
+JVM heap is intentionally limited to 1 GiB per container for local testing.
+
 ```sql
 SELECT block_number, block_hash
 FROM web3.ethereum.blocks

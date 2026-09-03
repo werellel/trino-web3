@@ -1,0 +1,71 @@
+services:
+  coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trino-web3:475
+    hostname: coordinator
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/trino/coordinator/node.properties:/etc/trino/node.properties:ro
+      - ./docker/trino/coordinator/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/log.properties:/etc/trino/log.properties:ro
+      - ./docker/trino/catalog:/etc/trino/catalog:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/v1/info >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - trino
+
+  worker-1:
+    image: trino-web3:475
+    hostname: worker-1
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    volumes:
+      - ./docker/trino/worker-1/node.properties:/etc/trino/node.properties:ro
+      - ./docker/trino/worker/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/log.properties:/etc/trino/log.properties:ro
+      - ./docker/trino/catalog:/etc/trino/catalog:ro
+    networks:
+      - trino
+
+  worker-2:
+    image: trino-web3:475
+    hostname: worker-2
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    volumes:
+      - ./docker/trino/worker-2/node.properties:/etc/trino/node.properties:ro
+      - ./docker/trino/worker/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/log.properties:/etc/trino/log.properties:ro
+      - ./docker/trino/catalog:/etc/trino/catalog:ro
+    networks:
+      - trino
+
+  worker-3:
+    image: trino-web3:475
+    hostname: worker-3
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    volumes:
+      - ./docker/trino/worker-3/node.properties:/etc/trino/node.properties:ro
+      - ./docker/trino/worker/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/log.properties:/etc/trino/log.properties:ro
+      - ./docker/trino/catalog:/etc/trino/catalog:ro
+    networks:
+      - trino
+
+networks:
+  trino:
+    name: trino-web3

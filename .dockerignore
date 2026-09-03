@@ -1,0 +1,11 @@
+.git
+.github
+.bloop
+.metals
+.vscode
+**/target/*
+!trino-web3-plugin/target/
+!trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip
+docs
+plans
+*.md
