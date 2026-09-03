@@ -141,7 +141,9 @@ query blocks:
 
 ```properties
 connector.name=web3
-web3.ethereum.rpc-url=http://127.0.0.1:8545
+# Secrets use Trino's environment substitution syntax; export ALCHEMY_API_KEY
+# before starting a catalog that uses the Docker example below.
+web3.ethereum.rpc-url=https://eth-mainnet.g.alchemy.com/v2/${ENV:ALCHEMY_API_KEY}
 web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
 web3.base.rpc-url=http://127.0.0.1:8545
 # All EVM schemas, including *_sepolia, *_testnet, *_amoy, *_fuji, *_chiado,
@@ -307,11 +309,13 @@ KEEP_CLUSTER=1 ./docker/verify.sh
 docker compose exec coordinator trino --catalog web3
 ```
 
-The coordinator is available at `http://localhost:8080`. The default catalog
-uses the credential-free Ethereum PublicNode endpoint for a smoke test. Set
-`web3.ethereum.rpc-url` in
-`docker/trino/catalog/web3.properties` to a local or private endpoint before
-production-like testing. Stop the cluster with `docker compose down`.
+The coordinator is available at `http://localhost:8080`. The catalog uses an
+Alchemy Ethereum endpoint with the API key supplied by `ALCHEMY_API_KEY` and
+falls back to the credential-free Ethereum PublicNode endpoint. Set the
+environment variable before running the script; a literal key must never be
+placed in the catalog file. Firo's PublicNode endpoint is not activated
+because the current release does not yet provide a Firo adapter. Stop the
+cluster with `docker compose down`.
 
 The coordinator and all workers receive the same catalog and plugin files;
 only `node.properties` and the coordinator/worker role settings differ. The

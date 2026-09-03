@@ -16,6 +16,10 @@ set -euo pipefail
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repository_root}"
+if [[ -z "${ALCHEMY_API_KEY:-}" ]] && ! grep -Eq '^ALCHEMY_API_KEY=.+$' "${repository_root}/.env" 2>/dev/null; then
+    printf 'Set ALCHEMY_API_KEY or populate .env before starting the Trino cluster\n' >&2
+    exit 1
+fi
 
 "${repository_root}/docker/build.sh"
 docker compose up --detach
