@@ -32,16 +32,34 @@ until curl --fail --silent http://localhost:8080/v1/info >/dev/null; do
     sleep 2
 done
 
-docker compose exec --env TERM=dumb -T coordinator trino \
+worker_count="$(docker compose exec --env TERM=dumb -T coordinator trino \
     --server http://coordinator:8080 \
-    --execute 'SELECT count(*) AS worker_count FROM system.runtime.nodes WHERE coordinator = false'
+    --execute 'SELECT count(*) AS worker_count FROM system.runtime.nodes WHERE coordinator = false')"
+worker_count="${worker_count//\"/}"
+if [[ "${worker_count}" != "3" ]]; then
+    printf 'Expected three registered workers, found %s\n' "${worker_count}" >&2
+    exit 1
+fi
+printf 'Registered workers: %s\n' "${worker_count}"
 
-docker compose exec --env TERM=dumb -T coordinator trino \
+schemas="$(docker compose exec --env TERM=dumb -T coordinator trino \
     --server http://coordinator:8080 \
     --catalog web3 \
-    --execute 'SHOW SCHEMAS FROM web3'
+    --execute 'SHOW SCHEMAS FROM web3')"
+schemas="${schemas//\"/}"
+if ! grep -Fxq "ethereum" <<<"${schemas}"; then
+    printf 'Expected the ethereum schema in SHOW SCHEMAS output\n' >&2
+    exit 1
+fi
+printf '%s\n' "${schemas}"
 
-docker compose exec --env TERM=dumb -T coordinator trino \
+block_result="$(docker compose exec --env TERM=dumb -T coordinator trino \
     --server http://coordinator:8080 \
     --catalog web3 \
-    --execute 'SELECT block_number, block_hash FROM web3.ethereum.blocks WHERE block_number BETWEEN 23000000 AND 23000000'
+    --execute 'SELECT block_number, block_hash FROM web3.ethereum.blocks WHERE block_number BETWEEN 23000000 AND 23000000')"
+block_result="${block_result//\"/}"
+if ! grep -Fq "23000000" <<<"${block_result}"; then
+    printf 'Expected block 23000000 in bounded Ethereum query output\n' >&2
+    exit 1
+fi
+printf '%s\n' "${block_result}"
