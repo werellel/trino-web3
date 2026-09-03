@@ -296,6 +296,8 @@ image build installs the assembled plugin ZIP into
 From the repository root:
 
 ```bash
+cp .env.example .env
+# Set ALCHEMY_API_KEY in .env, or export it in the shell.
 ./docker/verify.sh
 ```
 
