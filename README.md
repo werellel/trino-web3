@@ -197,6 +197,9 @@ ledger versions, and some providers restrict archive or historical requests.
 Such remote errors are surfaced; they are not converted into empty results.
 More native examples are in [`docs/EXAMPLES.md`](docs/EXAMPLES.md).
 
+For exact blockchain-width arithmetic and binary conversion, see
+[`docs/NUMERIC_AND_BINARY_FUNCTIONS.md`](docs/NUMERIC_AND_BINARY_FUNCTIONS.md).
+
 ## Project layout
 
 ```text
@@ -204,6 +207,7 @@ trino-web3-chain       Versioned descriptors and adapter registry
 trino-web3-core        Trino-independent handles and bounded split model
 trino-web3-adapter     Executable adapter, scan, split, and row contracts
 trino-web3-runtime     JSON-RPC/REST execution, transport, limits, metrics
+trino-web3-functions   Exact UINT256/INT256 types, operators, and aggregates
 trino-web3-evm         EVM descriptors, planning, requests, and decoding
 trino-web3-aptos       Aptos transactions and event streams
 trino-web3-solana      Solana blocks, transactions, and instructions

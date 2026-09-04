@@ -23,6 +23,7 @@
         <module>trino-web3-chain</module>
         <module>trino-web3-core</module>
         <module>trino-web3-runtime</module>
+        <module>trino-web3-functions</module>
         <module>trino-web3-adapter</module>
         <module>trino-web3-solana</module>
         <module>trino-web3-aptos</module>

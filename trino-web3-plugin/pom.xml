@@ -16,6 +16,11 @@
     <dependencies>
         <dependency>
             <groupId>io.trino.plugin</groupId>
+            <artifactId>trino-web3-functions</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.trino.plugin</groupId>
             <artifactId>trino-web3-aptos</artifactId>
             <version>${project.version}</version>
         </dependency>

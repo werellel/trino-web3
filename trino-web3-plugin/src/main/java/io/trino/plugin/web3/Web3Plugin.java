@@ -13,10 +13,24 @@
  */
 package io.trino.plugin.web3;
 
+import io.trino.plugin.web3.functions.Int256Aggregations;
+import io.trino.plugin.web3.functions.Int256MaxAggregations;
+import io.trino.plugin.web3.functions.Int256MinAggregations;
+import io.trino.plugin.web3.functions.Int256TrySumAggregations;
+import io.trino.plugin.web3.functions.Int256Type;
+import io.trino.plugin.web3.functions.UInt256Aggregations;
+import io.trino.plugin.web3.functions.UInt256MaxAggregations;
+import io.trino.plugin.web3.functions.UInt256MinAggregations;
+import io.trino.plugin.web3.functions.UInt256TrySumAggregations;
+import io.trino.plugin.web3.functions.UInt256Type;
+import io.trino.plugin.web3.functions.Web3Base58Functions;
+import io.trino.plugin.web3.functions.Web3IntegerFunctions;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
+import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Set;
 
 public final class Web3Plugin
         implements Plugin
@@ -25,5 +39,27 @@ public final class Web3Plugin
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
         return List.of(new Web3ConnectorFactory());
+    }
+
+    @Override
+    public Iterable<Type> getTypes()
+    {
+        return List.of(UInt256Type.UINT256, Int256Type.INT256);
+    }
+
+    @Override
+    public Set<Class<?>> getFunctions()
+    {
+        return Set.of(
+                Web3IntegerFunctions.class,
+                Web3Base58Functions.class,
+                UInt256Aggregations.class,
+                Int256Aggregations.class,
+                UInt256TrySumAggregations.class,
+                Int256TrySumAggregations.class,
+                UInt256MinAggregations.class,
+                UInt256MaxAggregations.class,
+                Int256MinAggregations.class,
+                Int256MaxAggregations.class);
     }
 }
