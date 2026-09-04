@@ -28,9 +28,8 @@ catalog that can be loaded by Trino and queried with:
 SHOW SCHEMAS FROM web3;
 ```
 
-Research milestones M6 through M10 remain roadmap proposals and are not part
-of this release. The supported product scope ends at the production-hardened
-multi-chain connector delivered by M5.
+The supported product scope ends at the production-hardened multi-chain
+connector delivered by M5; future research work is outside this release.
 
 The EVM adapters expose the same native tables (`blocks`, `transactions`,
 `receipts`, and `logs`)

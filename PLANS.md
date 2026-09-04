@@ -1167,7 +1167,7 @@ SQL
 
 # 38. Immediate planning workflow
 
-For the current roadmap, use this sequence:
+The original bootstrap sequence was:
 
 ```text
 M0 plan
@@ -1183,9 +1183,8 @@ first vertical slice
 M1 hardening
 ```
 
-Do not write implementation plans for M6–M10 before early production milestones reveal actual constraints.
-
-The roadmap may describe long-term intent.
+Implementation planning stops at the current M5 release boundary. Future
+research work is intentionally outside this repository snapshot.
 
 Implementation plans should describe near-term reality.
 
