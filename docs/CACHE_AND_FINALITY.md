@@ -162,6 +162,5 @@ Worker-global entry count, retained weight, and eviction count remain separate
 from PageSource metrics. M5.1 exposes their local runtime snapshot through
 `system.cache_stats`; the table does not expose cache keys or values.
 
-The detailed implementation and validation contract is in
-`plans/M3_CACHE_FINALITY_REORG.md`. The identity decision is recorded in
+The cache identity decision is recorded in
 `docs/DECISIONS/0001-cache-by-immutable-identity.md`.

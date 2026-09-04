@@ -346,8 +346,6 @@ Before adding a new chain, read:
 
 Before large architectural changes, read:
 
-* `ROADMAP.md`
-* `PLANS.md`
 * `docs/RESEARCH.md`
 
 ## Change discipline

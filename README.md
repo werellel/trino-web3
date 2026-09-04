@@ -1,307 +1,144 @@
 # trino-web3
 
-`trino-web3` is a Trino connector for querying remote blockchain data as
-native Trino relations. The project will preserve each chain's native data
-model rather than forcing non-EVM chains into an EVM schema.
+`trino-web3` is a Trino 475 connector for querying remote blockchain data as
+native Trino schemas and tables. Each chain family keeps its own data model;
+non-EVM chains are not forced into an Ethereum-shaped schema.
 
-## Status
+## What it provides
 
-The release provides safe coordinator-local runtime snapshots through
-`web3.system`, endpoint-native network identity validation, safe runtime metrics,
-and hardened configuration, endpoint secrecy, and shutdown behavior. It uses a
-versioned declarative contract, an executable adapter registry, and routes
-Ethereum metadata, bounded split planning, and row decoding through the same
-code-based adapter. Descriptor method bindings now also select bounded access
-paths into named range and discrete-value table-handle predicates, without
-Ethereum fields in the generic Trino planning state. It also exposes native
-`aptos.transactions` and account-scoped
-`aptos.events` through bounded REST paths, plus native `solana.blocks`,
-`solana.transactions`, and `solana.instructions` through bounded JSON-RPC
-`getBlock` paths. This proves that the shared runtime is not EVM- or
-JSON-RPC-only. An opt-in worker-local cache provides EVM finality and
-reorganization correctness. The repository provides a catalog that can be
-loaded by Trino and queried with:
+- bounded remote scans with predicate pushdown and cancellation-aware RPC/REST
+  execution;
+- typed columns for stable fields and a `raw_json` column containing the
+  complete source object, so additive provider fields remain queryable;
+- shared limits for timeout, concurrency, queue size, request/response bytes,
+  retries, rate admission, batching, failover, and metrics;
+- versioned chain descriptors for metadata and code-based executable adapters
+  for planning, validation, decoding, finality, and reorganization rules;
+- coordinator-local `web3.system` snapshots for chains, providers, RPC
+  metrics, rate limits, and cache statistics.
 
-```sql
-SHOW SCHEMAS FROM web3;
+Unbounded scans are rejected before remote work is scheduled. Tests use local
+deterministic protocol fixtures and do not require paid providers or API keys.
+
+## Supported schemas
+
+EVM networks expose `blocks`, `transactions`, `receipts`, and `logs` with
+network-specific schemas and chain-identity checks:
+
+- Mainnets: `ethereum`, `base`, `optimism`, `arbitrum`, `bnb`, `polygon`,
+  `avalanche`, `gnosis`, `kaia`, `arc`, `story`, `boba`, `celo`, `hyperevm`,
+  `abstract`, `anime`, `apechain`, `degen`, `ink`, `jovay`, `crossfi`, `linea`,
+  `unichain`, `tempo`, `robinhood`, and `mode`.
+- Testnets: `ethereum_sepolia`, `base_sepolia`, `optimism_sepolia`,
+  `arbitrum_sepolia`, `bnb_testnet`, `polygon_amoy`, `avalanche_fuji`,
+  `gnosis_chiado`, `kaia_kairos`, `arc_testnet`, `story_aeneid`,
+  `boba_sepolia`, `celo_sepolia`, `hyperevm_testnet`, `abstract_sepolia`,
+  `anime_testnet`, `apechain_curtis`, `ink_sepolia`, `jovay_sepolia`,
+  `crossfi_testnet`, `linea_sepolia`, `unichain_sepolia`, `tempo_moderato`,
+  `robinhood_testnet`, and `mode_sepolia`.
+
+Native non-EVM schemas are also available:
+
+| Family | Schemas | Tables |
+| --- | --- | --- |
+| Solana | `solana`, `solana_devnet` | `blocks`, `transactions`, `instructions` |
+| Aptos | `aptos`, `aptos_testnet` | `transactions`, `events` |
+| Tron | `tron`, `tron_nile`, `tron_shasta` | `blocks`, `transactions` |
+| Sui | `sui`, `sui_testnet` | `checkpoints`, `transactions` |
+| Cosmos SDK | `cosmos`, `cosmos_testnet`, `osmosis`, `osmosis_testnet`, `injective`, `injective_testnet` | `blocks`, `transactions` |
+| Bitcoin Core family | `bitcoin`, `bitcoin_testnet`, `litecoin`, `litecoin_testnet`, `dogecoin`, `dogecoin_testnet`, `bitcoincash`, `bitcoincash_testnet` | `blocks`, `transactions`, `inputs`, `outputs` |
+
+The exact table columns and protocol contracts are documented in
+[`docs/CHAIN_MODEL.md`](docs/CHAIN_MODEL.md). Endpoint properties are
+independent per schema, so a mainnet endpoint cannot accidentally serve a
+testnet schema.
+
+## Architecture
+
+```text
+Trino SPI / connector core
+        |
+        v
+chain adapter (native schema, bounded planning, decoding)
+        |
+        v
+RPC runtime (limits, batching, retry, rate, failover, cache, metrics)
+        |
+        v
+provider transport (HTTP JSON-RPC or native REST)
 ```
 
-The supported product scope is the production-hardened multi-chain connector
-described below.
+The runtime never defines blockchain tables, and adapters never own HTTP
+transport or provider policy. A descriptor declares versioned metadata,
+methods, bindings, and simple response mappings. An executable adapter supplies
+the chain-specific behavior that cannot safely be expressed declaratively.
+Descriptor-only entries are not executable and cannot expose a table by
+themselves.
 
-The EVM adapters expose the same native tables (`blocks`, `transactions`,
-`receipts`, and `logs`)
-for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
-Smart Chain, Polygon, Avalanche C-Chain, Gnosis, Kaia, Arc, Story, Boba, Celo,
-HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, Linea,
-Unichain, Tempo, Robinhood Chain, and Mode.
-Each network has its own schema and chain-identity check, while sharing the
-provider-independent EVM runtime. Optimism is registered once even when it is
-listed more than once in external chain catalogs.
+## Adding a chain
 
-The same model is used for canonical testnets, each with an independent schema:
-`ethereum_sepolia`, `base_sepolia`, `optimism_sepolia`, `arbitrum_sepolia`,
-`bnb_testnet`, `polygon_amoy`, `avalanche_fuji`, `gnosis_chiado`, `kaia_kairos`,
-`arc_testnet`, `story_aeneid`, `boba_sepolia`, `celo_sepolia`,
-`hyperevm_testnet`, `abstract_sepolia`, `anime_testnet`, `apechain_curtis`,
-`ink_sepolia`, `jovay_sepolia`, `crossfi_testnet`, `linea_sepolia`,
-`unichain_sepolia`, `tempo_moderato`, `robinhood_testnet`, and `mode_sepolia`.
-Degen testnet is intentionally not registered until its canonical chain ID and
-endpoint contract are published.
+Add a chain as a small, isolated module following the existing native adapter
+pattern:
 
-Non-EVM testnets are also isolated by native schema: `solana_devnet`,
-`aptos_testnet`, `tron_nile`, `tron_shasta`, `sui_testnet`,
-`cosmos_testnet`, `osmosis_testnet`, `injective_testnet`,
-`bitcoin_testnet`, `litecoin_testnet`, `dogecoin_testnet`, and
-`bitcoincash_testnet`. They retain each chain's native table model and use
-separate REST or JSON-RPC endpoint properties with network identity checks.
+1. Define the native schema, tables, columns, bounds, identity, and finality
+   rules. Do not reuse EVM columns for a different data model.
+2. Add a versioned descriptor resource under `trino-web3-chain` or the chain
+   module. Keep endpoints, credentials, retry policy, provider headers, and
+   scripts out of descriptors.
+3. Implement `ExecutableChainAdapter` in a dedicated chain module. Translate
+   bounded `ChainScan` values into remote operations, validate the complete
+   native response, and emit immutable `ChainRow` values including `raw_json`.
+4. Reuse `RemoteExecution` and the connector-owned runtime. Do not create a
+   per-query executor, HTTP client, retry loop, rate limiter, or provider
+   failover implementation.
+5. Register the adapter in the plugin's executable registry and add one
+   catalog property namespace per network. Keep mainnet and testnet schemas
+   separate.
+6. Add deterministic tests for descriptor evolution, predicate/split bounds,
+   response decoding and malformed/partial responses, identity validation,
+   cancellation, and Trino metadata plus bounded SQL execution. Add the
+   adapter to the packaged-plugin loading test.
 
-Tron is exposed through its native REST API as `web3.tron.blocks` and
-`web3.tron.transactions`. It is a separate non-EVM adapter: bounded
-`block_number` predicates are translated to `/wallet/getblockbynum`, and the
-complete native block or transaction object remains available through
-`raw_json`.
+Before registering the adapter, use the complete
+[new-chain checklist](docs/NEW_CHAIN_ADAPTER_CHECKLIST.md). The descriptor
+contract is `web3.trino.io/v1alpha1`; existing chain and table identities must
+not be removed or silently repurposed. Add a typed column only for a stable
+relational contract—otherwise callers can use `json_parse(raw_json)` for new
+provider fields.
 
-Sui is exposed through its native JSON-RPC API as
-`web3.sui.checkpoints` and `web3.sui.transactions`. Both tables require a
-bounded `checkpoint_sequence_number` predicate; checkpoint rows are fetched
-with `sui_getCheckpoint`, and transaction rows use checkpoint digests with
-`sui_getTransactionBlock`. Native response objects remain available through
-`raw_json`.
+## Configure a catalog
 
-Cosmos Hub, Osmosis, and Injective are exposed through separate native Cosmos
-SDK REST adapters. Each provides bounded `blocks` and `transactions` tables
-using `/cosmos/base/tendermint/v1beta1/blocks/{height}`; transaction payloads
-remain as native base64 values and are preserved in `raw_json`.
-
-The EVM vertical slice exposes `web3.ethereum.blocks`,
-`web3.ethereum.transactions`, `web3.ethereum.receipts`, and
-`web3.ethereum.logs`. Blocks provide `block_number` (`BIGINT`),
-`block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
-`VARCHAR`). Transactions provide `hash`, `block_number`, `from_address`,
-`to_address`, and the same `raw_json` column. The raw document is the complete
-block or transaction object returned by the node, so additive provider fields
-remain queryable without changing the stable typed schema; use
-`json_parse(raw_json)` with Trino's JSON functions when structured access is
-needed. Both tables accept an equality or bounded
-range predicate on `block_number`. `ethereum.transactions` also accepts
-bounded equality or `IN` predicates on `hash`. Unbounded scans are rejected
-before remote work is scheduled.
-
-The Bitcoin vertical slice exposes native UTXO-oriented `web3.bitcoin.blocks`,
-`web3.bitcoin.transactions`, `web3.bitcoin.inputs`, and `web3.bitcoin.outputs`.
-All four tables require a bounded `height` or `block_height` predicate. Bitcoin
-Core reads use bounded `getblockhash` plus `getblock` operations; satoshi values
-are represented as integer `BIGINT` values.
-
-Litecoin, Dogecoin, and Bitcoin Cash use the same bounded UTXO execution path
-with separate native schemas: `web3.litecoin`, `web3.dogecoin`, and
-`web3.bitcoincash`. Each exposes `blocks`, `transactions`, `inputs`, and
-`outputs`, validates the node's `getnetworkinfo.subversion`, and keeps cache
-admission disabled until a chain-specific reorganization-safe identity contract
-is defined. The shared decoder accepts the Bitcoin Core-compatible `address`
-and legacy `addresses` script shapes without adding provider-specific behavior.
-
-This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber`,
-`eth_getTransactionReceipt`, and `eth_getLogs` requests. Receipts are bounded
-by transaction-hash equality/IN predicates; logs are bounded by block-number
-ranges. The worker-local runtime bounds concurrency, queue size, batch size,
-retries, and rate admission; it handles generic endpoint failover and `429`
-`Retry-After`. It does not implement vendor-specific provider profiles,
-Solana inner instructions, or additional Aptos tables beyond transactions and
-events.
-
-Every remote chain table also exposes a `raw_json` `VARCHAR` containing the
-complete source object for the row (the block, transaction, event, input,
-output, or instruction). This compatibility column preserves additive provider
-fields across all JSON-RPC and REST integrations. It contains valid compact
-JSON and can be queried with `json_parse(raw_json)`; the JSON-RPC envelope is
-not included.
-
-## Runtime snapshots
-
-The following system tables expose configured local runtime state without
-performing remote calls: `web3.system.chains`, `web3.system.providers`,
-`web3.system.rpc_metrics`, `web3.system.rate_limits`, and
-`web3.system.cache_stats`. They never expose endpoints, credentials, request
-data, hashes, or addresses. See [system table snapshots](docs/SYSTEM_TABLES.md)
-for the complete contract.
-
-Runtime and page-source metric names, units, aggregation, and privacy guarantees
-are documented in [metrics](docs/METRICS.md).
-Endpoint handling, secret-safety, and lifecycle guarantees are documented in
-[security guidance](docs/SECURITY.md).
-Supported versions are listed in the [compatibility matrix](docs/COMPATIBILITY.md);
-release and upgrade steps are in [releasing](docs/RELEASING.md), with changes
-tracked in [CHANGELOG.md](CHANGELOG.md).
-Reproducible local performance measurements are described in
-[benchmarks](docs/BENCHMARKS.md).
-The repository-local release acceptance gate is documented in
-[acceptance](docs/ACCEPTANCE.md).
-
-## Chain endpoint configuration
-
-Configure an Ethereum-compatible JSON-RPC endpoint for a catalog that will
-query blocks:
+Create a Trino catalog file such as `etc/catalog/web3.properties`:
 
 ```properties
 connector.name=web3
-# Secrets use Trino's environment substitution syntax; export ALCHEMY_API_KEY
-# before starting a catalog that uses the Docker example below.
-web3.ethereum.rpc-url=https://eth-mainnet.g.alchemy.com/v2/${ENV:ALCHEMY_API_KEY}
-web3.ethereum.rpc-fallback-urls=http://127.0.0.1:8546,http://127.0.0.1:8547
-web3.base.rpc-url=http://127.0.0.1:8545
-# All EVM schemas, including *_sepolia, *_testnet, *_amoy, *_fuji, *_chiado,
-# *_kairos, *_aeneid, *_curtis, and *_testnet variants, use the same JSON-RPC
-# contract with a schema-specific rpc-url and chain-identity check.
-web3.aptos.rest-url=http://127.0.0.1:8080
-web3.aptos.rest-fallback-urls=http://127.0.0.1:8081,http://127.0.0.1:8082
-web3.solana.rpc-url=http://127.0.0.1:8899
-web3.solana.rpc-fallback-urls=http://127.0.0.1:8900,http://127.0.0.1:8901
-web3.tron.api-url=http://127.0.0.1:8090
-web3.tron.api-fallback-urls=http://127.0.0.1:8091
-web3.bitcoin.rpc-url=http://127.0.0.1:8332
-web3.bitcoin.rpc-fallback-urls=http://127.0.0.1:18332
-web3.litecoin.rpc-url=http://127.0.0.1:9332
-web3.litecoin.rpc-fallback-urls=http://127.0.0.1:19332
-web3.dogecoin.rpc-url=http://127.0.0.1:22555
-web3.dogecoin.rpc-fallback-urls=http://127.0.0.1:22556
-web3.bitcoincash.rpc-url=http://127.0.0.1:8332
-web3.bitcoincash.rpc-fallback-urls=http://127.0.0.1:18332
-# Non-EVM testnets use separate properties and schemas:
-# web3.solana-devnet.rpc-url, web3.aptos-testnet.rest-url,
-# web3.tron-nile.api-url, web3.tron-shasta.api-url, web3.sui-testnet.rpc-url,
-# web3.cosmos-testnet.rest-url, web3.osmosis-testnet.rest-url,
-# web3.injective-testnet.rest-url, web3.bitcoin-testnet.rpc-url,
-# web3.litecoin-testnet.rpc-url, web3.dogecoin-testnet.rpc-url,
-# web3.bitcoincash-testnet.rpc-url (each also accepts a fallback-urls property).
+web3.ethereum.rpc-url=https://your-node.example/v2/${ENV:API_KEY}
+web3.ethereum.rpc-fallback-urls=https://backup-node.example
+web3.aptos.rest-url=https://fullnode.mainnet.aptoslabs.com
+web3.solana.rpc-url=https://api.mainnet-beta.solana.com
 web3.maximum-blocks-per-split=100
 web3.maximum-blocks-per-query=10000
-web3.maximum-transaction-hashes-per-query=1000
-web3.maximum-rpc-request-bytes=1048576
-web3.maximum-rpc-response-bytes=16777216
 web3.rpc.maximum-concurrency=16
 web3.rpc.maximum-queue-size=1024
 web3.rpc.maximum-batch-size=100
-web3.rpc.json-rpc-batch-enabled=true
 web3.rpc.maximum-attempts=3
 web3.rpc.requests-per-second=100
-web3.rpc.initial-backoff-millis=100
-web3.rpc.maximum-backoff-millis=30000
-web3.rpc.provider-cooldown-millis=30000
 web3.cache.enabled=false
-web3.cache.maximum-size=128MB
-web3.cache.maximum-entry-size=8MB
-# web3.cache.ttl=1h
 ```
 
-Cache size relationships are enforced when `web3.cache.enabled=true`. When the
-cache is disabled, its sizing values are inactive and do not prevent the
-catalog from loading.
+Every configured endpoint is validated against its native network identity
+when peer endpoints are present. Credential-bearing URLs must use Trino's
+environment substitution and are never written to logs, exceptions, metrics,
+or system tables. See [`docs/SECURITY.md`](docs/SECURITY.md) and
+[`docs/RPC_RUNTIME.md`](docs/RPC_RUNTIME.md) for the full property contract.
 
-`web3.ethereum.rpc-url` is optional when only loading the catalog or reading
-metadata. A query of `ethereum.blocks` without it fails explicitly. All EVM
-endpoint properties follow the same rule and validate `eth_chainId` against
-their canonical network ID.
-Fallback URLs require their chain's primary URL, must not contain blank or
-duplicate entries, and are limited to eight endpoints including the primary.
-Ethereum and Solana provider URLs may use a provider-specific path or query;
-those values can carry credentials and are therefore never rendered in
-connector errors, logs, metrics, or system tables. Keep catalog property files
-and their filesystem permissions secret-safe. Aptos intentionally accepts only
-credential-free HTTP(S) origins because the adapter owns its fixed REST paths.
-`web3.aptos.rest-url` follows the same metadata-only rule and must be an
-HTTP(S) origin without credentials, a path, query, or fragment. Aptos REST
-requests share the configured concurrency, queue, rate, retry, cooldown,
-failover, request-size, and response-size limits, but are never placed in a
-JSON-RPC batch envelope. Aptos cache admission uses committed range identities
-after complete native-response validation. Aptos full nodes may prune old
-ledger versions; inspect `GET /v1` (`oldest_ledger_version`) before choosing a
-range. Pruning errors are surfaced to Trino rather than converted to an empty
-result.
-`web3.solana.rpc-url` follows Ethereum's metadata-only rule. Solana scans use
-`getBlock` with `commitment=finalized`; every table requires a bounded `slot`
-predicate. A null block result produces no rows. The initial instruction table
-contains compiled top-level instructions only; it intentionally excludes inner
-instructions and parsed instruction variants. Solana cache admission is disabled
-until a stable cache identity and reorganization policy are defined.
-`web3.tron.api-url` follows the REST origin-only rule used by Aptos. Tron
-scans require a bounded `block_number` predicate and use the native
-`GET /wallet/getnowblock` identity probe plus `POST /wallet/getblockbynum`
-block reads. Tron is not sent through a JSON-RPC batch envelope; additive
-native response fields remain available through `raw_json`.
-`web3.bitcoin.rpc-url`, `web3.litecoin.rpc-url`, `web3.dogecoin.rpc-url`, and
-`web3.bitcoincash.rpc-url` follow Ethereum's JSON-RPC endpoint rules. Their
-Bitcoin Core-family identities are validated with `getnetworkinfo.subversion`
-against the corresponding node product prefix. All four schemas require
-bounded height predicates and use native UTXO-oriented rows. Satoshi amounts
-are returned as integer `BIGINT` values, and cache admission is disabled until
-reorganization-safe identity semantics are defined for each chain.
-The connector enforces hard upper bounds of 1,000 blocks per split, 10,000
-blocks per query, 1 MiB per RPC request, and 64 MiB per RPC response.
-Fallback URLs are optional and are used in declaration order after a retryable
-primary-provider failure. They are generic JSON-RPC endpoints: no provider
-credentials, vendor headers, or provider-specific behavior are configured.
-When a schema has a primary endpoint and one or more fallbacks, catalog creation
-verifies that every configured endpoint identifies the same native network:
-`eth_chainId` for Ethereum, `getGenesisHash` for Solana, and Aptos REST
-`GET /v1` `chain_id` for Aptos. A mismatch, malformed identity, or unavailable
-configured endpoint rejects catalog creation without exposing endpoint or
-credential details. A lone endpoint has no peer to compare and is not probed.
-Set `web3.rpc.json-rpc-batch-enabled=false` when an endpoint does not support
-JSON-RPC batch arrays. The runtime then plans one operation per wire request;
-queue, concurrency, rate, retry, health, and failover limits remain unchanged.
+## Run locally with Docker
 
-Caching is disabled by default. When enabled, each connector instance owns a
-bounded L1 memory cache. Finalized block payloads are keyed by canonical block
-hash, and only finalized block numbers retain number-to-hash references.
-`SAFE` and `HEAD` numbers are revalidated on each scan, so a near-head reorg
-cannot be hidden by a stale number mapping. Transaction-hash responses are
-cached only after their inclusion block is finalized; pending transactions
-remain visible with a null `block_number` and are revalidated. Missing results
-and RPC or decoding failures are never negative cached. The optional TTL is an
-operational eviction bound, not a substitute for finality validation. The EVM
-adapter keeps finality boundaries for at most one second. Reusing an older
-boundary is conservative: newly safe or finalized data is treated as less
-final until the next refresh, while warm finalized cache hits avoid an RPC.
+The repository includes a Trino 475 image and a four-node Compose cluster (one
+coordinator and three workers). The image installs the assembled plugin ZIP at
+`/usr/lib/trino/plugin/web3`, matching Trino's plugin layout.
 
-Transaction hashes are normalized only for the remote lookup and cache key.
-The original `VARCHAR` predicate remains in Trino, so SQL equality and `IN`
-retain their case-sensitive semantics.
-
-The runtime exposes page-source metrics through the Trino 475 metrics SPI for
-requests, failures, retries, throttling, in-flight requests, failovers, latency,
-batch count, batch item count, cache hits, cache misses, revalidations, and
-cache bytes read/written. Metrics are scoped to the remote execution
-owned by that PageSource, including shared single-flight attempts it observes;
-concurrent unrelated PageSources cannot contaminate them. It never places URLs,
-credentials, request IDs, hashes, or addresses into metric dimensions.
-Decoded cache reads are bounded per execution by the configured maximum RPC
-response size, and PageSources report memory retained by decoded rows while
-they own those rows.
-Worker-global entry count, retained bytes, and eviction count are available to
-the runtime lifecycle owner through `web3.system.cache_stats`; they cannot be
-attributed truthfully to one PageSource.
-
-Each configured schema has one worker-local runtime. The connector creates one
-shared JDK HTTP client for those runtimes, reusing its connection pool rather
-than creating clients per query or split. `Connector.shutdown()` cancels queued
-and in-flight runtime work, clears retained cache entries, and stops each
-runtime scheduler; it is safe when called more than once.
-
-Build `trino-web3-plugin/target/trino-web3-plugin-0.1-SNAPSHOT-plugin.zip`
-with `mvn package`, then extract it as one Trino plugin directory. The ZIP
-contains the plugin, chain descriptor API, adapter execution API, core, EVM,
-Solana, Aptos, Bitcoin, runtime, and runtime library JARs.
-
-## Local Trino cluster with Docker
-
-The repository includes an official `trinodb/trino:475`-based image and a
-minimal Docker Compose cluster with one coordinator and three workers. The
-image build installs the assembled plugin ZIP into
-`/usr/lib/trino/plugin/web3`, matching Trino's plugin directory convention.
-
-From the repository root:
+Prerequisites: Java 23, Maven 3.9+, Docker, and Docker Compose.
 
 ```bash
 cp .env.example .env
@@ -309,138 +146,98 @@ cp .env.example .env
 ./docker/verify.sh
 ```
 
-The verification script builds the Maven ZIP and image, starts the four-node
-cluster, prints the registered worker count, runs `SHOW SCHEMAS`, and executes
-a bounded Ethereum block query. It removes the containers when finished; set
-`KEEP_CLUSTER=1` to leave them running for interactive queries.
+The script builds the plugin and image, starts the cluster, checks all three
+workers, runs `SHOW SCHEMAS`, and executes a bounded Ethereum query. Set
+`KEEP_CLUSTER=1` to keep it running:
 
 ```bash
 KEEP_CLUSTER=1 ./docker/verify.sh
 docker compose exec coordinator trino --catalog web3
+docker compose down
 ```
 
-The coordinator is available at `http://localhost:8080`. The catalog uses an
-Alchemy Ethereum endpoint with the API key supplied by `ALCHEMY_API_KEY`,
-falls back to the credential-free Ethereum PublicNode endpoint, and enables
-the credential-free official Aptos mainnet fullnode REST origin plus the
-official Solana Foundation endpoint with PublicNode as fallback. Set the
-environment variable before running the script; a literal key must never be
-placed in the catalog file. The catalog also enables the credential-free Tron
-PublicNode REST origin and Sui PublicNode JSON-RPC endpoint. Sui's public
-fullnode JSON-RPC endpoint is deprecated, so it is not configured as a
-fallback. Firo's PublicNode endpoint is not activated because the current
-release does not yet provide a Firo adapter. Stop the cluster with `docker
-compose down`.
+The checked-in catalog uses environment substitution for optional credentials
+and public/official endpoints for the configured networks. Replace endpoint
+properties with nodes available to you; an endpoint is not contacted while
+metadata is loaded unless identity comparison requires multiple configured
+peers.
 
-The checked-in Docker catalog applies the same policy to every registered
-network: use a verified official endpoint first and a verified PublicNode
-endpoint as fallback when available. A schema is intentionally left
-metadata-only when neither source currently provides a reachable endpoint;
-this avoids making catalog startup depend on a dead URL. At this snapshot that
-applies to Degen (sunset), Arc and CrossFi mainnets, Anime testnet, Cosmos Hub
-testnet, and the Litecoin, Dogecoin, and Bitcoin Cash networks and testnets.
-
-The coordinator and all workers receive the same catalog and plugin files;
-only `node.properties` and the coordinator/worker role settings differ. The
-JVM heap is intentionally limited to 1 GiB per container for local testing.
+## Query examples
 
 ```sql
+SHOW SCHEMAS FROM web3;
+
 SELECT block_number, block_hash
 FROM web3.ethereum.blocks
 WHERE block_number BETWEEN 23000000 AND 23000100;
 
-SELECT hash, block_number, from_address, to_address
-FROM web3.ethereum.transactions
-WHERE block_number BETWEEN 23000000 AND 23000010;
-
-SELECT hash, block_number, from_address, to_address
+SELECT hash, block_number, from_address, to_address, raw_json
 FROM web3.ethereum.transactions
 WHERE hash IN ('0x...', '0x...');
 
-SELECT ledger_version, hash, type, success, vm_status, sender
+SELECT transaction_hash, status, raw_json
+FROM web3.ethereum.receipts
+WHERE transaction_hash = '0x...';
+
+SELECT block_number, transaction_hash, topic0, data, raw_json
+FROM web3.ethereum.logs
+WHERE block_number BETWEEN 23000000 AND 23000010;
+
+SELECT ledger_version, hash, type, success, vm_status, sender, data
 FROM web3.aptos.transactions
--- Replace these bounds with values retained by the configured node (GET /v1).
-WHERE ledger_version BETWEEN 7058612600 AND 7058612687;
+WHERE ledger_version BETWEEN 1000 AND 1099;
 
-SELECT account_address, creation_number, sequence_number, event_type, data
-FROM web3.aptos.events
--- Use an event handle discovered from GET /v1/accounts/<address>/resources.
-WHERE account_address = '0x<event-handle-account>'
-  AND creation_number = '<event-handle-creation-number>'
-  AND sequence_number BETWEEN 0 AND 99;
-
-SELECT slot, transaction_signature, instruction_index, program_id, account_indices, data
+SELECT slot, transaction_signature, instruction_index, program_id, raw_json
 FROM web3.solana.instructions
 WHERE slot BETWEEN 1000 AND 1099;
 ```
 
-## Compatibility
+Use bounds appropriate for the configured node. Aptos nodes may prune old
+ledger versions, and some providers restrict archive or historical requests.
+Such remote errors are surfaced; they are not converted into empty results.
+More native examples are in [`docs/example.md`](docs/example.md).
 
-| Component | Version |
-| --- | --- |
-| Trino SPI | 475 |
-| Java | 23 |
-| Maven | 3.9 or newer |
-
-## Build and test
-
-Run the full local validation, including static checks, unit tests, and the
-packaged-plugin integration test:
-
-```bash
-mvn verify
-```
-
-The supported release line is tested in CI through an explicit Trino 475
-matrix. See [compatibility](docs/COMPATIBILITY.md) for the policy and
-[releasing](docs/RELEASING.md) for tagged builds.
-
-The test suite starts in-process Trino runners and deterministic local JSON-RPC
-and REST mocks. It does not contact a provider and requires no credentials or
-external blockchain network.
-
-## Module layout
+## Project layout
 
 ```text
-trino-web3-chain    Versioned descriptors, registry, evolution checks, and response mapping
-trino-web3-core     Trino planning handles and bounded range splitting
-trino-web3-adapter  Transport-neutral executable adapter, scan, split, and row contracts
-trino-web3-runtime  Bounded JSON-RPC/REST execution, transport, and metrics
-trino-web3-aptos    Aptos-native transaction/event planning, REST mapping, and decoding
-trino-web3-utxo      Shared bounded Bitcoin Core-family UTXO planning and decoding
-trino-web3-bitcoin   Bitcoin Core UTXO-native block, transaction, input, and output decoding
-trino-web3-litecoin  Litecoin Core UTXO-native block, transaction, input, and output decoding
-trino-web3-dogecoin  Dogecoin Core UTXO-native block, transaction, input, and output decoding
-trino-web3-bitcoincash Bitcoin Cash Node/Bitcoin ABC UTXO-native decoding
-trino-web3-evm      EVM chain descriptors, request mapping, and decoding
-trino-web3-solana   Solana-native block, transaction, and instruction decoding
-trino-web3-tron     Tron-native REST block and transaction decoding
-trino-web3-sui      Sui-native checkpoint and transaction decoding
-trino-web3-cosmos   Cosmos SDK REST adapters for Cosmos, Osmosis, and Injective
-trino-web3-plugin   Trino SPI metadata, splits, and page sources
-trino-web3-testing  Catalog, local-RPC, and plugin-archive integration tests
+trino-web3-chain       Versioned descriptors and adapter registry
+trino-web3-core        Trino-independent handles and bounded split model
+trino-web3-adapter     Executable adapter, scan, split, and row contracts
+trino-web3-runtime     JSON-RPC/REST execution, transport, limits, metrics
+trino-web3-evm         EVM descriptors, planning, requests, and decoding
+trino-web3-aptos       Aptos transactions and event streams
+trino-web3-solana      Solana blocks, transactions, and instructions
+trino-web3-tron        Tron native REST blocks and transactions
+trino-web3-sui         Sui checkpoints and transactions
+trino-web3-cosmos      Cosmos SDK adapters
+trino-web3-utxo        Shared bounded Bitcoin Core-family execution
+trino-web3-bitcoin     Bitcoin native decoding
+trino-web3-litecoin    Litecoin native decoding
+trino-web3-dogecoin    Dogecoin native decoding
+trino-web3-bitcoincash  Bitcoin Cash native decoding
+trino-web3-plugin      Trino SPI plugin, metadata, splits, page sources
+trino-web3-testing     Local protocol and packaged-plugin integration tests
 ```
 
-The descriptor format is `web3.trino.io/v1alpha1`. It declares native metadata,
-remote method inventory, restricted request bindings, and response mappings;
-it does not contain endpoints, secrets, provider policy, finality logic, or
-scripts. Registry composition is fixed for a connector lifetime. Production
-execution is dispatched by schema through the executable registry; adapter
-splits retain their predicate column when crossing Trino's serialized split
-boundary. The runtime executes both bounded JSON-RPC and endpoint-relative
-REST request values through the same policy state machine. Aptos transactions
-and account event streams are REST vertical slices. Solana uses bounded
-`getBlock` JSON-RPC reads, and Bitcoin-family adapters use bounded Bitcoin Core
-`getblockhash`/`getblock` reads. Litecoin, Dogecoin, and Bitcoin Cash share only
-the transport-neutral UTXO runtime and decoder; each keeps a separate descriptor
-and node identity matcher. Tron and Sui use native protocol adapters; Near
-remains follow-up chain-adapter work.
+## Build, test, and release
 
-## Development rules
+The project targets one explicit compatibility line: Trino 475, Java 23, and
+Maven 3.9 or newer. The Trino BOM is imported by the root POM and dependency
+versions are managed centrally.
 
-Read [AGENTS.md](AGENTS.md), [ARCHITECTURE.md](ARCHITECTURE.md),
-[ROADMAP.md](ROADMAP.md), and [PLANS.md](PLANS.md) before significant changes.
-The main invariants are bounded remote work, native chain data models, and a
-provider-independent runtime. New production chain adapters must also satisfy
-[the extension checklist](docs/NEW_CHAIN_ADAPTER_CHECKLIST.md); descriptors
-alone never expose metadata-only tables.
+```bash
+mvn validate
+mvn test
+mvn clean verify
+mvn package  # creates trino-web3-plugin/target/*-plugin.zip
+```
+
+`mvn clean verify` runs Checkstyle, Maven Enforcer, unit tests, connector
+integration tests, and the packaged-plugin classloader test. All remote
+protocol tests use local fixtures. See [testing](docs/TESTING.md),
+[compatibility](docs/COMPATIBILITY.md), and [releasing](docs/RELEASING.md) for
+the contributor and release gates.
+
+Runtime, cache/finality, metrics, system-table, and security contracts are
+documented in [`docs/`](docs/). These documents describe the current public
+behavior; generated build output and credentials should never be committed.

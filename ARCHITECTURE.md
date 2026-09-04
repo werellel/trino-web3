@@ -137,8 +137,6 @@ trino-web3/
 ├── pom.xml
 ├── AGENTS.md
 ├── ARCHITECTURE.md
-├── ROADMAP.md
-├── PLANS.md
 │
 ├── trino-web3-chain/
 ├── trino-web3-core/
