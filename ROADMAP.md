@@ -77,6 +77,14 @@ M9  Research evaluation
 M10 Publication and ecosystem adoption
 ```
 
+## Current release boundary
+
+M0 through M5 are complete and constitute the supported connector release:
+bounded multi-chain reads, cache/finality correctness, system snapshots,
+runtime metrics, endpoint validation, and configuration/lifecycle hardening.
+M6 through M10 are retained as research proposals only and are intentionally
+not implemented or enabled by default.
+
 ---
 
 # 4. M0 — Repository and Trino baseline

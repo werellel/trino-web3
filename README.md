@@ -6,7 +6,7 @@ model rather than forcing non-EVM chains into an EVM schema.
 
 ## Status
 
-Milestones M0 through M4 are complete. M5.1 adds safe coordinator-local runtime
+Milestones M0 through M5 are complete. M5.1 adds safe coordinator-local runtime
 snapshots through `web3.system`, M5.2 validates endpoint-native network identity,
 M5.3 publishes safe runtime metrics, and M5.4 hardens configuration, endpoint
 secrecy, and shutdown behavior. M4 established a versioned declarative contract,
@@ -28,12 +28,16 @@ catalog that can be loaded by Trino and queried with:
 SHOW SCHEMAS FROM web3;
 ```
 
+Research milestones M6 through M10 remain roadmap proposals and are not part
+of this release. The supported product scope ends at the production-hardened
+multi-chain connector delivered by M5.
+
 The EVM adapters expose the same native tables (`blocks`, `transactions`,
 `receipts`, and `logs`)
 for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
 Smart Chain, Polygon, Avalanche C-Chain, Gnosis, Kaia, Arc, Story, Boba, Celo,
 HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, Linea,
-Unichain, Tempo, Robinhood Chain, Celo, Gnosis, and Mode.
+Unichain, Tempo, Robinhood Chain, and Mode.
 Each network has its own schema and chain-identity check, while sharing the
 provider-independent EVM runtime. Optimism is registered once even when it is
 listed more than once in external chain catalogs.
@@ -73,8 +77,9 @@ SDK REST adapters. Each provides bounded `blocks` and `transactions` tables
 using `/cosmos/base/tendermint/v1beta1/blocks/{height}`; transaction payloads
 remain as native base64 values and are preserved in `raw_json`.
 
-The M1 vertical slice exposes `web3.ethereum.blocks` and
-`web3.ethereum.transactions`. Blocks provide `block_number` (`BIGINT`),
+The EVM vertical slice exposes `web3.ethereum.blocks`,
+`web3.ethereum.transactions`, `web3.ethereum.receipts`, and
+`web3.ethereum.logs`. Blocks provide `block_number` (`BIGINT`),
 `block_hash` (`VARCHAR`), and `raw_json` (a compact JSON document in
 `VARCHAR`). Transactions provide `hash`, `block_number`, `from_address`,
 `to_address`, and the same `raw_json` column. The raw document is the complete
@@ -320,11 +325,23 @@ docker compose exec coordinator trino --catalog web3
 The coordinator is available at `http://localhost:8080`. The catalog uses an
 Alchemy Ethereum endpoint with the API key supplied by `ALCHEMY_API_KEY`,
 falls back to the credential-free Ethereum PublicNode endpoint, and enables
-the credential-free Aptos PublicNode REST origin. Set the environment
-variable before running the script; a literal key must never be placed in the
-catalog file. Firo's PublicNode endpoint is not activated because the current
+the credential-free official Aptos mainnet fullnode REST origin plus the
+official Solana Foundation endpoint with PublicNode as fallback. Set the
+environment variable before running the script; a literal key must never be
+placed in the catalog file. The catalog also enables the credential-free Tron
+PublicNode REST origin and Sui PublicNode JSON-RPC endpoint. Sui's public
+fullnode JSON-RPC endpoint is deprecated, so it is not configured as a
+fallback. Firo's PublicNode endpoint is not activated because the current
 release does not yet provide a Firo adapter. Stop the cluster with `docker
 compose down`.
+
+The checked-in Docker catalog applies the same policy to every registered
+network: use a verified official endpoint first and a verified PublicNode
+endpoint as fallback when available. A schema is intentionally left
+metadata-only when neither source currently provides a reachable endpoint;
+this avoids making catalog startup depend on a dead URL. At this snapshot that
+applies to Degen (sunset), Arc and CrossFi mainnets, Anime testnet, Cosmos Hub
+testnet, and the Litecoin, Dogecoin, and Bitcoin Cash networks and testnets.
 
 The coordinator and all workers receive the same catalog and plugin files;
 only `node.properties` and the coordinator/worker role settings differ. The
@@ -345,12 +362,14 @@ WHERE hash IN ('0x...', '0x...');
 
 SELECT ledger_version, hash, type, success, vm_status, sender
 FROM web3.aptos.transactions
-WHERE ledger_version BETWEEN 1000 AND 1099;
+-- Replace these bounds with values retained by the configured node (GET /v1).
+WHERE ledger_version BETWEEN 7058612600 AND 7058612687;
 
 SELECT account_address, creation_number, sequence_number, event_type, data
 FROM web3.aptos.events
-WHERE account_address = '0x1'
-  AND creation_number = '7'
+-- Use an event handle discovered from GET /v1/accounts/<address>/resources.
+WHERE account_address = '0x<event-handle-account>'
+  AND creation_number = '<event-handle-creation-number>'
   AND sequence_number BETWEEN 0 AND 99;
 
 SELECT slot, transaction_signature, instruction_index, program_id, account_indices, data

@@ -103,21 +103,33 @@ WHERE block_number = 23000000;
 
 Tables: `transactions` and `events`.
 
+Transaction reads require a bounded ledger range that is still retained by
+the configured Aptos node. Check `GET /v1` and use a range between its
+`oldest_ledger_version` and `ledger_version` values:
+
 ```sql
 SELECT ledger_version, hash, type, success, vm_status, sender
 FROM web3.aptos.transactions
-WHERE ledger_version BETWEEN 1000 AND 1099;
+WHERE ledger_version BETWEEN 7058612600 AND 7058612687;
 ```
 
-Events require an account, creation number, and bounded sequence range:
+Events are addressed by an account's event handle, not by ledger version.
+First identify the handle's `creation_num` in the account resources response
+(`GET /v1/accounts/<address>/resources`), then query its stream with a
+bounded `sequence_number` range:
 
 ```sql
 SELECT account_address, creation_number, sequence_number, event_type, data
 FROM web3.aptos.events
-WHERE account_address = '0x1'
-  AND creation_number = '7'
+WHERE account_address = '0x<event-handle-account>'
+  AND creation_number = '<event-handle-creation-number>'
   AND sequence_number BETWEEN 0 AND 99;
 ```
+
+`sequence_number` starts at zero independently for each event handle. The
+requested range must correspond to contiguous events retained by the
+provider; an arbitrary account/creation-number pair or a pruned range is not
+an empty-result shortcut and may be rejected by the remote API or connector.
 
 ## Solana
 
@@ -186,13 +198,15 @@ The `cosmos`, `osmosis`, and `injective` schemas expose native `blocks` and
 ```sql
 SELECT height, hash, chain_id, time, transaction_count
 FROM web3.cosmos.blocks
-WHERE height BETWEEN 100000 AND 100010;
+-- The configured PublicNode endpoint retains recent Cosmos Hub history only.
+-- Check its latest height before choosing a bounded range.
+WHERE height BETWEEN 32797050 AND 32797060;
 ```
 
 ```sql
 SELECT height, index, tx_base64
 FROM web3.cosmos.transactions
-WHERE height BETWEEN 100000 AND 100010;
+WHERE height BETWEEN 32797050 AND 32797060;
 ```
 
 The same query shape applies to the other Cosmos SDK schemas:
