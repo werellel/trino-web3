@@ -6,30 +6,28 @@ model rather than forcing non-EVM chains into an EVM schema.
 
 ## Status
 
-Milestones M0 through M5 are complete. M5.1 adds safe coordinator-local runtime
-snapshots through `web3.system`, M5.2 validates endpoint-native network identity,
-M5.3 publishes safe runtime metrics, and M5.4 hardens configuration, endpoint
-secrecy, and shutdown behavior. M4 established a versioned declarative contract,
-an executable adapter registry, and routes Ethereum metadata, bounded split
-planning, and row decoding through the same
+The release provides safe coordinator-local runtime snapshots through
+`web3.system`, endpoint-native network identity validation, safe runtime metrics,
+and hardened configuration, endpoint secrecy, and shutdown behavior. It uses a
+versioned declarative contract, an executable adapter registry, and routes
+Ethereum metadata, bounded split planning, and row decoding through the same
 code-based adapter. Descriptor method bindings now also select bounded access
 paths into named range and discrete-value table-handle predicates, without
-Ethereum fields in the generic Trino planning state. The M4 vertical
-slice also exposes native `aptos.transactions` and account-scoped
+Ethereum fields in the generic Trino planning state. It also exposes native
+`aptos.transactions` and account-scoped
 `aptos.events` through bounded REST paths, plus native `solana.blocks`,
 `solana.transactions`, and `solana.instructions` through bounded JSON-RPC
 `getBlock` paths. This proves that the shared runtime is not EVM- or
-JSON-RPC-only. M3 adds an opt-in,
-worker-local cache with
-EVM finality and reorganization correctness. The repository provides a
-catalog that can be loaded by Trino and queried with:
+JSON-RPC-only. An opt-in worker-local cache provides EVM finality and
+reorganization correctness. The repository provides a catalog that can be
+loaded by Trino and queried with:
 
 ```sql
 SHOW SCHEMAS FROM web3;
 ```
 
-The supported product scope ends at the production-hardened multi-chain
-connector delivered by M5; future research work is outside this release.
+The supported product scope is the production-hardened multi-chain connector
+described below.
 
 The EVM adapters expose the same native tables (`blocks`, `transactions`,
 `receipts`, and `logs`)
@@ -198,7 +196,7 @@ web3.cache.maximum-entry-size=8MB
 ```
 
 Cache size relationships are enforced when `web3.cache.enabled=true`. When the
-cache is disabled, its sizing values are inactive and do not prevent an M2-only
+cache is disabled, its sizing values are inactive and do not prevent the
 catalog from loading.
 
 `web3.ethereum.rpc-url` is optional when only loading the catalog or reading
