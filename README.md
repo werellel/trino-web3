@@ -195,7 +195,7 @@ WHERE slot BETWEEN 1000 AND 1099;
 Use bounds appropriate for the configured node. Aptos nodes may prune old
 ledger versions, and some providers restrict archive or historical requests.
 Such remote errors are surfaced; they are not converted into empty results.
-More native examples are in [`docs/example.md`](docs/example.md).
+More native examples are in [`docs/EXAMPLES.md`](docs/EXAMPLES.md).
 
 ## Project layout
 
@@ -241,3 +241,7 @@ the contributor and release gates.
 Runtime, cache/finality, metrics, system-table, and security contracts are
 documented in [`docs/`](docs/). These documents describe the current public
 behavior; generated build output and credentials should never be committed.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

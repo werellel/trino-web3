@@ -1,10 +1,10 @@
 # Cache and finality
 
-M2 does not retain completed RPC data. Its single-flight registry shares only
-identical in-flight work and removes each entry when that work completes or the
-last subscriber cancels. Errors are never stored as missing data.
+The runtime's single-flight registry shares only identical in-flight work and
+removes each entry when that work completes or the last subscriber cancels.
+Errors are never stored as missing data.
 
-M3 adds an opt-in, worker-local L1 memory cache. The runtime owns bounded cache
+The connector optionally enables a worker-local L1 memory cache. The runtime owns bounded cache
 mechanics and integration with single-flight. The EVM adapter owns finality,
 canonical hash resolution, and the decision that a value is immutable. The
 generic runtime must not interpret Ethereum tags, confirmations, block numbers,
@@ -27,9 +27,8 @@ representation, and a format version. EVM quantities use lower-case minimal
 hexadecimal and fixed-size hashes use lower case. Secrets, URLs, provider names,
 request IDs, query IDs, addresses, and raw hashes never become metric labels.
 One catalog is therefore required to contain endpoints for one EVM chain.
-M5 will validate this configuration with endpoint-specific `eth_chainId`
-probes through the runtime rather than adding provider transport to the EVM
-adapter.
+Endpoint-specific `eth_chainId` probes validate this configuration through the
+runtime rather than adding provider transport to the EVM adapter.
 
 ## Values and bounds
 
@@ -47,7 +46,7 @@ batch.
 
 The initial cache is L1 only. L2 worker-local disk remains optional and requires
 a separate persistence/corruption ADR. No shared distributed cache is planned
-for M3.
+for the current cache contract.
 
 ## Finality
 
@@ -128,7 +127,7 @@ Only an adapter-committed, fully validated successful RPC result is admitted.
 The cache never stores cancellation, timeout, connection failure, HTTP 429,
 HTTP 4xx/5xx,
 JSON-RPC error, partial batch failure, malformed response, oversized response,
-decoder failure, or a missing/null block. M3 does not implement negative
+decoder failure, or a missing/null block. The current cache does not implement negative
 caching.
 
 The same prohibition applies to Aptos partial ledger/event ranges, wrong ledger
@@ -145,7 +144,7 @@ and does not consume the RPC retry budget.
 
 ## Cancellation and lifecycle
 
-A cache miss uses M2's asynchronous single-flight registry. Independent
+A cache miss uses the runtime's asynchronous single-flight registry. Independent
 subscriber cancellation is preserved, and cancelling the last subscriber does
 not admit incomplete work. Cache hits schedule no worker task. One cache-bearing
 runtime is owned and closed by the connector; there is no per-query cache,
@@ -159,7 +158,7 @@ checks an execution cancellation state after serialization and immediately
 before insertion, so a cancelled execution cannot perform a late commit.
 
 Worker-global entry count, retained weight, and eviction count remain separate
-from PageSource metrics. M5.1 exposes their local runtime snapshot through
+from PageSource metrics. The system snapshot exposes their local runtime state through
 `system.cache_stats`; the table does not expose cache keys or values.
 
 The cache identity decision is recorded in

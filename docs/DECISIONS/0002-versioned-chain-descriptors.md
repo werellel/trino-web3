@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for incremental M4 implementation.
+Accepted.
 
 ## Context
 

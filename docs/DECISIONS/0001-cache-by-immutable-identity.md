@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for M3 implementation.
+Accepted.
 
 ## Context
 
@@ -12,9 +12,10 @@ a different hash. Caching block payloads directly by number can therefore
 return stale canonical data.
 
 The connector also needs bounded worker-local reuse without placing Ethereum
-finality rules in the provider-independent RPC runtime. M2 already owns
-asynchronous scheduling and single-flight, so cache loading must compose with
-that work instead of introducing a blocking cache loader or executor.
+finality rules in the provider-independent RPC runtime. The asynchronous
+runtime scheduler and single-flight registry already provide the execution
+primitive, so cache loading must compose with that work instead of introducing
+a blocking cache loader or executor.
 
 ## Decision
 
@@ -40,14 +41,14 @@ transport, throttling, server, protocol, decoding, and cancellation failures
 are not cached.
 
 The chain namespace represents one configured catalog network, not a value
-derived from every response. All primary and fallback endpoints in an M3
-catalog must therefore address the same EVM chain. M5.2 implements
-endpoint-specific `eth_chainId` verification through a provider-targeted runtime
-operation; the EVM adapter does not open a parallel HTTP path to implement it.
+derived from every response. All primary and fallback endpoints in a catalog
+must therefore address the same EVM chain. Endpoint-specific `eth_chainId`
+verification uses a provider-targeted runtime operation; the EVM adapter does
+not open a parallel HTTP path to implement it.
 
-Cache lookup precedes the existing M2 shared-operation registry. A miss uses
-that registry for asynchronous single-flight and preserves its subscriber-aware
-cancellation semantics.
+Cache lookup precedes the shared-operation registry. A miss uses that registry
+for asynchronous single-flight and preserves its subscriber-aware cancellation
+semantics.
 
 ## Alternatives considered
 
@@ -70,20 +71,21 @@ runtime/adapter boundary.
 
 ### Use a blocking loading cache
 
-Rejected because it would block worker threads, duplicate M2 scheduling, and
+Rejected because it would block worker threads, duplicate runtime scheduling, and
 make cancellation ownership ambiguous.
 
-### Add L2 disk or a distributed cache in M3
+### Add L2 disk or a distributed cache immediately
 
-Rejected for the first implementation. Persistent formats require atomic
+Not selected for the current implementation. Persistent formats require atomic
 writes, ownership, permission, versioning, corruption recovery, and cleanup
 contracts. A distributed cache additionally changes consistency and failure
-semantics. The roadmap marks L2 optional and does not require shared caching.
+semantics. A distributed cache additionally changes consistency and failure
+semantics. Disk persistence remains a separate future design decision.
 
 ### Cache null or missing results briefly
 
-Rejected for M3. Absence semantics differ across RPC methods and chain state;
-omitting negative caching is the conservative behavior allowed by the roadmap.
+Rejected because absence semantics differ across RPC methods and chain state;
+omitting negative caching is the conservative behavior for the current cache.
 
 ## Consequences
 
@@ -97,6 +99,7 @@ hits perform deserialization to isolate cached bytes from mutable consumers.
 These costs require benchmark evidence.
 
 The cache is not shared across workers or connector instances, so distributed
-queries may warm each worker independently. Disabling the cache preserves M2
-behavior. Disk persistence remains available for a later ADR without changing
+queries may warm each worker independently. Disabling the cache preserves the
+direct remote execution path. Disk persistence remains available for a later
+ADR without changing
 the immutable identity contract.

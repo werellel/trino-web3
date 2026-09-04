@@ -18,7 +18,7 @@ single-flight, or cache storage policy.
 
 ## Current EVM model
 
-M3 exposes the native EVM schema through `ethereum.blocks`,
+The EVM adapter exposes the native schema through `ethereum.blocks`,
 `ethereum.transactions`, `ethereum.receipts`, and `ethereum.logs`. Reads require
 either a bounded `block_number` range or, for transactions and receipts, a
 bounded equality or `IN` predicate on transaction hash.
@@ -143,7 +143,7 @@ specific finality and reorganization identity rules are defined.
 
 ## Current Solana model
 
-M4 exposes `solana.blocks`, `solana.transactions`, and
+The Solana adapter exposes `solana.blocks`, `solana.transactions`, and
 `solana.instructions` through bounded BIGINT `slot` ranges. Each operation is
 a shared-runtime JSON-RPC `getBlock` call with `commitment=finalized`; a null
 block result yields no rows. Blocks preserve `slot`, `blockhash`, `parent_slot`,
@@ -159,7 +159,7 @@ slot lookup is revalidated before any completed result is retained.
 
 ## Current Aptos model
 
-M4 exposes `aptos.transactions` and `aptos.events` without mapping either to
+The Aptos adapter exposes `aptos.transactions` and `aptos.events` without mapping either to
 an EVM transaction or log. Transaction rows contain `ledger_version`, `hash`,
 native transaction `type`, `success`, `vm_status`, and nullable `sender`.
 Reads require a bounded BIGINT `ledger_version` range. The adapter caps every

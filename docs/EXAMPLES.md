@@ -17,7 +17,7 @@ limitations under the License.
 This document contains executable examples for the chain schemas currently
 provided by `trino-web3`. The examples assume the catalog is named `web3`.
 Configure the corresponding chain endpoint before running a data query. The
-Docker setup is described in the [README](../README.md#local-trino-cluster-with-docker).
+Docker setup is described in the [README](../README.md#run-locally-with-docker).
 
 ## Discovery
 

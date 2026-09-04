@@ -1232,7 +1232,7 @@ TODOs must be actionable.
 Prefer:
 
 ```java
-// TODO: Replace static split sizing with provider-aware sizing after M2 metrics exist.
+// TODO: Replace static split sizing after measured provider-aware limits exist.
 ```
 
 Avoid:
@@ -1652,9 +1652,9 @@ Does failure remain distinguishable from missing data?
 
 ---
 
-# 76. Recommended style for first milestones
+# 76. Recommended style for initial implementations
 
-During M0 and M1, bias strongly toward simplicity.
+For an initial vertical slice, bias strongly toward simplicity.
 
 Prefer:
 
@@ -1675,15 +1675,15 @@ UniversalRpcRequestPlanner
 DynamicProtocolExecutionFactory
 ```
 
-M1 should establish one clean vertical slice.
+An initial slice should establish one clean vertical path.
 
 Architecture should grow from measured requirements.
 
 ---
 
-# 77. M1-specific code-quality rules
+# 77. Initial adapter code-quality rules
 
-For the first Ethereum block implementation:
+For an initial chain adapter:
 
 * support one bounded block-range query path well
 * use immutable handles and splits
@@ -1697,7 +1697,7 @@ For the first Ethereum block implementation:
 * reject or explicitly handle unbounded scans
 * avoid adding provider-specific implementations prematurely
 
-Do not implement Solana/Aptos abstractions merely to make EVM code appear generic.
+Do not add abstractions merely to make one chain appear generic.
 
 ---
 
@@ -1750,7 +1750,7 @@ Code should feel as though an experienced Trino contributor could open the repos
 
 Do not optimize for writing the most code.
 
-Optimize for maintaining the smallest correct system that satisfies the current milestone.
+Optimize for maintaining the smallest correct system that satisfies the current scope.
 
 When uncertain:
 

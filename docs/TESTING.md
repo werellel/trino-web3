@@ -3,7 +3,7 @@
 Runtime and connector tests use local deterministic `HttpServer` fixtures only.
 They must not call public RPC providers or require credentials.
 
-M2 fault tests cover malformed JSON, timeout, request/response byte bounds,
+Runtime fault tests cover malformed JSON, timeout, request/response byte bounds,
 primary-provider 5xx failover, HTTP 429 with `Retry-After`, and single-flight
 sharing of identical in-flight work. They additionally cover terminal HTTP 4xx,
 retry exhaustion, connection failure, explicit partial-batch failure, provider
@@ -14,14 +14,14 @@ integration test extracts the distribution ZIP, loads it with a Trino plugin
 classloader, proves that Trino's cache library is packaged, and executes a
 cache-enabled non-batch fallback query against local mock RPC servers.
 
-M5.4 regression tests reject fallback-only, blank, and duplicate endpoint
+Configuration regression tests reject fallback-only, blank, and duplicate endpoint
 configuration without exposing values. They also prove that malformed numeric
 and size values do not echo secrets, and that credential-bearing JSON-RPC
 connection failures surface an endpoint-free transport error. Runtime-close
 tests cover queued work, retry backoff, in-flight transport cancellation, and
 late cache admission.
 
-M3 tests cover weight eviction, maximum-entry bypass, caller-value isolation,
+Cache and finality tests cover weight eviction, maximum-entry bypass, caller-value isolation,
 cache lifecycle cleanup, scoped metric isolation, finalized block and
 transaction reuse, hash normalization, pending and missing transactions,
 unsupported and inverted finality, malformed and missing block non-admission,
@@ -48,7 +48,7 @@ Trino 475 may log a late remote-task callback rejection while a standalone test
 server is closing. This is test-harness teardown noise after query completion;
 Failsafe results and connector resource cleanup remain authoritative.
 
-M4 descriptor tests cover strict JSON round trips, unknown fields, unsupported
+Descriptor tests cover strict JSON round trips, unknown fields, unsupported
 and trailing format input, registry ordering and duplicate ownership, immutable
 addition/removal, adapter and table evolution versions (including rejected
 table removal), protocol-specific
@@ -73,7 +73,7 @@ enforcement, conservative discrete residuals, missing-required-binding
 rejection, deterministic method choice, handle immutability, bounded diagnostic
 output, and EVM-side hash validation.
 
-The Aptos M4 suite covers the strict built-in descriptor, the native
+The Aptos suite covers the strict built-in descriptor, the native
 `ledger_version` and account-event stream access paths, the 100-entry REST page
 cap, deterministic split planning, complete contiguous response validation,
 optional sender, event GUID/sequence identity, malformed fields, signed BIGINT

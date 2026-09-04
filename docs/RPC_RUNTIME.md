@@ -5,7 +5,7 @@ depending on Trino SPI classes or chain table metadata. Chain adapters own
 method selection and response decoding; the runtime owns batching, admission,
 generic-provider selection, retry, cancellation, and metrics.
 
-M4 descriptors may inventory either JSON-RPC or REST operations. The runtime
+Descriptors may inventory either JSON-RPC or REST operations. The runtime
 uses transport-neutral request identity plus immutable, bounded JSON-RPC and
 endpoint-relative REST request values. JSON-RPC operations may be coalesced
 into protocol batches; REST operations always use one wire request. Both use
@@ -99,7 +99,8 @@ only after every operation in that batch has no remaining subscribers.
 
 ## Cache integration
 
-M3 adds a bounded, worker-local result cache owned by each configured runtime.
+The connector optionally uses a bounded, worker-local result cache owned by
+each configured runtime.
 The runtime owns storage, serialized-value isolation, weight/entry limits,
 optional TTL, eviction statistics, and execution-scoped cache counters. It
 does not decide whether a response is immutable. The EVM adapter validates a
@@ -109,7 +110,8 @@ validated committed ledger and event ranges with adapter-defined identities.
 The Solana vertical slice intentionally performs no cache admission until its
 slot/hash identity and reorganization contract are defined by the adapter.
 
-Cache misses continue through M2's asynchronous single-flight scheduler.
+Cache misses continue through the runtime's asynchronous single-flight
+scheduler.
 Closing the runtime cancels queued/in-flight work, clears retained cache
 entries, and closes the scheduler. Cache keys and metrics contain no endpoint,
 credential, query ID, address, or provider-specific dimension.

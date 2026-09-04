@@ -135,7 +135,6 @@ Recommended Maven module structure:
 ```text
 trino-web3/
 ├── pom.xml
-├── AGENTS.md
 ├── ARCHITECTURE.md
 │
 ├── trino-web3-chain/
@@ -317,7 +316,7 @@ modules
 account_transactions
 ```
 
-The current M4 vertical slices implement `transactions` with a bounded
+The current vertical slices implement `transactions` with a bounded
 `ledger_version` range and `events` with account/creation-number keys plus a
 bounded `sequence_number` range. The adapter caps REST pages at 100 entries and
 validates the complete contiguous transaction response or the matching event
@@ -1314,72 +1313,27 @@ fresh mutable range
 → direct RPC or short-lived cache
 ```
 
-This capability is explicitly out of scope for the first production milestone.
+This capability is not part of the default production execution path.
 
 ---
 
-# 32. Milestone architecture
+# 32. Current capability map
 
-## M1
-
-```text
-Ethereum
-blocks
-transactions
-bounded splits
-predicate pushdown
-JSON-RPC batch
-```
-
-No adaptive planner.
-
-No automatic materialization.
-
-Minimal cache only if necessary.
-
----
-
-## M2
+The production connector currently combines these capabilities in one
+versioned release:
 
 ```text
-production RPC runtime
-rate limiting
-retry
-backoff
-cancellation
-provider failover
-metrics
+native EVM, Solana, Aptos, Tron, Sui, Cosmos, and UTXO adapters
+bounded predicate-driven split planning
+shared cancellable JSON-RPC and REST runtime
+retry, rate admission, batching, failover, and scoped metrics
+opt-in worker-local cache with chain-specific finality rules
+versioned descriptors paired with executable adapters
 ```
 
----
-
-## M3
-
-```text
-cache
-finality
-reorg correctness
-```
-
----
-
-## M4
-
-```text
-Solana
-Aptos
-generic chain adapter model
-```
-
----
-
-## M5+
-
-```text
-cost model
-adaptive scheduling
-query-driven materialization
-```
+Adaptive cost planning, automatic materialization, and descriptor hot reload
+remain research extensions. They are not enabled by the default connector and
+must not change its stable execution contracts without a new design decision.
 
 ---
 
