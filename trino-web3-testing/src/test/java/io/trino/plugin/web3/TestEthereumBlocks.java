@@ -89,7 +89,7 @@ public class TestEthereumBlocks
                     "web3.ethereum.rpc-url", "http://127.0.0.1:" + server.getAddress().getPort()));
 
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
-                    .containsExactly("blocks", "transactions");
+                    .containsExactly("blocks", "logs", "receipts", "transactions");
             assertThat(queryRunner.execute("SHOW COLUMNS FROM web3.ethereum.blocks").getMaterializedRows())
                     .extracting(row -> row.getField(0), row -> row.getField(1))
                     .containsExactly(
@@ -136,6 +136,23 @@ public class TestEthereumBlocks
                     FROM web3.ethereum.transactions
                     WHERE block_number = 23000000
                     """).getOnlyColumn().findFirst().map(String.class::cast).orElseThrow()).contains("\"futureTransactionField\":\"present\"");
+
+            MaterializedResult logs = queryRunner.execute("""
+                    SELECT block_number, transaction_hash, log_index, topic0, data
+                    FROM web3.ethereum.logs
+                    WHERE block_number BETWEEN 23000000 AND 23000000
+                    """);
+            assertThat(logs.getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3), row -> row.getField(4))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple(23000000L, "0x" + "d".repeat(64), 0L, "0x" + "e".repeat(64), "0xdata"));
+
+            assertThat(queryRunner.execute("""
+                    SELECT transaction_hash, block_number, status, gas_used
+                    FROM web3.ethereum.receipts
+                    WHERE transaction_hash = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+                    """).getMaterializedRows())
+                    .extracting(row -> row.getField(0), row -> row.getField(1), row -> row.getField(2), row -> row.getField(3))
+                    .containsExactly(org.assertj.core.groups.Tuple.tuple("0x" + "a".repeat(64), 23000000L, 1L, 21000L));
 
             assertThatThrownBy(() -> queryRunner.execute("SELECT * FROM web3.ethereum.blocks"))
                     .hasMessageContaining("requires a bounded block_number predicate");
@@ -297,6 +314,34 @@ public class TestEthereumBlocks
                 continue;
             }
             rpcRequestCount.incrementAndGet();
+            if (request.path("method").asText().equals("eth_getLogs")) {
+                ObjectNode log = OBJECT_MAPPER.createObjectNode()
+                        .put("blockNumber", "0x15ef3c0")
+                        .put("blockHash", "0x" + "c".repeat(64))
+                        .put("transactionHash", "0x" + "d".repeat(64))
+                        .put("transactionIndex", "0x0")
+                        .put("logIndex", "0x0")
+                        .put("address", "0xaddress")
+                        .put("data", "0xdata")
+                        .put("removed", false)
+                        .set("topics", OBJECT_MAPPER.createArrayNode().add("0x" + "e".repeat(64)));
+                response.set("result", OBJECT_MAPPER.createArrayNode().add(log));
+                responses.insert(0, response);
+                continue;
+            }
+            if (request.path("method").asText().equals("eth_getTransactionReceipt")) {
+                ObjectNode receipt = OBJECT_MAPPER.createObjectNode()
+                        .put("transactionHash", "0x" + "a".repeat(64))
+                        .put("blockNumber", "0x15ef3c0")
+                        .put("from", "0xfrom")
+                        .put("to", "0xto")
+                        .put("status", "0x1")
+                        .put("gasUsed", "0x5208")
+                        .put("futureReceiptField", "present");
+                response.set("result", receipt);
+                responses.insert(0, response);
+                continue;
+            }
             String quantity = request.path("params").get(0).asText();
             long blockNumber = Long.parseUnsignedLong(quantity.substring(2), 16);
             ObjectNode block = response.putObject("result");

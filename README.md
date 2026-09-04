@@ -28,7 +28,8 @@ catalog that can be loaded by Trino and queried with:
 SHOW SCHEMAS FROM web3;
 ```
 
-The EVM adapters expose the same native tables (`blocks` and `transactions`)
+The EVM adapters expose the same native tables (`blocks`, `transactions`,
+`receipts`, and `logs`)
 for Ethereum and the supported EVM networks: Base, Optimism, Arbitrum One, BNB
 Smart Chain, Polygon, Avalanche C-Chain, Gnosis, Kaia, Arc, Story, Boba, Celo,
 HyperEVM, Abstract, AnimeChain, ApeChain, Degen, Ink, Jovay, CrossFi, Linea,
@@ -99,12 +100,14 @@ admission disabled until a chain-specific reorganization-safe identity contract
 is defined. The shared decoder accepts the Bitcoin Core-compatible `address`
 and legacy `addresses` script shapes without adding provider-specific behavior.
 
-This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber` requests.
-The worker-local runtime bounds concurrency, queue size, batch size, retries,
-and rate admission; it handles generic endpoint failover and `429`
-`Retry-After`. It does not implement receipts, logs, vendor-specific provider
-profiles, Solana inner instructions, or additional Aptos tables beyond
-transactions and events.
+This slice uses standard Ethereum JSON-RPC `eth_getBlockByNumber`,
+`eth_getTransactionReceipt`, and `eth_getLogs` requests. Receipts are bounded
+by transaction-hash equality/IN predicates; logs are bounded by block-number
+ranges. The worker-local runtime bounds concurrency, queue size, batch size,
+retries, and rate admission; it handles generic endpoint failover and `429`
+`Retry-After`. It does not implement vendor-specific provider profiles,
+Solana inner instructions, or additional Aptos tables beyond transactions and
+events.
 
 Every remote chain table also exposes a `raw_json` `VARCHAR` containing the
 complete source object for the row (the block, transaction, event, input,

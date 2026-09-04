@@ -18,9 +18,10 @@ single-flight, or cache storage policy.
 
 ## Current EVM model
 
-M3 exposes the native EVM schema through `ethereum.blocks` and
-`ethereum.transactions`. Reads require either a bounded `block_number` range or,
-for transactions, a bounded equality or `IN` predicate on transaction hash.
+M3 exposes the native EVM schema through `ethereum.blocks`,
+`ethereum.transactions`, `ethereum.receipts`, and `ethereum.logs`. Reads require
+either a bounded `block_number` range or, for transactions and receipts, a
+bounded equality or `IN` predicate on transaction hash.
 The adapter converts those constraints into Ethereum JSON-RPC operations and
 validates response identity before producing rows.
 
@@ -53,8 +54,8 @@ and cannot be configured through a mainnet property. Degen has no stable,
 officially published testnet chain-ID contract, so no Degen testnet schema is
 registered until one is available.
 
-Both EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
-the complete block or transaction object returned by the node. This preserves
+All EVM tables include a `raw_json` `VARCHAR` containing the compact JSON for
+the complete object returned by the node. This preserves
 additive provider fields without destabilizing the typed columns; callers can
 apply Trino's `json_parse(raw_json)` and JSON functions for access to fields
 that are not yet modeled. The JSON-RPC envelope is not included. A typed field

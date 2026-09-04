@@ -82,6 +82,11 @@ public final class EthereumBlockClient
         return context.execution(result);
     }
 
+    RemoteExecutionRuntime runtime()
+    {
+        return runtime;
+    }
+
     private RemoteExecution<List<EthereumBlock>> getBlocksWithoutCache(BlockRange range)
     {
         List<RemoteOperation> requests = new ArrayList<>();

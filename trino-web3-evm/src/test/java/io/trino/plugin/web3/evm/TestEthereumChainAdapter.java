@@ -41,9 +41,9 @@ final class TestEthereumChainAdapter
         assertThat(descriptor.apiVersion()).isEqualTo(ChainDescriptor.SUPPORTED_API_VERSION);
         assertThat(descriptor.name()).isEqualTo("ethereum");
         assertThat(descriptor.schemaName()).isEqualTo("ethereum");
-        assertThat(descriptor.adapterVersion()).isEqualTo(2);
+        assertThat(descriptor.adapterVersion()).isEqualTo(3);
         assertThat(descriptor.tables()).extracting(ChainTableDescriptor::name)
-                .containsExactly("blocks", "transactions");
+                .containsExactly("blocks", "transactions", "receipts", "logs");
         assertThat(descriptor.table("blocks").orElseThrow().columns())
                 .extracting(column -> column.name() + ":" + column.type())
                 .containsExactly("block_number:bigint", "block_hash:varchar", "raw_json:varchar");
@@ -61,6 +61,18 @@ final class TestEthereumChainAdapter
         assertThat(transactions.method("by-block-number").orElseThrow().action()).isEqualTo("eth_getBlockByNumber");
         assertThat(transactions.method("by-block-number").orElseThrow().response().cardinality()).isEqualTo(ARRAY);
         assertThat(transactions.method("by-hash").orElseThrow().action()).isEqualTo("eth_getTransactionByHash");
+    }
+
+    @Test
+    void testReceiptAndLogDescriptors()
+    {
+        ChainDescriptor descriptor = new EthereumChainAdapter().descriptor();
+        ChainTableDescriptor receipts = descriptor.table("receipts").orElseThrow();
+        assertThat(receipts.method("by-hash").orElseThrow().action()).isEqualTo("eth_getTransactionReceipt");
+        assertThat(receipts.column("transaction_hash")).isPresent();
+        ChainTableDescriptor logs = descriptor.table("logs").orElseThrow();
+        assertThat(logs.method("by-block-number").orElseThrow().action()).isEqualTo("eth_getLogs");
+        assertThat(logs.column("topic3")).isPresent();
     }
 
     @Test
@@ -130,5 +142,10 @@ final class TestEthereumChainAdapter
                 new ChainSplitLimits(2, 10, 2)))
                 .isInstanceOf(ChainPlanningException.class)
                 .hasMessage("unsupported pushed predicates for ethereum.blocks");
+        assertThatThrownBy(() -> adapter.planSplits(
+                new ChainScan("receipts", Map.of(), Map.of()),
+                new ChainSplitLimits(2, 10, 2)))
+                .isInstanceOf(ChainPlanningException.class)
+                .hasMessage("ethereum.receipts requires a transaction hash equality/IN predicate");
     }
 }

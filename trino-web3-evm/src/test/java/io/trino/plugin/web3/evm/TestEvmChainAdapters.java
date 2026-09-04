@@ -84,6 +84,8 @@ final class TestEvmChainAdapters
         assertThat(adapters).allSatisfy(adapter -> {
             assertThat(adapter.descriptor().table("blocks")).isPresent();
             assertThat(adapter.descriptor().table("transactions")).isPresent();
+            assertThat(adapter.descriptor().table("receipts")).isPresent();
+            assertThat(adapter.descriptor().table("logs")).isPresent();
             assertThat(adapter.descriptor().table("blocks").orElseThrow().column("raw_json")).isPresent();
         });
 

@@ -24,7 +24,10 @@ import io.trino.plugin.web3.adapter.EndpointIdentityProbe;
 import io.trino.plugin.web3.adapter.ExecutableChainAdapter;
 import io.trino.plugin.web3.adapter.RangeChainSplit;
 import io.trino.plugin.web3.chain.ChainDescriptor;
+import io.trino.plugin.web3.chain.ChainColumnDescriptor;
 import io.trino.plugin.web3.chain.ChainDescriptorCodec;
+import io.trino.plugin.web3.chain.ChainTableDescriptor;
+import io.trino.plugin.web3.chain.RemoteMethodDescriptor;
 import io.trino.plugin.web3.runtime.RemoteExecutionRuntime;
 import io.trino.plugin.web3.runtime.RemoteOperation;
 
@@ -44,6 +47,7 @@ public class EvmChainAdapter implements ExecutableChainAdapter
     private static final String TRANSACTIONS_TABLE = "transactions";
     private static final String BLOCK_NUMBER_COLUMN = "block_number";
     private static final String HASH_COLUMN = "hash";
+    private static final String RECEIPT_HASH_COLUMN = "transaction_hash";
 
     private final String chainName;
     private final ChainDescriptor descriptor;
@@ -54,7 +58,7 @@ public class EvmChainAdapter implements ExecutableChainAdapter
         this.chainName = requireNonNull(chainName, "chainName is null");
         requireNonNull(descriptorResource, "descriptorResource is null");
         this.expectedChainId = requireNonNull(expectedChainId, "expectedChainId is null").map(EvmChainAdapter::normalizeChainId);
-        ChainDescriptor loadedDescriptor = loadDescriptor(chainName, descriptorResource);
+        ChainDescriptor loadedDescriptor = withReceiptAndLogTables(loadDescriptor(chainName, descriptorResource));
         this.descriptor = loadedDescriptor.schemaName().equals(chainName) ? loadedDescriptor : new ChainDescriptor(
                 loadedDescriptor.apiVersion(),
                 chainName,
@@ -81,21 +85,26 @@ public class EvmChainAdapter implements ExecutableChainAdapter
         if (descriptor.table(scan.tableName()).isEmpty()) {
             throw new ChainPlanningException("unknown " + chainName + " table " + scan.tableName());
         }
-        if (scan.tableName().equals(TRANSACTIONS_TABLE) && scan.discreteValues().containsKey(HASH_COLUMN)) {
+        String hashColumn = scan.tableName().equals("receipts") ? RECEIPT_HASH_COLUMN : HASH_COLUMN;
+        if (Set.of(TRANSACTIONS_TABLE, "receipts").contains(scan.tableName()) && scan.discreteValues().containsKey(hashColumn)) {
             verifyMethod(scan, "by-hash");
-            verifyPredicateColumns(scan, Set.of(), Set.of(HASH_COLUMN));
-            List<String> hashes = scan.discreteValues().get(HASH_COLUMN);
+            verifyPredicateColumns(scan, Set.of(), Set.of(hashColumn));
+            List<String> hashes = scan.discreteValues().get(hashColumn);
             if (hashes.isEmpty()) {
-                throw new ChainPlanningException(chainName + ".transactions requires at least one transaction hash");
+                throw new ChainPlanningException(chainName + "." + scan.tableName() + " requires at least one transaction hash");
             }
             if (hashes.size() > limits.maximumDiscreteValuesPerQuery()) {
-                throw new ChainPlanningException(chainName + ".transactions hash predicate exceeds the configured query limit of " + limits.maximumDiscreteValuesPerQuery());
+                throw new ChainPlanningException(chainName + "." + scan.tableName() + " hash predicate exceeds the configured query limit of " + limits.maximumDiscreteValuesPerQuery());
             }
             return hashes.stream()
-                    .map(hash -> normalizeTransactionHash(chainName, hash))
-                    .map(hash -> new DiscreteValueChainSplit(HASH_COLUMN, hash))
+                    .map(hash -> normalizeTransactionHash(chainName, scan.tableName(), hash))
+                    .map(hash -> new DiscreteValueChainSplit(hashColumn, hash))
                     .map(ChainSplit.class::cast)
                     .toList();
+        }
+
+        if (scan.tableName().equals("receipts")) {
+            throw new ChainPlanningException(chainName + ".receipts requires a transaction hash equality/IN predicate");
         }
 
         verifyMethod(scan, "by-block-number");
@@ -131,13 +140,13 @@ public class EvmChainAdapter implements ExecutableChainAdapter
         }
     }
 
-    private static String normalizeTransactionHash(String chainName, String hash)
+    private static String normalizeTransactionHash(String chainName, String tableName, String hash)
     {
         try {
             return EthereumJson.normalizeHash(hash, "transaction hash");
         }
         catch (IllegalStateException e) {
-            throw new ChainPlanningException(chainName + ".transactions hash predicate contains an invalid transaction hash");
+            throw new ChainPlanningException(chainName + "." + tableName + " hash predicate contains an invalid transaction hash");
         }
     }
 
@@ -189,5 +198,89 @@ public class EvmChainAdapter implements ExecutableChainAdapter
             throw new IllegalStateException("built-in " + chainName + " chain descriptor is missing");
         }
         return ChainDescriptorCodec.fromJson(input);
+    }
+
+    private static ChainDescriptor withReceiptAndLogTables(ChainDescriptor descriptor)
+    {
+        List<ChainTableDescriptor> tables = new ArrayList<>(descriptor.tables());
+        if (descriptor.table("receipts").isEmpty()) {
+            tables.add(receiptsTable());
+        }
+        if (descriptor.table("logs").isEmpty()) {
+            tables.add(logsTable());
+        }
+        return new ChainDescriptor(descriptor.apiVersion(), descriptor.name(), descriptor.schemaName(), descriptor.adapterVersion() + 1, tables);
+    }
+
+    private static ChainTableDescriptor receiptsTable()
+    {
+        List<ChainColumnDescriptor> columns = List.of(
+                new ChainColumnDescriptor("transaction_hash", "varchar", false),
+                new ChainColumnDescriptor("transaction_index", "bigint", true),
+                new ChainColumnDescriptor("block_number", "bigint", true),
+                new ChainColumnDescriptor("block_hash", "varchar", true),
+                new ChainColumnDescriptor("from_address", "varchar", false),
+                new ChainColumnDescriptor("to_address", "varchar", true),
+                new ChainColumnDescriptor("contract_address", "varchar", true),
+                new ChainColumnDescriptor("cumulative_gas_used", "bigint", true),
+                new ChainColumnDescriptor("gas_used", "bigint", true),
+                new ChainColumnDescriptor("status", "bigint", true),
+                new ChainColumnDescriptor("logs_bloom", "varchar", true),
+                new ChainColumnDescriptor("raw_json", "varchar", false));
+        List<RemoteMethodDescriptor.ResponseField> fields = List.of(
+                new RemoteMethodDescriptor.ResponseField("transaction_hash", "/transactionHash", true),
+                new RemoteMethodDescriptor.ResponseField("transaction_index", "/transactionIndex", false),
+                new RemoteMethodDescriptor.ResponseField("block_number", "/blockNumber", false),
+                new RemoteMethodDescriptor.ResponseField("block_hash", "/blockHash", false),
+                new RemoteMethodDescriptor.ResponseField("from_address", "/from", true),
+                new RemoteMethodDescriptor.ResponseField("to_address", "/to", false),
+                new RemoteMethodDescriptor.ResponseField("contract_address", "/contractAddress", false),
+                new RemoteMethodDescriptor.ResponseField("cumulative_gas_used", "/cumulativeGasUsed", false),
+                new RemoteMethodDescriptor.ResponseField("gas_used", "/gasUsed", false),
+                new RemoteMethodDescriptor.ResponseField("status", "/status", false),
+                new RemoteMethodDescriptor.ResponseField("logs_bloom", "/logsBloom", false),
+                new RemoteMethodDescriptor.ResponseField("raw_json", "", true));
+        RemoteMethodDescriptor method = new RemoteMethodDescriptor(
+                "by-hash", RemoteMethodDescriptor.Protocol.JSON_RPC, "eth_getTransactionReceipt", "",
+                List.of(new RemoteMethodDescriptor.RequestBinding("0", RemoteMethodDescriptor.RequestKind.PREDICATE, "transaction_hash", RemoteMethodDescriptor.RequestLocation.PARAMETER, true)),
+                new RemoteMethodDescriptor.ResponseMapping(RemoteMethodDescriptor.Cardinality.SINGLE, "", fields));
+        return new ChainTableDescriptor("receipts", 1, columns, List.of(method));
+    }
+
+    private static ChainTableDescriptor logsTable()
+    {
+        List<ChainColumnDescriptor> columns = List.of(
+                new ChainColumnDescriptor("block_number", "bigint", false),
+                new ChainColumnDescriptor("block_hash", "varchar", true),
+                new ChainColumnDescriptor("transaction_hash", "varchar", false),
+                new ChainColumnDescriptor("transaction_index", "bigint", true),
+                new ChainColumnDescriptor("log_index", "bigint", false),
+                new ChainColumnDescriptor("address", "varchar", false),
+                new ChainColumnDescriptor("topic0", "varchar", true),
+                new ChainColumnDescriptor("topic1", "varchar", true),
+                new ChainColumnDescriptor("topic2", "varchar", true),
+                new ChainColumnDescriptor("topic3", "varchar", true),
+                new ChainColumnDescriptor("data", "varchar", false),
+                new ChainColumnDescriptor("removed", "boolean", true),
+                new ChainColumnDescriptor("raw_json", "varchar", false));
+        List<RemoteMethodDescriptor.ResponseField> fields = List.of(
+                new RemoteMethodDescriptor.ResponseField("block_number", "/blockNumber", true),
+                new RemoteMethodDescriptor.ResponseField("block_hash", "/blockHash", false),
+                new RemoteMethodDescriptor.ResponseField("transaction_hash", "/transactionHash", true),
+                new RemoteMethodDescriptor.ResponseField("transaction_index", "/transactionIndex", false),
+                new RemoteMethodDescriptor.ResponseField("log_index", "/logIndex", true),
+                new RemoteMethodDescriptor.ResponseField("address", "/address", true),
+                new RemoteMethodDescriptor.ResponseField("topic0", "/topics/0", false),
+                new RemoteMethodDescriptor.ResponseField("topic1", "/topics/1", false),
+                new RemoteMethodDescriptor.ResponseField("topic2", "/topics/2", false),
+                new RemoteMethodDescriptor.ResponseField("topic3", "/topics/3", false),
+                new RemoteMethodDescriptor.ResponseField("data", "/data", true),
+                new RemoteMethodDescriptor.ResponseField("removed", "/removed", false),
+                new RemoteMethodDescriptor.ResponseField("raw_json", "", true));
+        RemoteMethodDescriptor method = new RemoteMethodDescriptor(
+                "by-block-number", RemoteMethodDescriptor.Protocol.JSON_RPC, "eth_getLogs", "",
+                List.of(new RemoteMethodDescriptor.RequestBinding("0", RemoteMethodDescriptor.RequestKind.SPLIT, "block_number", RemoteMethodDescriptor.RequestLocation.PARAMETER, true)),
+                new RemoteMethodDescriptor.ResponseMapping(RemoteMethodDescriptor.Cardinality.ARRAY, "", fields));
+        return new ChainTableDescriptor("logs", 1, columns, List.of(method));
     }
 }

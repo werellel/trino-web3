@@ -36,7 +36,7 @@ Unbounded scans are rejected before an RPC request is scheduled.
 ## EVM
 
 Ethereum and the supported EVM networks use the same native tables:
-`blocks` and `transactions`. Each network has an independent schema, including
+`blocks`, `transactions`, `receipts`, and `logs`. Each network has an independent schema, including
 testnets such as `ethereum_sepolia` and `base_sepolia`.
 
 ### Blocks
@@ -67,6 +67,22 @@ WHERE block_number BETWEEN 23000000 AND 23000010;
 SELECT hash, block_number, from_address, to_address
 FROM web3.ethereum.transactions
 WHERE hash IN ('0xabc...', '0xdef...');
+```
+
+### Receipts by transaction hash
+
+```sql
+SELECT transaction_hash, block_number, status, gas_used, raw_json
+FROM web3.ethereum.receipts
+WHERE transaction_hash = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+```
+
+### Logs by bounded block range
+
+```sql
+SELECT block_number, transaction_hash, log_index, address, topic0, data
+FROM web3.ethereum.logs
+WHERE block_number BETWEEN 23000000 AND 23000100;
 ```
 
 ### Additional provider fields

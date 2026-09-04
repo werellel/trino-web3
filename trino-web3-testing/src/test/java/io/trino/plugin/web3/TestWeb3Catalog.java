@@ -73,18 +73,18 @@ public class TestWeb3Catalog
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.aptos").getOnlyColumn())
                     .containsExactly("events", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.ethereum").getOnlyColumn())
-                    .containsExactly("blocks", "transactions");
+                    .containsExactly("blocks", "logs", "receipts", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.base").getOnlyColumn())
-                    .containsExactly("blocks", "transactions");
+                    .containsExactly("blocks", "logs", "receipts", "transactions");
             assertThat(queryRunner.execute("SHOW TABLES FROM web3.optimism").getOnlyColumn())
-                    .containsExactly("blocks", "transactions");
+                    .containsExactly("blocks", "logs", "receipts", "transactions");
             for (String schema : List.of("gnosis", "kaia", "arc", "story", "boba", "celo", "hyperevm", "abstract", "anime", "apechain", "degen", "ink", "jovay", "crossfi", "linea", "unichain", "tempo", "robinhood", "mode")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
-                        .containsExactly("blocks", "transactions");
+                        .containsExactly("blocks", "logs", "receipts", "transactions");
             }
             for (String schema : List.of("ethereum_sepolia", "base_sepolia", "optimism_sepolia", "arbitrum_sepolia", "bnb_testnet", "polygon_amoy", "avalanche_fuji", "gnosis_chiado", "kaia_kairos", "arc_testnet", "story_aeneid", "boba_sepolia", "celo_sepolia", "hyperevm_testnet", "abstract_sepolia", "anime_testnet", "apechain_curtis", "ink_sepolia", "jovay_sepolia", "crossfi_testnet", "linea_sepolia", "unichain_sepolia", "tempo_moderato", "robinhood_testnet", "mode_sepolia")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
-                        .containsExactly("blocks", "transactions");
+                        .containsExactly("blocks", "logs", "receipts", "transactions");
             }
             for (String schema : List.of("bitcoin_testnet", "litecoin_testnet", "dogecoin_testnet", "bitcoincash_testnet")) {
                 assertThat(queryRunner.execute("SHOW TABLES FROM web3." + schema).getOnlyColumn())
