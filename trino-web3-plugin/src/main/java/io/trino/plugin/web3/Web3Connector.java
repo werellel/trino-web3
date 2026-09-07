@@ -118,9 +118,12 @@ import static java.util.Objects.requireNonNull;
 public final class Web3Connector
         implements Connector
 {
-    private static final Set<String> ADDITIONAL_REST_SCHEMAS = Set.of(
-            "cosmos_testnet", "osmosis_testnet", "injective_testnet",
-            "aptos_testnet", "tron_nile", "tron_shasta");
+    private static final Set<String> REST_SCHEMAS = Set.of(
+            "aptos", "aptos_testnet",
+            "tron", "tron_nile", "tron_shasta",
+            "cosmos", "cosmos_testnet",
+            "osmosis", "osmosis_testnet",
+            "injective", "injective_testnet");
     private final ConnectorMetadata metadata;
     private final ConnectorSplitManager splitManager;
     private final ConnectorPageSourceProvider pageSourceProvider;
@@ -350,7 +353,7 @@ public final class Web3Connector
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
             TypeManager typeManager,
-            Map<String, List<URI>> additionalEvmRpcEndpoints)
+            Map<String, List<URI>> additionalEndpoints)
     {
         this(
                 maximumBlocksPerSplit,
@@ -382,7 +385,76 @@ public final class Web3Connector
                 createComponents(
                         maximumTransactionHashesPerQuery,
                         requireNonNull(typeManager, "typeManager is null")::fromSqlType),
-                additionalEvmRpcEndpoints);
+                additionalEndpoints);
+    }
+
+    Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            Map<String, List<URI>> endpointsBySchema,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            TypeManager typeManager)
+    {
+        this(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                endpointsBySchema,
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                createComponents(
+                        maximumTransactionHashesPerQuery,
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+    }
+
+    private Web3Connector(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            Map<String, List<URI>> endpointsBySchema,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            ConnectorComponents components)
+    {
+        requireNonNull(components, "components is null");
+        requireNonNull(endpointsBySchema, "endpointsBySchema is null");
+        metadata = components.metadata();
+        splitManager = new Web3SplitManager(
+                maximumBlocksPerSplit,
+                maximumBlocksPerQuery,
+                maximumTransactionHashesPerQuery,
+                components.adapters());
+        HttpClient httpClient = HttpClient.newHttpClient();
+        Map<String, RemoteExecutionRuntime> configuredRuntimes = new LinkedHashMap<>();
+        try {
+            endpointsBySchema.forEach((schemaName, endpoints) -> {
+                if (!endpoints.isEmpty()) {
+                    RemoteExecutionRuntime runtime = REST_SCHEMAS.contains(schemaName)
+                            ? createRestRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig)
+                            : createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig);
+                    configuredRuntimes.put(schemaName, runtime);
+                }
+            });
+            verifyEndpointIdentities(components.adapters(), configuredRuntimes);
+            runtimes = Map.copyOf(configuredRuntimes);
+            pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
+            systemTables = Web3SystemTables.create(components.adapters(), runtimes);
+        }
+        catch (RuntimeException e) {
+            configuredRuntimes.values().forEach(RemoteExecutionRuntime::close);
+            throw e;
+        }
     }
 
     private Web3Connector(
@@ -413,150 +485,82 @@ public final class Web3Connector
             ExecutionPolicy executionPolicy,
             RemoteCacheConfig cacheConfig,
             ConnectorComponents components,
-            Map<String, List<URI>> additionalEvmRpcEndpoints)
+            Map<String, List<URI>> additionalEndpoints)
     {
-        requireNonNull(components, "components is null");
-        requireNonNull(additionalEvmRpcEndpoints, "additionalEvmRpcEndpoints is null");
-        metadata = components.metadata();
-        splitManager = new Web3SplitManager(
+        this(
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
-                components.adapters());
-        HttpClient httpClient = HttpClient.newHttpClient();
-        Map<String, RemoteExecutionRuntime> configuredRuntimes = new LinkedHashMap<>();
-        try {
-            if (!ethereumRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("ethereum", createJsonRpcRuntime(
-                        httpClient,
+                maximumRequestBytes,
+                maximumResponseBytes,
+                endpointMap(
                         ethereumRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!baseRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("base", createJsonRpcRuntime(httpClient, baseRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!optimismRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("optimism", createJsonRpcRuntime(httpClient, optimismRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!arbitrumRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("arbitrum", createJsonRpcRuntime(httpClient, arbitrumRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!bnbRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("bnb", createJsonRpcRuntime(httpClient, bnbRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!polygonRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("polygon", createJsonRpcRuntime(httpClient, polygonRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!avalancheRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("avalanche", createJsonRpcRuntime(httpClient, avalancheRpcEndpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-            }
-            if (!solanaRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("solana", createJsonRpcRuntime(
-                        httpClient,
+                        baseRpcEndpoints,
+                        optimismRpcEndpoints,
+                        arbitrumRpcEndpoints,
+                        bnbRpcEndpoints,
+                        polygonRpcEndpoints,
+                        avalancheRpcEndpoints,
                         solanaRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!aptosRestEndpoints.isEmpty()) {
-                configuredRuntimes.put("aptos", createRestRuntime(
-                        httpClient,
                         aptosRestEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!tronApiEndpoints.isEmpty()) {
-                configuredRuntimes.put("tron", createRestRuntime(
-                        httpClient,
                         tronApiEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!suiRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("sui", createJsonRpcRuntime(
-                        httpClient,
                         suiRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!cosmosRestEndpoints.isEmpty()) {
-                configuredRuntimes.put("cosmos", createRestRuntime(httpClient, cosmosRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
-            }
-            if (!osmosisRestEndpoints.isEmpty()) {
-                configuredRuntimes.put("osmosis", createRestRuntime(httpClient, osmosisRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
-            }
-            if (!injectiveRestEndpoints.isEmpty()) {
-                configuredRuntimes.put("injective", createRestRuntime(httpClient, injectiveRestEndpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig));
-            }
-            additionalEvmRpcEndpoints.forEach((schemaName, endpoints) -> {
-                if (!endpoints.isEmpty()) {
-                    configuredRuntimes.put(schemaName, ADDITIONAL_REST_SCHEMAS.contains(schemaName)
-                            ? createRestRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig)
-                            : createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig));
-                }
-            });
-            if (!bitcoinRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("bitcoin", createJsonRpcRuntime(
-                        httpClient,
+                        cosmosRestEndpoints,
+                        osmosisRestEndpoints,
+                        injectiveRestEndpoints,
                         bitcoinRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!litecoinRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("litecoin", createJsonRpcRuntime(
-                        httpClient,
                         litecoinRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!dogecoinRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("dogecoin", createJsonRpcRuntime(
-                        httpClient,
                         dogecoinRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            if (!bitcoinCashRpcEndpoints.isEmpty()) {
-                configuredRuntimes.put("bitcoincash", createJsonRpcRuntime(
-                        httpClient,
                         bitcoinCashRpcEndpoints,
-                        maximumRequestBytes,
-                        maximumResponseBytes,
-                        jsonRpcBatchEnabled,
-                        executionPolicy,
-                        cacheConfig));
-            }
-            verifyEndpointIdentities(components.adapters(), configuredRuntimes);
-            runtimes = Map.copyOf(configuredRuntimes);
-            pageSourceProvider = Web3PageSourceProvider.forRuntimes(components.adapters(), runtimes, components.typeResolver());
-            systemTables = Web3SystemTables.create(components.adapters(), runtimes);
-        }
-        catch (RuntimeException e) {
-            configuredRuntimes.values().forEach(RemoteExecutionRuntime::close);
-            throw e;
-        }
+                        additionalEndpoints),
+                jsonRpcBatchEnabled,
+                executionPolicy,
+                cacheConfig,
+                components);
+    }
+
+    private static Map<String, List<URI>> endpointMap(
+            List<URI> ethereumRpcEndpoints,
+            List<URI> baseRpcEndpoints,
+            List<URI> optimismRpcEndpoints,
+            List<URI> arbitrumRpcEndpoints,
+            List<URI> bnbRpcEndpoints,
+            List<URI> polygonRpcEndpoints,
+            List<URI> avalancheRpcEndpoints,
+            List<URI> solanaRpcEndpoints,
+            List<URI> aptosRestEndpoints,
+            List<URI> tronApiEndpoints,
+            List<URI> suiRpcEndpoints,
+            List<URI> cosmosRestEndpoints,
+            List<URI> osmosisRestEndpoints,
+            List<URI> injectiveRestEndpoints,
+            List<URI> bitcoinRpcEndpoints,
+            List<URI> litecoinRpcEndpoints,
+            List<URI> dogecoinRpcEndpoints,
+            List<URI> bitcoinCashRpcEndpoints,
+            Map<String, List<URI>> additionalEndpoints)
+    {
+        Map<String, List<URI>> endpoints = new LinkedHashMap<>();
+        endpoints.put("ethereum", ethereumRpcEndpoints);
+        endpoints.put("base", baseRpcEndpoints);
+        endpoints.put("optimism", optimismRpcEndpoints);
+        endpoints.put("arbitrum", arbitrumRpcEndpoints);
+        endpoints.put("bnb", bnbRpcEndpoints);
+        endpoints.put("polygon", polygonRpcEndpoints);
+        endpoints.put("avalanche", avalancheRpcEndpoints);
+        endpoints.put("solana", solanaRpcEndpoints);
+        endpoints.put("aptos", aptosRestEndpoints);
+        endpoints.put("tron", tronApiEndpoints);
+        endpoints.put("sui", suiRpcEndpoints);
+        endpoints.put("cosmos", cosmosRestEndpoints);
+        endpoints.put("osmosis", osmosisRestEndpoints);
+        endpoints.put("injective", injectiveRestEndpoints);
+        endpoints.put("bitcoin", bitcoinRpcEndpoints);
+        endpoints.put("litecoin", litecoinRpcEndpoints);
+        endpoints.put("dogecoin", dogecoinRpcEndpoints);
+        endpoints.put("bitcoincash", bitcoinCashRpcEndpoints);
+        endpoints.putAll(additionalEndpoints);
+        return Map.copyOf(endpoints);
     }
 
     private static RemoteExecutionRuntime createJsonRpcRuntime(
