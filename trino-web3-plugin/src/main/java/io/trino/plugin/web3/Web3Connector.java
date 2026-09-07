@@ -102,6 +102,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.transaction.IsolationLevel;
+import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 
 import java.net.URI;
@@ -130,262 +131,19 @@ public final class Web3Connector
     private final Map<String, RemoteExecutionRuntime> runtimes;
     private final Set<SystemTable> systemTables;
 
-    private static List<URI> emptyEndpoints()
-    {
-        return List.of();
-    }
-
     public Web3Connector()
     {
-        this(
+        this(new ConnectorConfiguration(
                 100,
                 10_000,
                 1_000,
                 1_048_576,
                 16 * 1_048_576,
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
+                Map.of(),
                 true,
                 ExecutionPolicy.defaults(),
                 RemoteCacheConfig.disabled(),
-                createComponents(1_000, Web3Metadata::resolveBuiltInType),
-                Map.of());
-    }
-
-    public Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            List<URI> ethereumRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            TypeManager typeManager)
-    {
-        this(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
-                maximumRequestBytes,
-                maximumResponseBytes,
-                ethereumRpcEndpoints,
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                solanaRpcEndpoints,
-                aptosRestEndpoints,
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                jsonRpcBatchEnabled,
-                executionPolicy,
-                cacheConfig,
-                typeManager);
-    }
-
-    public Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            List<URI> ethereumRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            List<URI> bitcoinRpcEndpoints,
-            List<URI> litecoinRpcEndpoints,
-            List<URI> dogecoinRpcEndpoints,
-            List<URI> bitcoinCashRpcEndpoints,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            TypeManager typeManager)
-    {
-        this(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
-                maximumRequestBytes,
-                maximumResponseBytes,
-                ethereumRpcEndpoints,
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                solanaRpcEndpoints,
-                aptosRestEndpoints,
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                emptyEndpoints(),
-                bitcoinRpcEndpoints,
-                litecoinRpcEndpoints,
-                dogecoinRpcEndpoints,
-                bitcoinCashRpcEndpoints,
-                jsonRpcBatchEnabled,
-                executionPolicy,
-                cacheConfig,
-                createComponents(
-                        maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
-                Map.of());
-    }
-
-    public Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            List<URI> ethereumRpcEndpoints,
-            List<URI> baseRpcEndpoints,
-            List<URI> optimismRpcEndpoints,
-            List<URI> arbitrumRpcEndpoints,
-            List<URI> bnbRpcEndpoints,
-            List<URI> polygonRpcEndpoints,
-            List<URI> avalancheRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            List<URI> tronApiEndpoints,
-            List<URI> suiRpcEndpoints,
-            List<URI> cosmosRestEndpoints,
-            List<URI> osmosisRestEndpoints,
-            List<URI> injectiveRestEndpoints,
-            List<URI> bitcoinRpcEndpoints,
-            List<URI> litecoinRpcEndpoints,
-            List<URI> dogecoinRpcEndpoints,
-            List<URI> bitcoinCashRpcEndpoints,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            TypeManager typeManager)
-    {
-        this(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
-                maximumRequestBytes,
-                maximumResponseBytes,
-                ethereumRpcEndpoints,
-                baseRpcEndpoints,
-                optimismRpcEndpoints,
-                arbitrumRpcEndpoints,
-                bnbRpcEndpoints,
-                polygonRpcEndpoints,
-                avalancheRpcEndpoints,
-                solanaRpcEndpoints,
-                aptosRestEndpoints,
-                tronApiEndpoints,
-                suiRpcEndpoints,
-                cosmosRestEndpoints,
-                osmosisRestEndpoints,
-                injectiveRestEndpoints,
-                bitcoinRpcEndpoints,
-                litecoinRpcEndpoints,
-                dogecoinRpcEndpoints,
-                bitcoinCashRpcEndpoints,
-                jsonRpcBatchEnabled,
-                executionPolicy,
-                cacheConfig,
-                createComponents(
-                        maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
-                Map.of());
-    }
-
-    public Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            List<URI> ethereumRpcEndpoints,
-            List<URI> baseRpcEndpoints,
-            List<URI> optimismRpcEndpoints,
-            List<URI> arbitrumRpcEndpoints,
-            List<URI> bnbRpcEndpoints,
-            List<URI> polygonRpcEndpoints,
-            List<URI> avalancheRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            List<URI> tronApiEndpoints,
-            List<URI> suiRpcEndpoints,
-            List<URI> cosmosRestEndpoints,
-            List<URI> osmosisRestEndpoints,
-            List<URI> injectiveRestEndpoints,
-            List<URI> bitcoinRpcEndpoints,
-            List<URI> litecoinRpcEndpoints,
-            List<URI> dogecoinRpcEndpoints,
-            List<URI> bitcoinCashRpcEndpoints,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            TypeManager typeManager,
-            Map<String, List<URI>> additionalEndpoints)
-    {
-        this(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
-                maximumRequestBytes,
-                maximumResponseBytes,
-                ethereumRpcEndpoints,
-                baseRpcEndpoints,
-                optimismRpcEndpoints,
-                arbitrumRpcEndpoints,
-                bnbRpcEndpoints,
-                polygonRpcEndpoints,
-                avalancheRpcEndpoints,
-                solanaRpcEndpoints,
-                aptosRestEndpoints,
-                tronApiEndpoints,
-                suiRpcEndpoints,
-                cosmosRestEndpoints,
-                osmosisRestEndpoints,
-                injectiveRestEndpoints,
-                bitcoinRpcEndpoints,
-                litecoinRpcEndpoints,
-                dogecoinRpcEndpoints,
-                bitcoinCashRpcEndpoints,
-                jsonRpcBatchEnabled,
-                executionPolicy,
-                cacheConfig,
-                createComponents(
-                        maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType),
-                additionalEndpoints);
+                createComponents(1_000, Web3Metadata::resolveBuiltInType)));
     }
 
     Web3Connector(
@@ -400,7 +158,7 @@ public final class Web3Connector
             RemoteCacheConfig cacheConfig,
             TypeManager typeManager)
     {
-        this(
+        this(new ConnectorConfiguration(
                 maximumBlocksPerSplit,
                 maximumBlocksPerQuery,
                 maximumTransactionHashesPerQuery,
@@ -412,37 +170,27 @@ public final class Web3Connector
                 cacheConfig,
                 createComponents(
                         maximumTransactionHashesPerQuery,
-                        requireNonNull(typeManager, "typeManager is null")::fromSqlType));
+                        requireNonNull(typeManager, "typeManager is null")::fromSqlType)));
     }
 
-    private Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            Map<String, List<URI>> endpointsBySchema,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            ConnectorComponents components)
+    private Web3Connector(ConnectorConfiguration configuration)
     {
-        requireNonNull(components, "components is null");
-        requireNonNull(endpointsBySchema, "endpointsBySchema is null");
+        requireNonNull(configuration, "configuration is null");
+        ConnectorComponents components = configuration.components();
         metadata = components.metadata();
         splitManager = new Web3SplitManager(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
+                configuration.maximumBlocksPerSplit(),
+                configuration.maximumBlocksPerQuery(),
+                configuration.maximumTransactionHashesPerQuery(),
                 components.adapters());
         HttpClient httpClient = HttpClient.newHttpClient();
         Map<String, RemoteExecutionRuntime> configuredRuntimes = new LinkedHashMap<>();
         try {
-            endpointsBySchema.forEach((schemaName, endpoints) -> {
+            configuration.endpointsBySchema().forEach((schemaName, endpoints) -> {
                 if (!endpoints.isEmpty()) {
                     RemoteExecutionRuntime runtime = REST_SCHEMAS.contains(schemaName)
-                            ? createRestRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, executionPolicy, cacheConfig)
-                            : createJsonRpcRuntime(httpClient, endpoints, maximumRequestBytes, maximumResponseBytes, jsonRpcBatchEnabled, executionPolicy, cacheConfig);
+                            ? createRestRuntime(httpClient, endpoints, configuration.maximumRequestBytes(), configuration.maximumResponseBytes(), configuration.executionPolicy(), configuration.cacheConfig())
+                            : createJsonRpcRuntime(httpClient, endpoints, configuration.maximumRequestBytes(), configuration.maximumResponseBytes(), configuration.jsonRpcBatchEnabled(), configuration.executionPolicy(), configuration.cacheConfig());
                     configuredRuntimes.put(schemaName, runtime);
                 }
             });
@@ -455,112 +203,6 @@ public final class Web3Connector
             configuredRuntimes.values().forEach(RemoteExecutionRuntime::close);
             throw e;
         }
-    }
-
-    private Web3Connector(
-            long maximumBlocksPerSplit,
-            long maximumBlocksPerQuery,
-            int maximumTransactionHashesPerQuery,
-            int maximumRequestBytes,
-            int maximumResponseBytes,
-            List<URI> ethereumRpcEndpoints,
-            List<URI> baseRpcEndpoints,
-            List<URI> optimismRpcEndpoints,
-            List<URI> arbitrumRpcEndpoints,
-            List<URI> bnbRpcEndpoints,
-            List<URI> polygonRpcEndpoints,
-            List<URI> avalancheRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            List<URI> tronApiEndpoints,
-            List<URI> suiRpcEndpoints,
-            List<URI> cosmosRestEndpoints,
-            List<URI> osmosisRestEndpoints,
-            List<URI> injectiveRestEndpoints,
-            List<URI> bitcoinRpcEndpoints,
-            List<URI> litecoinRpcEndpoints,
-            List<URI> dogecoinRpcEndpoints,
-            List<URI> bitcoinCashRpcEndpoints,
-            boolean jsonRpcBatchEnabled,
-            ExecutionPolicy executionPolicy,
-            RemoteCacheConfig cacheConfig,
-            ConnectorComponents components,
-            Map<String, List<URI>> additionalEndpoints)
-    {
-        this(
-                maximumBlocksPerSplit,
-                maximumBlocksPerQuery,
-                maximumTransactionHashesPerQuery,
-                maximumRequestBytes,
-                maximumResponseBytes,
-                endpointMap(
-                        ethereumRpcEndpoints,
-                        baseRpcEndpoints,
-                        optimismRpcEndpoints,
-                        arbitrumRpcEndpoints,
-                        bnbRpcEndpoints,
-                        polygonRpcEndpoints,
-                        avalancheRpcEndpoints,
-                        solanaRpcEndpoints,
-                        aptosRestEndpoints,
-                        tronApiEndpoints,
-                        suiRpcEndpoints,
-                        cosmosRestEndpoints,
-                        osmosisRestEndpoints,
-                        injectiveRestEndpoints,
-                        bitcoinRpcEndpoints,
-                        litecoinRpcEndpoints,
-                        dogecoinRpcEndpoints,
-                        bitcoinCashRpcEndpoints,
-                        additionalEndpoints),
-                jsonRpcBatchEnabled,
-                executionPolicy,
-                cacheConfig,
-                components);
-    }
-
-    private static Map<String, List<URI>> endpointMap(
-            List<URI> ethereumRpcEndpoints,
-            List<URI> baseRpcEndpoints,
-            List<URI> optimismRpcEndpoints,
-            List<URI> arbitrumRpcEndpoints,
-            List<URI> bnbRpcEndpoints,
-            List<URI> polygonRpcEndpoints,
-            List<URI> avalancheRpcEndpoints,
-            List<URI> solanaRpcEndpoints,
-            List<URI> aptosRestEndpoints,
-            List<URI> tronApiEndpoints,
-            List<URI> suiRpcEndpoints,
-            List<URI> cosmosRestEndpoints,
-            List<URI> osmosisRestEndpoints,
-            List<URI> injectiveRestEndpoints,
-            List<URI> bitcoinRpcEndpoints,
-            List<URI> litecoinRpcEndpoints,
-            List<URI> dogecoinRpcEndpoints,
-            List<URI> bitcoinCashRpcEndpoints,
-            Map<String, List<URI>> additionalEndpoints)
-    {
-        Map<String, List<URI>> endpoints = new LinkedHashMap<>();
-        endpoints.put("ethereum", ethereumRpcEndpoints);
-        endpoints.put("base", baseRpcEndpoints);
-        endpoints.put("optimism", optimismRpcEndpoints);
-        endpoints.put("arbitrum", arbitrumRpcEndpoints);
-        endpoints.put("bnb", bnbRpcEndpoints);
-        endpoints.put("polygon", polygonRpcEndpoints);
-        endpoints.put("avalanche", avalancheRpcEndpoints);
-        endpoints.put("solana", solanaRpcEndpoints);
-        endpoints.put("aptos", aptosRestEndpoints);
-        endpoints.put("tron", tronApiEndpoints);
-        endpoints.put("sui", suiRpcEndpoints);
-        endpoints.put("cosmos", cosmosRestEndpoints);
-        endpoints.put("osmosis", osmosisRestEndpoints);
-        endpoints.put("injective", injectiveRestEndpoints);
-        endpoints.put("bitcoin", bitcoinRpcEndpoints);
-        endpoints.put("litecoin", litecoinRpcEndpoints);
-        endpoints.put("dogecoin", dogecoinRpcEndpoints);
-        endpoints.put("bitcoincash", bitcoinCashRpcEndpoints);
-        endpoints.putAll(additionalEndpoints);
-        return Map.copyOf(endpoints);
     }
 
     private static RemoteExecutionRuntime createJsonRpcRuntime(
@@ -620,9 +262,18 @@ public final class Web3Connector
         });
     }
 
-    private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, io.trino.spi.type.Type> typeResolver)
+    private static ConnectorComponents createComponents(int maximumTransactionHashesPerQuery, Function<String, Type> typeResolver)
     {
-        ExecutableChainRegistry adapters = ExecutableChainRegistry.of(
+        ExecutableChainRegistry adapters = createAdapters();
+        return new ConnectorComponents(
+                adapters,
+                new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),
+                typeResolver);
+    }
+
+    private static ExecutableChainRegistry createAdapters()
+    {
+        return ExecutableChainRegistry.of(
                 new EthereumChainAdapter(),
                 new BaseChainAdapter(),
                 new OptimismChainAdapter(),
@@ -697,10 +348,6 @@ public final class Web3Connector
                 new DogecoinTestnetChainAdapter(),
                 new BitcoinCashChainAdapter(),
                 new BitcoinCashTestnetChainAdapter());
-        return new ConnectorComponents(
-                adapters,
-                new Web3Metadata(maximumTransactionHashesPerQuery, adapters.descriptors(), typeResolver),
-                typeResolver);
     }
 
     @Override
@@ -742,10 +389,42 @@ public final class Web3Connector
         runtimes.values().forEach(RemoteExecutionRuntime::close);
     }
 
+    /** Immutable parameter object shared by every connector construction path. */
+    private record ConnectorConfiguration(
+            long maximumBlocksPerSplit,
+            long maximumBlocksPerQuery,
+            int maximumTransactionHashesPerQuery,
+            int maximumRequestBytes,
+            int maximumResponseBytes,
+            Map<String, List<URI>> endpointsBySchema,
+            boolean jsonRpcBatchEnabled,
+            ExecutionPolicy executionPolicy,
+            RemoteCacheConfig cacheConfig,
+            ConnectorComponents components)
+    {
+        private ConnectorConfiguration
+        {
+            endpointsBySchema = copyEndpoints(endpointsBySchema);
+            requireNonNull(executionPolicy, "executionPolicy is null");
+            requireNonNull(cacheConfig, "cacheConfig is null");
+            requireNonNull(components, "components is null");
+        }
+    }
+
+    private static Map<String, List<URI>> copyEndpoints(Map<String, List<URI>> endpointsBySchema)
+    {
+        requireNonNull(endpointsBySchema, "endpointsBySchema is null");
+        Map<String, List<URI>> copiedEndpoints = new LinkedHashMap<>();
+        endpointsBySchema.forEach((schemaName, endpoints) -> copiedEndpoints.put(
+                requireNonNull(schemaName, "schemaName is null"),
+                List.copyOf(requireNonNull(endpoints, "endpoints is null"))));
+        return Map.copyOf(copiedEndpoints);
+    }
+
     private record ConnectorComponents(
             ExecutableChainRegistry adapters,
             ConnectorMetadata metadata,
-            Function<String, io.trino.spi.type.Type> typeResolver)
+            Function<String, Type> typeResolver)
     {
         private ConnectorComponents
         {
