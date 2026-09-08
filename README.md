@@ -1,8 +1,40 @@
-# trino-web3
+# trino-web3: Web3SQL for blockchain data
 
-`trino-web3` is a Trino 475 connector for querying remote blockchain data as
-native Trino schemas and tables. Each chain family keeps its own data model;
-non-EVM chains are not forced into an Ethereum-shaped schema.
+`trino-web3` is Web3SQL: a Trino connector that lets you query blockchain data
+directly from node endpoints as native SQL relations, without requiring a
+separate indexing and ETL pipeline first. Each chain family keeps its own data
+model; non-EVM chains are not forced into an Ethereum-shaped schema.
+
+## Project purpose
+
+Blockchain analytics commonly starts with an indexing pipeline. A collector
+reads from a node, publishes records through a broker such as Kafka, and a
+consumer deduplicates and writes them to an open table format such as Iceberg
+or Delta Lake. That pipeline can be useful for materialized workloads, but it
+also introduces extra applications, storage hops, replay logic, and places
+where freshness or data consistency can be lost.
+
+`trino-web3` takes a different default path:
+
+```text
+blockchain node → trino-web3 → Trino SQL → analysis
+                                      └→ INSERT/CTAS into Iceberg or another Trino sink
+```
+
+The connector maps bounded SQL scans to native node RPC or REST operations.
+This removes the need to build and operate a mandatory pre-indexer just to
+make the data queryable, keeps reads close to the source of truth, and makes
+the transformation logic visible as declarative SQL. When a persistent copy
+is useful, the same query can materialize results through any storage system
+supported by Trino.
+
+The goal is not to claim that nodes or providers can never be inconsistent;
+finality, reorgs, provider behavior, and bounded-read limits still matter.
+Instead, the project minimizes avoidable application-level hops and lets users
+inspect, transform, and load supported blockchain data end to end without
+custom ingestion code. Chain-aware SQL functions—including hexadecimal,
+Base58, and 256-bit integer operations—make common blockchain transformations
+available inside Trino.
 
 ## What it provides
 
