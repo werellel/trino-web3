@@ -20,7 +20,10 @@ Before tagging:
 2. Run `mvn clean verify` with Java 23 and Maven 3.9 or newer.
 3. Confirm no credentials, private endpoints, or generated target files are
    staged.
-4. Confirm the tag is `vMAJOR.MINOR.PATCH` and points at the intended commit.
+4. Review [`docs/CHAIN_SUPPORT.md`](CHAIN_SUPPORT.md). Do not describe a
+   schema as endpoint-verified unless its immutable probe record includes the
+   expected identity, chain-specific smoke result, and UTC timestamp.
+5. Confirm the tag is `vMAJOR.MINOR.PATCH` and points at the intended commit.
 
 The GitHub release workflow repeats the full verification, builds the plugin
 distribution, and attaches `trino-web3-plugin-<version>-plugin.zip`. It uses

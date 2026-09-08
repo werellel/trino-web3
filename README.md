@@ -83,7 +83,9 @@ Native non-EVM schemas are also available:
 The exact table columns and protocol contracts are documented in
 [`docs/CHAIN_MODEL.md`](docs/CHAIN_MODEL.md). Endpoint properties are
 independent per schema, so a mainnet endpoint cannot accidentally serve a
-testnet schema.
+testnet schema. See the [chain support and endpoint verification matrix](docs/CHAIN_SUPPORT.md)
+for the distinction between registered adapters, configured endpoints, and
+live-verified networks.
 
 ## Architecture
 
